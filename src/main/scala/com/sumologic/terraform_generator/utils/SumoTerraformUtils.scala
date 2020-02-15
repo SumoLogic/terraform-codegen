@@ -116,7 +116,6 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
 
   // TODO we need a query param version of this as well
   def pathParamsToPrintfFormat(path: String, pathParamList: List[SumoSwaggerParameter]): (String, String) = {
-    // maybePrint(s" pathParamsToPrintfFormat called with $path and $pathParamList")
     if (pathParamList.isEmpty) {
       (path, "")
     } else {
@@ -368,7 +367,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     }
   }
 
-  def processOperation(openApi: OpenAPI, baseType: String, operation: Operation, pathName: String, method: HttpMethod): SumoSwaggerEndpoint = {
+  def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod): SumoSwaggerEndpoint = {
     val operationPath = s"#${method.toString} => $pathName"
     maybePrint(s"OPERATION $operationPath " + operation.getOperationId)
 
@@ -383,17 +382,17 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
           processQueryParameter(openApi, queryParam)
         case _ =>
           if (param.getIn == null && param.getContent != null) {
-            processBodyParameter(openApi, _)
+            processBodyParameter(openApi, param)
           }
           freakOut("WTF??????WTF??????WTF??????WTF?????? => " + param)
           throw new RuntimeException("This should not happen in processOperation ")
       }
     }.toList
 
-    SumoSwaggerEndpoint(baseType, operation.getOperationId, pathName, method.name(), params, responses)
+    SumoSwaggerEndpoint(operation.getOperationId, pathName, method.name(), params, responses)
   }
 
-  def processPath(openApi: OpenAPI, baseType: String, path: PathItem, pathName: String):
+  def processPath(openApi: OpenAPI, path: PathItem, pathName: String):
   List[SumoSwaggerEndpoint] = {
     val operationMap = Map(
       HttpMethod.GET -> path.getGet,
@@ -408,13 +407,11 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
 
     filteredOps.map {
       case (method: HttpMethod, operation: Operation) =>
-        processOperation(openApi, baseType, operation, pathName, method)
+        processOperation(openApi, operation, pathName, method)
     }.toList
   }
 
   def processClass(openApi: OpenAPI, baseType: String): SumoSwaggerTemplate = {
-    // SumoSwaggerTemplate(sumoSwaggerClassName: String, supportedEndpoints: List[SumoSwaggerEndpoint])
-
     val filteredPaths = openApi.getPaths.asScala.filter {
       case (pathName: String, path: PathItem) =>
         val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
@@ -439,10 +436,61 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     freakOut(s"THOMASKAO FILTEREDPATHS: ${filteredPaths.map(_._1).toList.toString()}")
 
     val endpoints = filteredPaths.flatMap {
-      case (pathName: String, path: PathItem) => processPath(openApi, baseType, path, pathName)
+      case (pathName: String, path: PathItem) => processPath(openApi, path, pathName)
     }.toList
 
     SumoSwaggerTemplate(baseType, endpoints)
+  }
+
+  def processAllClasses(openApi: OpenAPI): List[(SumoSwaggerTemplate, String)] = {
+    val filteredPaths = openApi.getPaths.asScala.filter {
+      case (pathName: String, path: PathItem) =>
+        val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
+          path.getPost.getExtensions.asScala.toList
+        } else List.empty[(String, AnyRef)]
+        val getExtensions = if (path.getGet != null && path.getGet.getExtensions != null) {
+          path.getGet.getExtensions.asScala.toList
+        } else List.empty[(String, AnyRef)]
+        val putExtensions = if (path.getPut != null && path.getPut.getExtensions != null) {
+          path.getPut.getExtensions.asScala.toList
+        } else List.empty[(String, AnyRef)]
+        val deleteExtensions = if (path.getDelete != null && path.getDelete.getExtensions != null) {
+          path.getDelete.getExtensions.asScala.toList
+        } else List.empty[(String, AnyRef)]
+        val vendorExtensions = postExtensions ++ getExtensions ++ putExtensions ++ deleteExtensions
+
+        (!vendorExtensions.isEmpty)
+    }.map {
+      case (pathName: String, path: PathItem) =>
+        if (path.getPost != null) {
+          (pathName, path, path.getPost.getTags.asScala.head)
+        } else if (path.getGet != null) {
+          (pathName, path, path.getGet.getTags.asScala.head)
+        } else if (path.getPut != null) {
+          (pathName, path, path.getPut.getTags.asScala.head)
+        } else if (path.getDelete != null) {
+          (pathName, path, path.getDelete.getTags.asScala.head)
+        } else {
+          (pathName, path, "noTag")
+        }
+    }
+    filteredPaths.groupBy(_._3).map {
+      case (tag: String, paths: List[(String, PathItem, String)]) =>
+        val endpoints = paths.map {
+          path: (String, PathItem, String) => processPath(openApi, path._2, path._1)
+        }.flatten
+        val baseType = endpoints.map {
+          endpoint => endpoint.responses.map {
+            response =>
+              if (response.respTypeOpt.isDefined) {
+                response.respTypeOpt.get.name
+              } else {
+                null
+              }
+          }
+        }.flatten.toSet
+        (SumoSwaggerTemplate(baseType.head, endpoints), baseType.head)
+    }.toList
   }
 
   def seperatorLine(title: String = ""): String = {
