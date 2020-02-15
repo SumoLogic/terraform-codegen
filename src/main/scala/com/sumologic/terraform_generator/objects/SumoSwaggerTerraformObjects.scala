@@ -161,8 +161,7 @@ case class SumoSwaggerParameter(paramType: String, param: SumoSwaggerObject) ext
   }
 }
 
-case class SumoSwaggerEndpoint(baseType: String,
-                               endpointName: String,
+case class SumoSwaggerEndpoint(endpointName: String,
                                path: String,
                                httpMethod: String,
                                parameters: List[SumoSwaggerParameter],
