@@ -11,12 +11,13 @@ object SumoSwaggerSupportedOperations {
   final val UPDATE = "update"
   final val DELETE = "delete"
   final val LIST = "list"
+  final val EXISTS = "exists"
 
-  val crud = List(CREATE, GET, UPDATE, DELETE, LIST)
+  val crud = List(CREATE, GET, UPDATE, DELETE, EXISTS)
 }
 
 // scalastyle:off
-abstract class SumoTerraformEntity {
+abstract class SumoTerraformEntity extends TerraformGeneratorHelper {
   def indent = "    "
   def terraformify(): String = ""
 }
@@ -59,13 +60,15 @@ abstract sealed class SumoSwaggerObject(name: String,
     }
 
     val elementType = if (this.isInstanceOf[SumoSwaggerObjectArray]) {
-      s"Elem:  &schema.Schema{Type: ${SumoTerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)}},\n"
+      s"""Elem:  &schema.Schema{
+         |            Type: ${SumoTerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)},
+         |           },""".stripMargin
     } else {
       ""
     }
     val noCamelCaseName = removeCamelCase(name)
     //s""""$name": {\n  Type: $schemaType,\n  $requiredTxt,\n  $specifics\n}"""
-    "\"" + noCamelCaseName + "\"" + s": {\n  Type: $schemaType,\n  $requiredTxt,\n  $specifics,\n  $elementType}"
+    "\"" + noCamelCaseName + "\"" + s": {\n           Type: $schemaType,\n          $requiredTxt,\n           $specifics,\n           $elementType\n         }"
   }
 }
 
@@ -75,12 +78,16 @@ case class SumoSwaggerObjectSingle(name: String,
                                    defaultOpt: Option[AnyRef]) extends
   SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef]) {
   override def terraformify(): String = {
-    val req = if (required) {
+    val req = if (required && name.toLowerCase != "id") {
       ""
     } else {
       ",omitempty"
     }
-    s"${name.capitalize} ${objType.name} " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
+    if (name.toLowerCase == "id") {
+      s"${name.toUpperCase} ${objType.name} " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
+    } else {
+      s"${name.capitalize} ${objType.name} " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
+    }
   }
 
   def getAsTerraformFunctionArgument(): String = {
@@ -173,21 +180,44 @@ case class SumoSwaggerEndpoint(endpointName: String,
     respBodyTypeOpt match {
       case Some(respType) =>
         val returnHandlingPart =
-          """if err != nil {
-            |      return nil, err
-            |    }
-            |
-            |    err = json.Unmarshal(responseBody, &response)
-            |
-            |    if err != nil {
-            |        return nil, err
-            |    }
-            |
-            |    return &response, nil""".stripMargin
+          this.httpMethod.toLowerCase match {
+            case "get" =>
+              s"""
+                |    err = json.Unmarshal(data, &${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)})
+                |
+                |    if err != nil {
+                |        return nil, err
+                |    }
+                |
+                |    return &${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)}, nil""".stripMargin
+            case "post" =>
+              s"""
+                |    err = json.Unmarshal(data, &created${respType.name})
+                |    if err != nil {
+                |        return "", err
+                |    }
+                |
+                |    return created${respType.name}.ID, nil""".stripMargin
+            case "put" =>
+              s"""
+                |    ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)}.ID = ""
+                |
+                |    _, err := s.Put(url, ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)})
+                |    return err""".stripMargin
+            case "delete" =>
+              """
+                |return err""".stripMargin
+            case _ =>
+              ""
+          }
         if (httpMethod.toLowerCase == "get") {
-          ResponseProps(s"(*${respType.name}, error)", "responseBody, _, err", s"var response ${respType.name}\n", returnHandlingPart)
+          ResponseProps(s"(*${respType.name}, error)", "responseBody, _, err", s"var ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)} ${respType.name}\n", returnHandlingPart)
         } else {
-          ResponseProps(s"(*${respType.name}, error)", "responseBody, err", s"var response ${respType.name}\n", returnHandlingPart)
+          if (httpMethod.toLowerCase == "post") {
+            ResponseProps(s"(string, error)", "responseBody, err", s"var created${respType.name} ${respType.name}\n", returnHandlingPart)
+          } else {
+            ResponseProps(s"error", "responseBody, err", "", returnHandlingPart)
+          }
         }
       case None =>
         val returnHandlingPart =
@@ -196,21 +226,57 @@ case class SumoSwaggerEndpoint(endpointName: String,
     }
   }
 
+  def getUrlCallBasedOnHttpMethod(url: String): String = {
+    val taggedResource = if (this.httpMethod.toLowerCase != "delete") {
+      this.responses.filter {
+        response => response.respTypeName != "default" && response.respTypeName != "204"
+      }.head.respTypeOpt.get.name
+    } else {
+      ""
+    }
+    httpMethod.toLowerCase match {
+      case "get" =>
+        s"""
+           |  data, _, err := s.Get(fmt.Sprintf($url))
+           |  if err != nil {
+           |		return nil, err
+           |	}
+           |	if data == nil {
+           |		return nil, nil
+           |	}
+           |""".stripMargin
+      case "post" =>
+        s"""
+           |  data, err := s.Post($url, ${taggedResource.substring(0,1).toLowerCase + taggedResource.substring(1)})
+           |  if err != nil {
+           |		return "", err
+           |	}
+           |""".stripMargin
+      case "put" =>
+        val fixedUrl = url.replace("id", s"${taggedResource.substring(0,1).toLowerCase + taggedResource.substring(1)}.ID")
+        s"""url := fmt.Sprintf($fixedUrl)"""
+      case "delete" =>
+        s"""_, err := s.Delete(fmt.Sprintf($url))"""
+      case _ =>
+        ""
+    }
+  }
+
   override def terraformify(): String = {
-    maybePrint(s"..............................SumoSwaggerEndpoint: [$endpointName => $path ($httpMethod)]..............................")
     import com.sumologic.terraform_generator.utils.SumoTerraformUtils._
 
     val bodyParamOpt = this.parameters.find(_.paramType == SumoTerraformSupportedParameterTypes.BodyParameter)
     val sprintfArg = makeTerraformUrlFormatForSprintf(this.path, this.parameters).replaceFirst("/", "")
     val responseProps = getReturnTypesBasedOnRespone()
+    val urlCall = getUrlCallBasedOnHttpMethod(sprintfArg)
 
+    // freakOut(s"THOMASKAO: ${this.endpointName} ${this.parameters.map(_.param.getName()).toString()}")
     val args = makeArgsListForDecl(this.parameters)
     val httpClientCall = makeTerraformHttpClientRequestString(this.httpMethod, bodyParamOpt)
     s"""
-       |func (httpClient *Client) ${this.endpointName}($args) ${responseProps.declReturnType} {
-       |    url := fmt.Sprintf($sprintfArg)
+       |func (s *Client) ${this.endpointName.capitalize}($args) ${responseProps.declReturnType} {
+       |    $urlCall
        |    ${responseProps.responseVarDecl}
-       |    ${responseProps.httpClientReturnType} := httpClient.$httpClientCall
        |    ${responseProps.unmarshal}
        |}
        |""".stripMargin
@@ -220,7 +286,6 @@ case class SumoSwaggerEndpoint(endpointName: String,
 case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
                                supportedEndpoints: List[SumoSwaggerEndpoint]) extends SumoTerraformEntity {
   def getAllTypesUsed(): Set[SumoSwaggerType] = {
-    freakOut(s"THOMASKAO SUPPORTEDENDPOINTS: ${supportedEndpoints.map(_.endpointName).toString()}")
     val responsesProps = supportedEndpoints.flatMap {
       endpoint =>
         endpoint.responses.flatMap {
@@ -231,16 +296,12 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
         }
     }.flatten
 
-    freakOut(s"THOMASKAO RESPONSES: ${responsesProps.map(_.name).toString()}")
-
     val parameterProps = supportedEndpoints.flatMap {
       endpoint =>
         endpoint.parameters.flatMap {
           parameter => parameter.param.getAllTypes
         }
     }
-
-    freakOut(s"THOMASKAO PARAMETERS: ${parameterProps.map(_.name).toString()}")
 
     val endpointsSet = supportedEndpoints.flatMap { endpoint =>
       endpoint.parameters.flatMap(_.param.getAllTypes()) ++
@@ -250,9 +311,9 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
 
     }.toSet
 
-    freakOut(s"THOMASKAO ENDPOINTS: ${endpointsSet.map(_.name).toString()}")
-
-    endpointsSet
+    endpointsSet.filter {
+      sType => sType.name.toLowerCase.contains(sumoSwaggerClassName.toLowerCase)
+    }
   }
 
   def getUpdateAndCreateRequestBodyType(): List[SumoSwaggerType] = {
@@ -266,7 +327,7 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
         .flatMap(_.param.getAllTypes())
     }
 
-    types.filter(_.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase()))
+    types.filter(_.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase())).toSet.toList
   }
 
   def getAllRequestBodyTypesUsed(): Set[SumoSwaggerType] = {
@@ -301,7 +362,11 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
 
   def getFunctionName(opName: String, prefix: String): String = {
     val camelOp = opName.substring(0, 1).toUpperCase() + opName.substring(1)
-    s"$prefix$sumoSwaggerClassName$camelOp"
+    if (camelOp == "Get") {
+      s"$prefix${sumoSwaggerClassName.capitalize}Read"
+    } else {
+      s"$prefix${sumoSwaggerClassName.capitalize}$camelOp"
+    }
   }
 
   def getFunctionMappings(interestedInOps: List[String]): List[String] = {
@@ -319,7 +384,9 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
   def getMainObjectClass(): SumoSwaggerType = {
     val typesUsed: Set[SumoSwaggerType] = getAllTypesUsed()
 
-    typesUsed.find(_.name.toUpperCase == sumoSwaggerClassName.toUpperCase()).getOrElse {
+    typesUsed.find {
+      t => t.name.toUpperCase == sumoSwaggerClassName.toUpperCase() || t.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase)
+    }.getOrElse {
       freakOut("WTF??????WTF??????WTF??????WTF?????? => NO MAIN CLASS for " + sumoSwaggerClassName)
       throw new RuntimeException("This should not happen in getMainObjectClass ")
     }
@@ -329,35 +396,31 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
     // TODO Each type used needs to be generated somewhere for this to work, for now...
     // ... hoping that this is all basic types
 
-    val funcMappings: String = getFunctionMappings(crud).mkString(",\n").concat(",")
+    val funcMappings: String = getFunctionMappings(crud.filter(_.toLowerCase != "exists")).mkString(",\n      ").concat(",")
 
     // TODO This assumption is too optimistic
     val classes = getUpdateAndCreateRequestBodyType()
 
     val classesProps = classes.flatMap(_.props.filter(prop => !prop.getName().toLowerCase.contains("created") &&
       !prop.getName().toLowerCase.contains("modified") && !prop.getName().toLowerCase.contains("system") &&
-      !prop.getName().toLowerCase.equals("id"))).filter(_.getRequired()).toSet
+      !prop.getName().toLowerCase.equals("id"))).toSet //.filter(_.getRequired()).toSet
+
+
 
     val propsObjects = classesProps.map {
       sumoSwaggerObject: SumoSwaggerObject =>
         sumoSwaggerObject.getAsTerraformSchemaType(false)
-    }.toList.toSet.mkString(",\n").concat(",")
+    }.toList.toSet.mkString(",\n         ").concat(",")
 
-    s"""func resourceSumologic$sumoSwaggerClassName() *schema.Resource {
-       |  return &schema.Resource{
-       |    $funcMappings
-       |    Importer: &schema.ResourceImporter{
-       |      State: schema.ImportStatePassthrough,
-       |    },
-       |
-      |    Schema: map[string]*schema.Schema{
-       |      $propsObjects
-       |      "destroy": {
-       |        Type:     schema.TypeBool,
-       |        Optional: true,
-       |        ForceNew: false,
-       |        Default:  true,
+    s"""func resourceSumologic${sumoSwaggerClassName.capitalize}() *schema.Resource {
+       |    return &schema.Resource{
+       |      $funcMappings
+       |      Importer: &schema.ResourceImporter{
+       |        State: schema.ImportStatePassthrough,
        |      },
+       |
+      |       Schema: map[string]*schema.Schema{
+       |        $propsObjects
        |    },
        |  }
        |}""".stripMargin
