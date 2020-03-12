@@ -26,7 +26,7 @@ object TerraformGenerator extends TerraformGeneratorHelper {
     parseOpts.setResolve(true)
     parseOpts.setResolveCombinators(true)
 
-    ensureDirectories
+    ensureDirectories()
 
     val swagger = new OpenAPIParser().readLocation(inputFile, null, parseOpts)
     val f = new File(targetDirectory + "openapi_schema.txt")
@@ -37,59 +37,46 @@ object TerraformGenerator extends TerraformGeneratorHelper {
       types.foreach {
         baseType =>
           val terraform = SumoTerraformUtils.processClass(swagger.getOpenAPI, baseType)
-          val genSumoClass = SumoTerraformClassFileGenerator(terraform)
-          genSumoClass.writeToFile(resourcesDirectory + s"sumologic_${removeCamelCase(baseType)}.go")
-
-          val genResource = SumoTerraformResourceFileGenerator(terraform)
-          genResource.writeToFile(resourcesDirectory + s"resource_sumologic_${removeCamelCase(baseType)}.go")
-
-          val genTest = SumoTestGenerator(terraform, baseType)
-          genTest.writeToFile(resourcesDirectory + s"resource_sumologic_${removeCamelCase(baseType)}_test.go")
-
-          val genDocs = SumoDocsGenerator(terraform, baseType)
-          genDocs.writeToFile(resourcesDirectory + s"${removeCamelCase(baseType)}.html.markdown")
-        //val genDataSource = SumoTerraformDataSourceFileGenerator(terraform)
-        //genDataSource.writeToFile(s"data_source_sumologic_${baseType}.go")
-
-        //val genProvider = SumoProviderGenerator(terraform)
-        //genProvider.writeToFile("provider.go")
+          writeFiles(terraform, baseType)
       }
     } else {
       val terraforms = SumoTerraformUtils.processAllClasses(swagger.getOpenAPI)
       terraforms.foreach {
         case (terraform: SumoSwaggerTemplate, baseType: String) =>
-          val genSumoClass = SumoTerraformClassFileGenerator(terraform)
-          genSumoClass.writeToFile(resourcesDirectory + s"sumologic_${removeCamelCase(baseType)}.go")
-
-          val genResource = SumoTerraformResourceFileGenerator(terraform)
-          genResource.writeToFile(resourcesDirectory + s"resource_sumologic_${removeCamelCase(baseType)}.go")
-
-          val genTest = SumoTestGenerator(terraform, baseType)
-          genTest.writeToFile(resourcesDirectory + s"resource_sumologic_${removeCamelCase(baseType)}_test.go")
-
-          val genDocs = SumoDocsGenerator(terraform, baseType)
-          genDocs.writeToFile(resourcesDirectory + s"${removeCamelCase(baseType)}.html.markdown")
-        //val genDataSource = SumoTerraformDataSourceFileGenerator(terraform)
-        //genDataSource.writeToFile(s"data_source_sumologic_${baseType}.go")
-
-        //val genProvider = SumoProviderGenerator(terraform)
-        //genProvider.writeToFile("provider.go")
+          writeFiles(terraform, baseType)
       }
     }
+  }
+
+  def writeFiles(sumoSwaggerTemplate: SumoSwaggerTemplate, baseType: String) = {
+    val genSumoClass = SumoTerraformClassFileGenerator(sumoSwaggerTemplate)
+    val terraformTypeName = removeCamelCase(baseType)
+
+    genSumoClass.writeToFile(resourcesDirectory + s"sumologic_$terraformTypeName.go")
+
+    val genResource = SumoTerraformResourceFileGenerator(sumoSwaggerTemplate)
+    genResource.writeToFile(resourcesDirectory + s"resource_sumologic_$terraformTypeName.go")
+
+    val genTest = SumoTestGenerator(sumoSwaggerTemplate, baseType)
+    genTest.writeToFile(resourcesDirectory + s"resource_sumologic_${terraformTypeName}_test.go")
+
+    val genDocs = SumoDocsGenerator(sumoSwaggerTemplate, baseType)
+    genDocs.writeToFile(resourcesDirectory + s"$terraformTypeName.html.markdown")
+    //val genDataSource = SumoTerraformDataSourceFileGenerator(sumoSwaggerTemplate)
+    //genDataSource.writeToFile(s"data_source_sumologic_${baseType}.go")
+
+    //val genProvider = SumoProviderGenerator(sumoSwaggerTemplate)
+    //genProvider.writeToFile("provider.go")
   }
 
   def ensureDirectories(): Unit = {
     val directory = new File(targetDirectory)
     if (!directory.exists) {
       directory.mkdir
-      // If you require it to make the entire directory path including parents,
-      // use directory.mkdirs(); here instead.
     }
     val resourcesDirectoryFolder = new File(resourcesDirectory)
     if (!resourcesDirectoryFolder.exists) {
       resourcesDirectoryFolder.mkdir
-      // If you require it to make the entire directory path including parents,
-      // use directory.mkdirs(); here instead.
     }
   }
 }
