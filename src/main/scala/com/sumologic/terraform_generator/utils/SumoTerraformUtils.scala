@@ -332,7 +332,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     SumoSwaggerParameter(SumoTerraformSupportedParameterTypes.PathParameter,
       SumoSwaggerObjectSingle(pathParam.getName,
         SumoSwaggerType(pathParam.getSchema.getType, List[SumoSwaggerObject]()),
-        pathParam.getRequired, Some(pathParam.getSchema.getDefault.asInstanceOf[AnyRef])))
+        pathParam.getRequired, Some(pathParam.getSchema.getDefault.asInstanceOf[AnyRef]), pathParam.getSchema.getDescription, ""))
   }
 
   def processQueryParameter(openApi: OpenAPI, queryParam: QueryParameter): SumoSwaggerParameter = {
@@ -343,7 +343,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     SumoSwaggerParameter(SumoTerraformSupportedParameterTypes.QueryParameter,
       SumoSwaggerObjectSingle(queryParam.getName,
         SumoSwaggerType(queryParam.getSchema.getType, List[SumoSwaggerObject]()),
-        queryParam.getRequired, Some(queryParam.getSchema.getDefault.asInstanceOf[AnyRef])))
+        queryParam.getRequired, Some(queryParam.getSchema.getDefault.asInstanceOf[AnyRef]), queryParam.getSchema.getDescription, ""))
   }
 
   def processBodyParameter(openApi: OpenAPI, bodyParam: Schema[_], baseType: String): SumoSwaggerParameter = {
@@ -365,7 +365,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
         val swaggerType = processModel(openApi, modelName, taggedResourceSchema)
         //swaggerType.terraformify()
         SumoSwaggerParameter(SumoTerraformSupportedParameterTypes.BodyParameter,
-          SumoSwaggerObjectSingle(modelName, swaggerType, true, None))
+          SumoSwaggerObjectSingle(modelName, swaggerType, true, None, taggedResourceSchema.getDescription, ""))
       case None =>
         freakOut("processBodyParameter " + defName)
         throw new RuntimeException("This should not happen in processBodyParameter ")
@@ -452,16 +452,20 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
 
     if (prop.isInstanceOf[ArraySchema]) {
       val arrayProp = prop.asInstanceOf[ArraySchema]
-      SumoSwaggerObjectArray(propName, resolvePropertyType(openApi, arrayProp.getItems), requiredProps.contains(arrayProp.getName), None)
+      SumoSwaggerObjectArray(propName, resolvePropertyType(openApi, arrayProp.getItems), requiredProps.contains(arrayProp.getName), None, prop.getDescription, prop.getExample.toString)
     } else {
       if (prop.get$ref() != null) {
         val refModel = getTaggedComponents(openApi).get(prop.get$ref()).get
-        SumoSwaggerObjectSingle(propName, processModel(openApi, propName, refModel), requiredProps.contains(prop.getName), None)
+        SumoSwaggerObjectSingle(propName, processModel(openApi, propName, refModel), requiredProps.contains(prop.getName), None, prop.getDescription, prop.getExample.toString)
       } else {
         maybePrint(s" #### PROP ($propName)  => ${prop.getTitle} (${prop.getType})")
         // TODO Get Default, will need to see what type it is
 
-        SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None)
+        if (propName.toLowerCase != "id") {
+          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, prop.getExample.toString)
+        } else {
+          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, "")
+        }
       }
     }
 

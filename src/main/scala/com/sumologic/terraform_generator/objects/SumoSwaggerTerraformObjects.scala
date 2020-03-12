@@ -25,7 +25,9 @@ abstract class SumoTerraformEntity extends TerraformGeneratorHelper {
 abstract sealed class SumoSwaggerObject(name: String,
                                         objType: SumoSwaggerType,
                                         required: Boolean,
-                                        defaultOpt: Option[AnyRef]) extends SumoTerraformEntity
+                                        defaultOpt: Option[AnyRef],
+                                        description: String,
+                                        example: String) extends SumoTerraformEntity
   with TerraformGeneratorHelper {
   // TODO Assumption of NO collision without namespaces is probably wrong - should fix
   def getAllTypes(): List[SumoSwaggerType] = {
@@ -35,6 +37,8 @@ abstract sealed class SumoSwaggerObject(name: String,
   def getName(): String = { name }
   def getType(): SumoSwaggerType = { objType }
   def getRequired(): Boolean = { required }
+  def getDescription(): String = { description }
+  def getExample(): String = { example }
 
   def getAsTerraformFunctionArgument(): String
   // def getAsTerraformSchemaType(forUseInDateResource: Boolean): String
@@ -75,8 +79,10 @@ abstract sealed class SumoSwaggerObject(name: String,
 case class SumoSwaggerObjectSingle(name: String,
                                    objType: SumoSwaggerType,
                                    required: Boolean,
-                                   defaultOpt: Option[AnyRef]) extends
-  SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef]) {
+                                   defaultOpt: Option[AnyRef],
+                                   description: String,
+                                   example: String) extends
+  SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example) {
   override def terraformify(): String = {
     val req = if (required && name.toLowerCase != "id") {
       ""
@@ -98,8 +104,10 @@ case class SumoSwaggerObjectSingle(name: String,
 case class SumoSwaggerObjectArray(name: String,
                                   objType: SumoSwaggerType,
                                   required: Boolean,
-                                  defaultOpt: Option[AnyRef]) extends
-  SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef]) {
+                                  defaultOpt: Option[AnyRef],
+                                  description: String,
+                                  example: String) extends
+  SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example) {
   override def terraformify(): String = {
     val req = if (required) {
       ""
