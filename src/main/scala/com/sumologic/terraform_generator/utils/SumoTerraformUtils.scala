@@ -462,7 +462,8 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
         // TODO Get Default, will need to see what type it is
 
         if (propName.toLowerCase != "id") {
-          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, prop.getExample.toString)
+          val example = if (prop.getExample == null) {""} else {prop.getExample.toString}
+          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, example)
         } else {
           SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, "")
         }
