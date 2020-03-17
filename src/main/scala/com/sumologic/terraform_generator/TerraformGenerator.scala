@@ -8,7 +8,12 @@ import com.sumologic.terraform_generator.writer.{SumoDocsGenerator, SumoTerrafor
 import io.swagger.parser.OpenAPIParser
 import io.swagger.v3.parser.core.models.ParseOptions
 
+
 object TerraformGenerator extends TerraformGeneratorHelper {
+
+  val targetDirectory = "./target/"
+  val resourcesDirectory: String = targetDirectory + "resources/"
+
   def main(args: Array[String]): Unit = {
     val inputFile = args(0)
     val types = if (args.size > 1) {
@@ -20,8 +25,11 @@ object TerraformGenerator extends TerraformGeneratorHelper {
     val parseOpts = new ParseOptions()
     parseOpts.setResolve(true)
     parseOpts.setResolveCombinators(true)
+
+    ensureDirectories()
+
     val swagger = new OpenAPIParser().readLocation(inputFile, null, parseOpts)
-    val f = new File("openapi_schema.txt")
+    val f = new File(targetDirectory + "openapi_schema.txt")
     val bw = new BufferedWriter(new FileWriter(f))
     bw.write(swagger.getOpenAPI.toString)
     bw.close()
@@ -29,44 +37,46 @@ object TerraformGenerator extends TerraformGeneratorHelper {
       types.foreach {
         baseType =>
           val terraform = SumoTerraformUtils.processClass(swagger.getOpenAPI, baseType)
-          val genSumoClass = SumoTerraformClassFileGenerator(terraform)
-          genSumoClass.writeToFile(s"sumologic_${removeCamelCase(baseType)}.go")
-
-          val genResource = SumoTerraformResourceFileGenerator(terraform)
-          genResource.writeToFile(s"resource_sumologic_${removeCamelCase(baseType)}.go")
-
-          val genTest = SumoTestGenerator(terraform, baseType)
-          genTest.writeToFile(s"resource_sumologic_${removeCamelCase(baseType)}_test.go")
-
-          val genDocs = SumoDocsGenerator(terraform, baseType)
-          genDocs.writeToFile(s"${removeCamelCase(baseType)}.html.markdown")
-        //val genDataSource = SumoTerraformDataSourceFileGenerator(terraform)
-        //genDataSource.writeToFile(s"data_source_sumologic_${baseType}.go")
-
-        //val genProvider = SumoProviderGenerator(terraform)
-        //genProvider.writeToFile("provider.go")
+          writeFiles(terraform, baseType)
       }
     } else {
       val terraforms = SumoTerraformUtils.processAllClasses(swagger.getOpenAPI)
       terraforms.foreach {
         case (terraform: SumoSwaggerTemplate, baseType: String) =>
-          val genSumoClass = SumoTerraformClassFileGenerator(terraform)
-          genSumoClass.writeToFile(s"sumologic_${removeCamelCase(baseType)}.go")
-
-          val genResource = SumoTerraformResourceFileGenerator(terraform)
-          genResource.writeToFile(s"resource_sumologic_${removeCamelCase(baseType)}.go")
-
-          val genTest = SumoTestGenerator(terraform, baseType)
-          genTest.writeToFile(s"resource_sumologic_${removeCamelCase(baseType)}_test.go")
-
-          val genDocs = SumoDocsGenerator(terraform, baseType)
-          genDocs.writeToFile(s"${removeCamelCase(baseType)}.html.markdown")
-        //val genDataSource = SumoTerraformDataSourceFileGenerator(terraform)
-        //genDataSource.writeToFile(s"data_source_sumologic_${baseType}.go")
-
-        //val genProvider = SumoProviderGenerator(terraform)
-        //genProvider.writeToFile("provider.go")
+          writeFiles(terraform, baseType)
       }
+    }
+  }
+
+  def writeFiles(sumoSwaggerTemplate: SumoSwaggerTemplate, baseType: String) = {
+    val genSumoClass = SumoTerraformClassFileGenerator(sumoSwaggerTemplate)
+    val terraformTypeName = removeCamelCase(baseType)
+
+    genSumoClass.writeToFile(resourcesDirectory + s"sumologic_$terraformTypeName.go")
+
+    val genResource = SumoTerraformResourceFileGenerator(sumoSwaggerTemplate)
+    genResource.writeToFile(resourcesDirectory + s"resource_sumologic_$terraformTypeName.go")
+
+    val genTest = SumoTestGenerator(sumoSwaggerTemplate, baseType)
+    genTest.writeToFile(resourcesDirectory + s"resource_sumologic_${terraformTypeName}_test.go")
+
+    val genDocs = SumoDocsGenerator(sumoSwaggerTemplate, baseType)
+    genDocs.writeToFile(resourcesDirectory + s"$terraformTypeName.html.markdown")
+    //val genDataSource = SumoTerraformDataSourceFileGenerator(sumoSwaggerTemplate)
+    //genDataSource.writeToFile(s"data_source_sumologic_${baseType}.go")
+
+    //val genProvider = SumoProviderGenerator(sumoSwaggerTemplate)
+    //genProvider.writeToFile("provider.go")
+  }
+
+  def ensureDirectories(): Unit = {
+    val directory = new File(targetDirectory)
+    if (!directory.exists) {
+      directory.mkdir
+    }
+    val resourcesDirectoryFolder = new File(resourcesDirectory)
+    if (!resourcesDirectoryFolder.exists) {
+      resourcesDirectoryFolder.mkdir
     }
   }
 }
