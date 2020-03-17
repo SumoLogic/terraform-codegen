@@ -351,17 +351,8 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
 
     val defName: String = bodyParam.get$ref().split("#/components/schemas/").last
     val modelOpt = Option(getComponent(openApi, defName)._2)
-    val taggedResourceName = getTaggedComponents(openApi).filter {
-      component =>
-        component._1.toLowerCase.contains(baseType.toLowerCase) || (component._2.asInstanceOf[ComposedSchema].getAllOf != null && component._2.asInstanceOf[ComposedSchema].getAllOf.asScala.count {
-          x => x.get$ref() != null && x.get$ref().toLowerCase.contains(baseType.toLowerCase)
-        } == 1)
-    }.head._1
-    val taggedResourceSchema = getTaggedComponents(openApi).filter {
-      component => component._1.toLowerCase.contains(baseType.toLowerCase) || (component._2.asInstanceOf[ComposedSchema].getAllOf != null && component._2.asInstanceOf[ComposedSchema].getAllOf.asScala.count {
-        x => x.get$ref() != null && x.get$ref().toLowerCase.contains(baseType.toLowerCase)
-      } == 1)
-    }.head._2
+    val taggedResourceName = getTaggedComponents(openApi).filter(_._1.toLowerCase.contains(baseType.toLowerCase)).head._1
+    val taggedResourceSchema = getTaggedComponents(openApi).filter(_._1.toLowerCase.contains(baseType.toLowerCase)).head._2
     val modelName = if (taggedResourceName.contains("/")) {
       taggedResourceName.split("/").last
     } else {
