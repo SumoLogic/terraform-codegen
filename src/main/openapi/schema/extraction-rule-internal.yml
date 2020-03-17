@@ -1,0 +1,100 @@
+paths:
+  # /extractionRules/expression/parse
+  fieldsFromExpression:
+    post:
+      summary: Provides information which fields are going to be created by a FER.
+      description: Enlists which fields are going to be extracted.
+      operationId: getFieldsFromExpression
+      tags:
+      - extractionRuleInternal
+      parameters: []
+      requestBody:
+        description: Parse expression of a field extraction rule.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParseExpression'
+      responses:
+        200:
+          description: List of fields which are going to be created after creating a FER.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExtractedFields'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  # /extractionRules/reservedFieldNames
+  reservedFieldNames:
+    get:
+      summary: Provides information which fields are used by Sumo Logic for internal use-cases.
+      description: Enlists fields used by Sumo Logic for internal use-cases. Overriding them might have side-effects.
+      operationId: getBuiltInFields
+      tags:
+      - extractionRuleInternal
+      responses:
+        200:
+          description: List of fields which have special use-case in Sumo Logic.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BuiltInFieldNames'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ExtractedFields:
+      type: object
+      required:
+      - fields
+      properties:
+        fields:
+          description: Fields created by a field extraction rule.
+          type: array
+          items:
+            $ref: '#/components/schemas/ExtractedField'
+    ExtractedField:
+      type: object
+      required:
+      - fieldName
+      properties:
+        fieldName:
+          description: Name of a field.
+          type: string
+    ParseExpression:
+      type: object
+      required:
+      - expression
+      properties:
+        expression:
+          description: Parse expression
+          type: string
+    BuiltInFieldNames:
+      type: object
+      required:
+      - fields
+      properties:
+        fields:
+          description: Sumo Logic builtin fields
+          type: array
+          items:
+            $ref: '#/components/schemas/BuiltInFieldName'
+    BuiltInFieldName:
+      type: object
+      required:
+      - fieldName
+      properties:
+        fieldName:
+          description: Name of a field.
+          type: string
+

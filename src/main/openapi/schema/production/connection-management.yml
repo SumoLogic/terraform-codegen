@@ -1,0 +1,441 @@
+paths:
+  # /connections endpoint
+  connections:
+    get:
+      summary: Get a list of connections.
+      description: >-
+        Get a list of all connections in the organization. The response is paginated with a default limit of 100 connections
+        per page.
+      operationId: listConnections
+      tags:
+      - connectionManagement
+      parameters:
+      - name: limit
+        description: >-
+          Limit the number of connections returned in the response. The number of connections returned may be less than
+          the `limit`.
+        required: false
+        in: query
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+          maximum: 1000
+          format: int32
+      - name: token
+        description: >-
+          Continuation token to get the next page of results. A page object with the next continuation token is returned
+          in the response body. Subsequent GET requests should specify the continuation token to get the next page of
+          results. `token` is set to null when no more pages are left.
+        required: false
+        in: query
+        schema:
+          type: string
+      responses:
+        200:
+          description: A paginated list of connections in the organization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListConnectionsResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    post:
+      x-tf-create: true
+      summary: Create a new connection.
+      description: Create a new connection in the organization.
+      operationId: createConnection
+      tags:
+      - connectionManagement
+      parameters: []
+      requestBody:
+        description: Information about the new connection.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionDefinition'
+      responses:
+        200:
+          description: The connection has been created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    # /connections/test endpoint
+    test:
+      post:
+        summary: Test a new connection url.
+        description: Test a new connection url is valid and can connect.
+        operationId: testConnection
+        tags:
+        - connectionManagement
+        parameters: []
+        requestBody:
+          description: Information about the new connection.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectionDefinition'
+        responses:
+          200:
+            description: The connection url has been tested.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/TestConnectionResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  # /connections/{id} endpoint
+  connectionsId:
+    get:
+      x-tf-read: true
+      summary: Get a connection.
+      description: Get a connection with the given identifier.
+      operationId: getConnection
+      tags:
+      - connectionManagement
+      parameters:
+      - name: id
+        description: Identifier of connection to return.
+        required: true
+        in: path
+        schema:
+          type: string
+      - name: type
+        description: Type of connection to return. Valid values are `WebhookConnection`, `ServiceNowConnection`.
+        required: true
+        in: query
+        schema:
+          default: "WebhookConnection"
+          type: string
+      responses:
+        200:
+          description: Connection object that was requested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    put:
+      x-tf-update: true
+      summary: Update a connection.
+      description: Update an existing connection.
+      operationId: updateConnection
+      tags:
+      - connectionManagement
+      parameters:
+      - name: id
+        description: Identifier of the connection to update.
+        required: true
+        in: path
+        schema:
+          type: string
+      requestBody:
+        description: Information to update about the connection.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionDefinition'
+      responses:
+        200:
+          description: The connection was successfully modified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    delete:
+      x-tf-delete: true
+      summary: Delete a connection.
+      description: Delete a connection with the given identifier.
+      operationId: deleteConnection
+      tags:
+      - connectionManagement
+      parameters:
+      - name: id
+        description: Identifier of the connection to delete.
+        required: true
+        in: path
+        schema:
+          type: string
+      - name: type
+        description: Type of connection to delete. Valid values are `WebhookConnection`, `ServiceNowConnection`.
+        required: true
+        in: query
+        schema:
+          type: string
+      responses:
+        204:
+          description: Connection was deleted successfully.
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    Connection:
+      #    Swagger 3.0 doesnot support multilevel inheretance so have resolved that issue by replacing metadata definition content intp Connection.
+      #    Once this issue is resolved we can replace Connection definition with below commented out definition.
+      #    Connection:
+      #      allOf:
+      #          - $ref: './generic-models.yml#/components/schemas/MetadataModel'
+      #          - type: object
+      #          required:
+      #              - type
+      #              - id
+      #              - name
+      #              - description
+      #          properties:
+      #            type:
+      #              description: Type of connection. Valid values are `WebhookConnection`, `ServiceNowConnection`.
+      #              type: string
+      #            id:
+      #              description: Unique identifier for the connection.
+      #              type: string
+      #            name:
+      #              description: Name of the connection.
+      #              type: string
+      #            description:
+      #              description: Description of the connection.
+      #              type: string
+      #          discriminator:
+      #            propertyName: type
+      type: object
+      required:
+      - type
+      - id
+      - name
+      - description
+      - createdAt
+      - createdBy
+      - modifiedAt
+      - modifiedBy
+      properties:
+        type:
+          description: Type of connection. Valid values are `WebhookConnection`, `ServiceNowConnection`.
+          type: string
+        id:
+          description: Unique identifier for the connection.
+          type: string
+        name:
+          description: Name of the connection.
+          type: string
+        description:
+          description: Description of the connection.
+          type: string
+        createdAt:
+          description: >-
+            Creation timestamp in UTC in [RFC3339](https://tools.ietf.org/html/rfc3339) format.
+          type: string
+          format: date-time
+        createdBy:
+          description: Identifier of the user who created the resource.
+          type: string
+        modifiedAt:
+          description: Last modification timestamp in UTC.
+          type: string
+          format: date-time
+        modifiedBy:
+          description: Identifier of the user who last modified the resource.
+          type: string
+      discriminator:
+        propertyName: type
+
+    WebhookConnection:
+
+      allOf:
+      - $ref: '#/components/schemas/Connection'
+      - type: object
+        required:
+        - url
+        - headers
+        - customHeaders
+        - defaultPayload
+        - webhookType
+        properties:
+          url:
+            description: URL for the webhook connection.
+            type: string
+          headers:
+            description: List of access authorization headers.
+            type: array
+            items:
+              $ref: '#/components/schemas/Header'
+          customHeaders:
+            description: List of custom webhook headers.
+            type: array
+            items:
+              $ref: '#/components/schemas/Header'
+          defaultPayload:
+            description: Default payload of the webhook.
+            type: string
+          webhookType:
+            description: Type of webhook. Valid values are `AWSLambda`, `Azure`, `Datadog`, `HipChat`, `PagerDuty`, `Slack`,
+              `Webhook`, and `NewRelic`.
+            type: string
+
+    ServiceNowConnection:
+      allOf:
+      - $ref: '#/components/schemas/Connection'
+      - type: object
+        required:
+        - url
+        - username
+        properties:
+          url:
+            description: URL for the ServiceNow connection.
+            type: string
+          username:
+            description: User name for the ServiceNow connection.
+            type: string
+
+    ListConnectionsResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of connections.
+          type: array
+          items:
+            $ref: '#/components/schemas/Connection'
+        next:
+          description: Next continuation token.
+          type: string
+
+    ConnectionDefinition:
+      type: object
+      required:
+      - type
+      - name
+      properties:
+        type:
+          description: Type of connection. Valid values are `WebhookDefinition`, `ServiceNowDefinition`.
+          type: string
+        name:
+          description: Name of connection. Name should be a valid alphanumeric value.
+          type: string
+          minLength: 1
+          maxLength: 127
+          pattern: '^([a-zA-Z0-9 +%\-@.,_()]+)$'
+        description:
+          description: Description of the connection.
+          type: string
+          default: ""
+          maxLength: 1024
+      discriminator:
+        propertyName: type
+
+    WebhookDefinition:
+      x-tf-generated-properties: type,name,description,url,headers,customHeaders,defaultPayload,webhookType
+      allOf:
+      - $ref: '#/components/schemas/ConnectionDefinition'
+      - type: object
+        required:
+        - url
+        - defaultPayload
+        properties:
+          url:
+            description: URL for the webhook connection.
+            type: string
+          headers:
+            description: List of access authorization headers.
+            type: array
+            items:
+              $ref: '#/components/schemas/Header'
+            default: []
+            maxItems: 7995
+          customHeaders:
+            description: List of custom webhook headers.
+            type: array
+            items:
+              $ref: '#/components/schemas/Header'
+            default: []
+            maxItems: 5
+          defaultPayload:
+            description: Default payload of the webhook.
+            type: string
+            minLength: 1
+          webhookType:
+            description: Type of webhook. Valid values are `AWSLambda`, `Azure`, `Datadog`, `HipChat`, `PagerDuty`, `Slack`,
+              `Webhook`, and `NewRelic`.
+            type: string
+            default: "Webhook"
+
+    ServiceNowDefinition:
+      x-tf-generated-properties: type,name,description,url,username,password
+      allOf:
+      - $ref: '#/components/schemas/ConnectionDefinition'
+      - type: object
+        required:
+        - url
+        - username
+        - password
+        properties:
+          url:
+            description: URL for the ServiceNow connection.
+            type: string
+          username:
+            description: User name for the ServiceNow connection.
+            type: string
+          password:
+            description: User password for the ServiceNow connection.
+            type: string
+
+    Header:
+      type: object
+      required:
+      - name
+      - value
+      properties:
+        name:
+          description: Name of the header field.
+          type: string
+        value:
+          description: Value of the header field.
+          type: string
+
+    TestConnectionResponse:
+      type: object
+      required:
+      - statusCode
+      - responseContent
+      properties:
+        statusCode:
+          description: Status code of the response of the connection test.
+          type: integer
+        responseContent:
+          description: Content of the response of the connection test.
+          type: string

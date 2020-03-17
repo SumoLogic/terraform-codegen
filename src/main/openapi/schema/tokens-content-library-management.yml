@@ -1,0 +1,280 @@
+paths:
+  # /tokens endpoint
+  tokens:
+    get:
+      summary: Get a list of tokens.
+      description: >-
+        Get a list of all tokens in the token library.
+      operationId: listTokens
+      tags:
+      - tokensLibraryManagement
+      responses:
+        200:
+          description: A list of tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListTokensBaseResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    post:
+      summary: Create a token.
+      description: Create a token in the token library.
+      operationId: createToken
+      tags:
+      - tokensLibraryManagement
+      requestBody:
+        description: Information about the token to create.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenBaseDefinition'
+      responses:
+        200:
+          description: The token has been created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenBaseResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  # /tokens/{id} endpoint
+  tokenId:
+    get:
+      summary: Get a token.
+      description: Get a token with the given identifier in the token library.
+      operationId: getToken
+      tags:
+      - tokensLibraryManagement
+      parameters:
+      - name: id
+        description: Identifier of the token to return.
+        required: true
+        in: path
+        schema:
+          type: string
+      responses:
+        200:
+          description: Token object that was requested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenBaseResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    put:
+      summary: Update a token.
+      description: Update a token with the given identifier in the token library.
+      operationId: updateToken
+      tags:
+      - tokensLibraryManagement
+      parameters:
+      - name: id
+        description: Identifier of the token to update.
+        required: true
+        in: path
+        schema:
+          type: string
+      requestBody:
+        description: The token to update.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenBaseDefinitionUpdate'
+      responses:
+        200:
+          description: The token was successfully modified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenBaseResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete a token.
+      description: Delete a token with the given identifier in the token library.
+      operationId: deleteToken
+      tags:
+      - tokensLibraryManagement
+      parameters:
+      - name: id
+        description: Identifier of the token to delete.
+        required: true
+        in: path
+        schema:
+          type: string
+      responses:
+        204:
+          description: The token was deleted successfully.
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    TokenBaseDefinition:
+      type: object
+      required:
+      - name
+      - status
+      - type
+      properties:
+        name:
+          description: Name of the token.
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: 'token-name'
+        description:
+          description: Description of the token.
+          type: string
+          minLength: 0
+          maxLength: 4096
+          example: 'token description: for test.'
+        status:
+          description: Status of the token. Can be `Active`, or `Inactive`.
+          type: string
+          example: 'Active'
+        type:
+          description: >-
+            Type of the token. Valid values:
+            1) CollectorRegistration
+          type: string
+          example: 'CollectorRegistration'
+
+    TokenBaseDefinitionUpdate:
+      type: object
+      required:
+        - name
+        - status
+        - type
+        - version
+      properties:
+        name:
+          description: Name of the token.
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: 'token-name'
+        description:
+          description: Description of the token.
+          type: string
+          minLength: 0
+          maxLength: 4096
+          example: 'token description: for test.'
+        status:
+          description: Status of the token. Can be `Active`, or `Inactive`.
+          type: string
+          example: 'Active'
+        type:
+          description: >-
+            Type of the token. Valid values:
+            1) CollectorRegistration
+          type: string
+          example: 'CollectorRegistration'
+        version:
+          description: Version of the token.
+          type: integer
+          format: int64
+
+    TokenBaseResponse:
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+      - id
+      - name
+      - description
+      - status
+      - type
+      - version
+      # NOTE(vishal, 2019-04-01) Don't refer to MetadataModel. Don't know why but it
+      # breaks documentation.
+      - createdAt
+      - createdBy
+      - modifiedAt
+      - modifiedBy
+      properties:
+        id:
+          description: Identifier of the token.
+          type: string
+        name:
+          description: Name of the token.
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: 'token-name'
+        description:
+          description: Description of the token.
+          type: string
+          minLength: 0
+          maxLength: 4096
+          example: 'token description: for test.'
+        status:
+          description: Status of the token. Can be `Active`, or `Inactive`.
+          type: string
+          example: 'Active'
+        type:
+          description: >-
+            Type of the token. Valid values:
+            1) CollectorRegistrationTokenResponse
+          type: string
+          example: 'CollectorRegistrationTokenResponse'
+        version:
+          description: Version of the token.
+          type: integer
+          format: int64
+        createdAt:
+          description: >-
+            Creation timestamp in UTC in [RFC3339](https://tools.ietf.org/html/rfc3339) format.
+          type: string
+          format: date-time
+        createdBy:
+          description: Identifier of the user who created the resource.
+          type: string
+        modifiedAt:
+          description: Last modification timestamp in UTC.
+          type: string
+          format: date-time
+        modifiedBy:
+          description: Identifier of the user who last modified the resource.
+          type: string
+
+    CollectorRegistrationTokenResponse:
+      allOf:
+      - $ref: '#/components/schemas/TokenBaseResponse'
+      - type: object
+        required:
+        - encodedTokenAndUrl
+        properties:
+          encodedTokenAndUrl:
+            description: The token and URL used to register the Collector as an encoded string.
+            type: string
+
+    ListTokensBaseResponse:
+      description: List of tokens.
+      type: array
+      items:
+        $ref: '#/components/schemas/TokenBaseResponse'

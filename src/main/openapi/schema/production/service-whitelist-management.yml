@@ -1,0 +1,237 @@
+paths:
+  v1:
+    serviceWhitelist:
+      # /v1/serviceWhitelist/addresses endpoint
+      addresses:
+        get:
+          summary: List all whitelisted CIDRs/IP addresses.
+          description: Get a list of all whitelisted CIDR notations and/or IP addresses for the organization.
+          operationId: listWhitelistedCidrs
+          tags:
+            - serviceWhitelistManagement
+          responses:
+            200:
+              description: List of all whitelisted CIDR notations and/or IP addresses for the organization.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/CidrList'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+        # /v1/serviceWhitelist/addresses/add endpoint
+        add:
+          post:
+            summary: Whitelist CIDRs/IP addresses.
+            description: >-
+              Add CIDR notations and/or IP addresses to the whitelist of the organization if not already there. When
+              service whitelisting functionality is enabled, CIDRs/IP addresses that are whitelisted will have access
+              to Sumo Logic and/or content sharing.
+            operationId: addWhitelistedCidrs
+            tags:
+              - serviceWhitelistManagement
+            parameters: []
+            requestBody:
+              description: >-
+                List of all CIDR notations and/or IP addresses to be added to the whitelist of the organization.
+              required: true
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/CidrList'
+            responses:
+              200:
+                description: List of all whitelisted CIDR notations and/or IP addresses for the organization.
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/CidrList'
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+        # /v1/serviceWhitelist/addresses/remove endpoint
+        remove:
+          post:
+            summary: Remove whitelisted CIDRs/IP addresses.
+            description: >-
+              Remove whitelisted CIDR notations and/or IP addresses from the organization. Removed CIDRs/IPs
+              will immediately lose access to Sumo Logic and content sharing.
+            operationId: deleteWhitelistedCidrs
+            tags:
+              - serviceWhitelistManagement
+            parameters: []
+            requestBody:
+              description: >-
+                List of all CIDR notations and/or IP addresses to be removed from the whitelist of the organization.
+              required: true
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/CidrList'
+            responses:
+              200:
+                description: List of all whitelisted CIDR notations and/or IP addresses for the organization.
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/CidrList'
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      # /v1/serviceWhitelist/enable endpoint
+      enable:
+        post:
+          summary: Enable service whitelisting.
+          description: >-
+            Enable service whitelisting functionality for the organization. The service whitelisting can be for
+            1. Login: If enabled, access to Sumo Logic is granted only to CIDRs/IP addresses that are whitelisted.
+            2. Content: If enabled, dashboards can be shared with users connecting from CIDRs/IP addresses that
+            are whitelisted without logging in.
+          operationId: enableWhitelisting
+          tags:
+            - serviceWhitelistManagement
+          parameters:
+            - name: whitelistType
+              description: >-
+                The type of whitelisting to be enabled. It can be one of: `Login`, `Content`, or `Both`.
+              required: true
+              in: query
+              schema:
+                type: string
+                description: >-
+                  One of: `Login`, `Content`, `Both`.
+                example: 'Login'
+          responses:
+            204:
+              description: Service whitelisting was enabled successfully.
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      # /v1/serviceWhitelist/disable endpoint
+      disable:
+        post:
+          summary: Disable service whitelisting.
+          description: >-
+            Disable service whitelisting functionality for login/API authentication or content sharing
+            for the organization.
+          operationId: disableWhitelisting
+          tags:
+            - serviceWhitelistManagement
+          parameters:
+            - name: whitelistType
+              description: >-
+                The type of whitelisting to be disabled. It can be one of: `Login`, `Content`, or `Both`.
+              required: true
+              in: query
+              schema:
+                type: string
+                description: >-
+                  One of: `Login`, `Content`, `Both`.
+                example: 'Login'
+          responses:
+            204:
+              description: Service whitelisting was disabled successfully.
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      # /v1/serviceWhitelist/status
+      status:
+        get:
+          summary: Get the whitelisting status.
+          description: >-
+            Get the status of the service whitelisting functionality for login/API authentication or content sharing
+            for the organization.
+          operationId: getWhitelistingStatus
+          tags:
+            - serviceWhitelistManagement
+          responses:
+            200:
+              description: The status of service whitelisting for Content and Login.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/WhitelistingStatus'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      userIp:
+        get:
+          x-visibility: private
+          summary: Get the IP address of the current user.
+          description: >-
+            Get the IP address of the current user.
+          operationId: getUserIp
+          tags:
+          - serviceWhitelistManagement
+          responses:
+            200:
+              description: The IP address of the current user.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/Cidr'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    CidrList:
+      description: A list of CIDR notations and/or IP addresses.
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          description: An array of CIDR notations and/or IP addresses.
+          items:
+            $ref: '#/components/schemas/Cidr'
+          maxItems: 50
+    Cidr:
+      description: A CIDR notation or IP address along with its description.
+      type: object
+      required:
+        - cidr
+      properties:
+        cidr:
+          description: The string representation of the CIDR notation or IP address.
+          type: string
+          example: '192.35.24.1'
+        description:
+          description: Description of the CIDR notation or IP address.
+          type: string
+          example: 'Accountant'
+    WhitelistingStatus:
+      description: The status of service whitelisting for Content and Login.
+      type: object
+      required:
+        - content
+        - login
+      properties:
+        contentEnabled:
+          description: Whether service whitelisting is enabled for Content.
+          type: boolean
+        loginEnabled:
+          description: Whether service whitelisting is enabled for Login.
+          type: boolean

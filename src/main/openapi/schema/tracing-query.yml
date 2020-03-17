@@ -1,0 +1,991 @@
+paths:
+  v1:
+    tracing:
+      traces:
+        post:
+          description: >-
+            Run a search request to get the list of traces according to the provided query parameters. If you specify
+            multiple queries, each is returned as a separate list of traces with individual pagination.
+          tags:
+          - tracingQuery
+          summary: Get a list of traces.
+          operationId: getTraces
+          parameters: []
+          requestBody:
+            description: Query parameters.
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/TraceQueryRequest'
+          responses:
+            200:
+              description: List of traces corresponding to the given query parameters.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/TraceQueryResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      traceId:
+        get:
+          description: >-
+            Get the detail of the trace with the given identifier.
+          tags:
+          - tracingQuery
+          summary: Get trace details.
+          operationId: getTrace
+          parameters:
+          - name: traceId
+            description: Identifier of the trace to get the details.
+            required: true
+            in: path
+            schema:
+              type: string
+          responses:
+            200:
+              description: Details about the trace with the given identifier.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/TraceDetail'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+        spans:
+          get:
+            description: >-
+              Get the list of spans for the given trace. The response is paginated with a default limit of 100 spans per page.
+            tags:
+              - tracingQuery
+            summary: List of trace spans.
+            operationId: getSpans
+            parameters:
+              - name: traceId
+                description: Identifier of the trace to get the spans.
+                required: true
+                in: path
+                schema:
+                  type: string
+              - name: limit
+                description: The maximum number of results to fetch.
+                required: false
+                in: query
+                schema:
+                  default: 100
+                  minimum: 1
+                  type: integer
+                  maximum: 500
+                  format: int32
+              - name: token
+                description: >-
+                  Continuation token to get the next page of results. A page object with the next continuation token is returned
+                  in the response body. Subsequent GET requests should specify the continuation token to get the next page
+                  of results. `token` is set to null when no more pages are left.
+                required: false
+                in: query
+                schema:
+                  type: string
+            responses:
+              200:
+                description: List of spans for the given trance.
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/TraceSpansResponse'
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+        spanId:
+          get:
+            description: >-
+              Get the detail of the span with the given identifier.
+            tags:
+              - tracingQuery
+            summary: Get span details.
+            operationId: getSpan
+            parameters:
+              - name: traceId
+                description: Identifier of the trace the span belongs to.
+                required: true
+                in: path
+                schema:
+                  type: string
+              - name: spanId
+                description: Identifier of the span to get the details.
+                required: true
+                in: path
+                schema:
+                  type: string
+            responses:
+              200:
+                description: Details of the span with the given identifier.
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/TraceSpanDetail'
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+        criticalPath:
+          get:
+            description: >-
+              Get the list of span segments composing the critical path of the trace. A span segment represents the processing
+              time that was consumed within the span itself and does not incorporate the processing time of its children.
+              The critical path is the sequence of span segments that contribute to the total trace duration. An increase
+              of the processing time of any segment from the critical path would result in an increase of the total trace processing time.
+            tags:
+              - tracingQuery
+            summary: Get the critical path of the trace.
+            operationId: getCriticalPath
+            parameters:
+              - name: traceId
+                description: Identifier of the trace.
+                required: true
+                in: path
+                schema:
+                  type: string
+              - name: limit
+                description: The maximum number of results to fetch.
+                required: false
+                in: query
+                schema:
+                  default: 100
+                  minimum: 1
+                  type: integer
+                  maximum: 500
+                  format: int32
+              - name: token
+                description: >-
+                  Continuation token to get the next page of results. A page object with the next continuation token is returned
+                  in the response body. Subsequent GET requests should specify the continuation token to get the next page
+                  of results. `token` is set to null when no more pages are left.
+                required: false
+                in: query
+                schema:
+                  type: string
+            responses:
+              200:
+                description: List of span segments composing the critical path.
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/CriticalPathResponse'
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+          breakdown:
+            service:
+              get:
+                description: >-
+                  Get the critical path breakdown by services of the spans contributing to the critical path
+                  of a trace with the given identifier.
+                tags:
+                  - tracingQuery
+                summary: Get the critical path service breakdown.
+                operationId: getCriticalPathServiceBreakdown
+                parameters:
+                  - name: traceId
+                    description: Identifier of the trace.
+                    required: true
+                    in: path
+                    schema:
+                      type: string
+                responses:
+                  200:
+                    description: List of elements representing the critical path service breakdown.
+                    content:
+                      application/json:
+                        schema:
+                          $ref: '#/components/schemas/CriticalPathServiceBreakdownResponse'
+                  default:
+                    description: Operation failed with an error.
+                    content:
+                      application/json:
+                        schema:
+                          $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      fields:
+        get:
+          description: >-
+            Get the list of available fields which can be used in search query filters (`FieldTracingFilter`).
+          tags:
+            - tracingQuery
+          summary: Get filter fields.
+          operationId: getFields
+          parameters: []
+          responses:
+            200:
+              description: List of available fields.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/TraceFieldsResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      field:
+        values:
+          get:
+            description: >-
+              Get the list of available values for the given filter field. Not all fields support value listing.
+            tags:
+              - tracingQuery
+            summary: Get field filter values.
+            operationId: getFieldValues
+            parameters:
+              - name: field
+                description: Field identifier.
+                required: true
+                in: path
+                schema:
+                  type: string
+              - name: query
+                description: >-
+                  Search filter to apply on the values to be returned. Only values containing the search query term will be returned.
+                required: false
+                in: query
+                schema:
+                  type: string
+              - name: limit
+                description: The maximum number of results to fetch.
+                required: false
+                in: query
+                schema:
+                  default: 10
+                  minimum: 1
+                  type: integer
+                  maximum: 100
+                  format: int32
+              - name: token
+                description: >-
+                  Continuation token to get the next page of results. A page object with the next continuation token is returned
+                  in the response body. Subsequent GET requests should specify the continuation token to get the next page
+                  of results. `token` is set to null when no more pages are left.
+                required: false
+                in: query
+                schema:
+                  type: string
+            responses:
+              200:
+                description: List of available filter values for the given field.
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/TraceFieldValuesResponse'
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      metrics:
+        get:
+          description: >-
+            Get the list of available metrics in search queries.
+          tags:
+            - tracingQuery
+          summary: Get query metrics.
+          operationId: getMetrics
+          parameters: []
+          responses:
+            200:
+              description: List of available metrics.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/TraceMetricsResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    TraceQueryRequest:
+      type: object
+      required:
+        - queryRows
+        - timeRange
+      properties:
+        queryRows:
+          description: A list of trace queries.
+          type: array
+          items:
+            $ref: '#/components/schemas/TraceQueryRow'
+        timeRange:
+          $ref: './generic-models.yml#/components/schemas/ResolvableTimeRange'
+
+    TraceQueryResponse:
+      type: object
+      required:
+        - response
+      properties:
+        response:
+          description: List of query result rows.
+          type: array
+          items:
+            $ref: '#/components/schemas/TraceQueryRowResults'
+
+    TraceSpansResponse:
+      type: object
+      required:
+        - spans
+      properties:
+        spanPage:
+          description: List of trace spans.
+          type: array
+          items:
+            $ref: '#/components/schemas/TraceSpan'
+        next:
+          description: Next continuation token.
+          type: string
+
+    CriticalPathResponse:
+      type: object
+      required:
+        - segments
+      properties:
+        segments:
+          description: List of span segments from the critical path.
+          type: array
+          items:
+            $ref: '#/components/schemas/SpanPathSegment'
+        next:
+          description: Next continuation token.
+          type: string
+
+    CriticalPathServiceBreakdownElementBase:
+      type: object
+      required:
+        - duration
+      properties:
+        service:
+          description: The name of the service.
+          type: string
+          example: user-service
+        serviceColor:
+          description: Color hex code assigned to the service.
+          type: string
+          example: "#fa41c6"
+        duration:
+          description: >-
+            Overall processing time in nanoseconds consumed by the spans belonging to this service in the critical path
+            (a sum of the duration times of the spans' critical path segments).
+          type: integer
+          format: int64
+          example: 12957153
+
+    CriticalPathServiceBreakdownElementDetail:
+      allOf:
+        - $ref: '#/components/schemas/CriticalPathServiceBreakdownElementBase'
+        - type: object
+          required:
+            - numSpans
+            - longestSegmentDuration
+          properties:
+            numSpans:
+              description: Number of spans that are part of this service.
+              type: integer
+              format: int32
+              example: 12957153
+            longestSegmentDuration:
+              description: Number of nanoseconds the longest span segment in the critical path lasted.
+              type: integer
+              format: int64
+              example: 12957153
+
+    CriticalPathServiceBreakdownResponse:
+      type: object
+      required:
+        - elements
+      properties:
+        elements:
+          description: List of elements representing the critical path service breakdown.
+          type: array
+          items:
+            $ref: '#/components/schemas/CriticalPathServiceBreakdownElementDetail'
+
+    TraceFieldsResponse:
+      type: object
+      required:
+        - fields
+      properties:
+        fields:
+          description: List of filter fields.
+          type: array
+          items:
+            $ref: '#/components/schemas/TraceFieldDetail'
+
+    TraceFieldValuesResponse:
+      type: object
+      required:
+        - fieldValues
+      properties:
+        fieldValues:
+          description: List of field filter values.
+          type: array
+          items:
+            type: string
+        next:
+          description: Next continuation token.
+          type: string
+
+    TraceMetricsResponse:
+      type: object
+      required:
+        - metrics
+      properties:
+        metrics:
+          description: List of trace metrics.
+          type: array
+          items:
+            $ref: '#/components/schemas/TraceMetricDetail'
+
+    TraceQueryRow:
+      type: object
+      required:
+        - query
+        - rowId
+      properties:
+        query:
+          type: object
+          $ref: '#/components/schemas/TraceQueryExpression'
+        rowId:
+          description: A unique identifier of the query.
+          type: string
+          example: "#A"
+        limit:
+          description: Limit the number of traces returned in the response.
+          type: integer
+          format: int32
+          default: 100
+          minimum: 1
+          maximum: 1000
+        token:
+          description: >-
+            Continuation token to get the next page of results. A page object with the next continuation token is returned
+            in the response body. Subsequent GET requests should specify the continuation token to get the next page
+            of results. `token` is set to null when no more pages are left.
+          type: string
+
+    TraceQueryRowResults:
+      type: object
+      required:
+        - rowId
+        - results
+      properties:
+        rowId:
+          description: Unique identifier of the query.
+          type: string
+          example: "#A"
+        results:
+          description: List of traces, that match the given query.
+          type: array
+          items:
+            $ref: '#/components/schemas/TraceDetail'
+        next:
+          description: Next continuation token.
+          type: string
+
+    TraceQueryExpression:
+      description: Base query expression object.
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+        - type
+      properties:
+        type:
+          description: Expression type of the object model.
+          type: string
+
+    AndTracingExpression:
+      allOf:
+        - $ref: '#/components/schemas/TraceQueryExpression'
+        - type: object
+          required:
+            - expressions
+          properties:
+            expressions:
+              description: Evaluates to true, if (and only if) all expressions evaluate to true, otherwise evaluates to false.
+              type: array
+              items:
+                $ref: '#/components/schemas/TraceQueryExpression'
+
+    OrTracingExpression:
+      description: Evaluates to true, if at least one expression evaluates to true, otherwise evaluates to false.
+      allOf:
+        - $ref: '#/components/schemas/TraceQueryExpression'
+        - type: object
+          required:
+            - expressions
+          properties:
+            expressions:
+              type: array
+              items:
+                $ref: '#/components/schemas/TraceQueryExpression'
+
+    MetricTracingFilter:
+      allOf:
+        - $ref: '#/components/schemas/TraceQueryExpression'
+        - type: object
+          required:
+            - metric
+            - operator
+          properties:
+            metric:
+              description: >-
+                The name of the metric to filter on. The list of supported metrics can be retrieved with
+                `/tracing/metrics`.
+              type: string
+            operator:
+              description: >-
+                The operator to use. Accepted values:
+                  <table>
+                    <tr>
+                      <th>Operator</th>
+                      <th>Accepted value types</th>
+                    </tr>
+                    <tr>
+                      <th>&lt; &lt;= &gt; &gt;= =</th>
+                      <th>DoubleTracingValue IntegerTracingValue</th>
+                    </tr>
+                    <tr>
+                      <th>between</th>
+                      <th>RangeTracingValue of DoubleTracingValue / IntegerTracingValue</th>
+                    </tr>
+                  </table>
+              type: string
+            value:
+              type: object
+              $ref: '#/components/schemas/TracingValue'
+
+    FieldTracingFilter:
+      allOf:
+        - $ref: '#/components/schemas/TraceQueryExpression'
+        - type: object
+          required:
+            - field
+            - operator
+          properties:
+            field:
+              description: >-
+                The field name to filter on. The list of supported field names can be retrieved with
+                `/tracing/filters`.
+              type: string
+            operator:
+              description: >-
+                The operator to use. Accepted values:
+                  <table>
+                    <tr>
+                      <th>Operator</th>
+                      <th>Accepted value types</th>
+                    </tr>
+                    <tr>
+                      <th>&lt; &lt;= &gt; &gt;= =</th>
+                      <th>StringTracingValue DoubleTracingValue IntegerTracingValue DateTimeTracingValue</th>
+                    </tr>
+                    <tr>
+                      <th>in</th>
+                      <th>ArrayTracingValue of StringTracingValue / DoubleTracingValue / IntegerTracingValue / DateTimeTracingValue</th>
+                    </tr>
+                    <tr>
+                      <th>between</th>
+                      <th>RangeTracingValue of StringTracingValue / DoubleTracingValue / IntegerTracingValue / DateTimeTracingValue</th>
+                    </tr>
+                  </table>
+              type: string
+            value:
+              type: object
+              $ref: '#/components/schemas/TracingValue'
+
+    TracingValue:
+      discriminator:
+        propertyName: type
+      required:
+        - type
+      properties:
+        type:
+          description: Type of the value model.
+          type: string
+
+    DoubleTracingValue:
+      allOf:
+        - $ref: '#/components/schemas/TracingValue'
+        - type: object
+          required:
+            - value
+          properties:
+            value:
+              type: number
+              format: double
+
+    IntegerTracingValue:
+      allOf:
+        - $ref: '#/components/schemas/TracingValue'
+        - type: object
+          required:
+            - value
+          properties:
+            value:
+              type: integer
+              format: int64
+
+    StringTracingValue:
+      allOf:
+        - $ref: '#/components/schemas/TracingValue'
+        - type: object
+          required:
+            - value
+          properties:
+            value:
+              type: string
+
+    DateTimeTracingValue:
+      allOf:
+        - $ref: '#/components/schemas/TracingValue'
+        - type: object
+          required:
+            - value
+          properties:
+            value:
+              description: Timestamp in UTC in [ISO 8601 / RFC3339](https://tools.ietf.org/html/rfc3339) format.
+              type: string
+              format: date-time
+              example: 2019-11-22T09:00:00Z
+
+    ArrayTracingValue:
+      allOf:
+        - $ref: '#/components/schemas/TracingValue'
+        - type: object
+          required:
+            - values
+          properties:
+            values:
+              type: array
+              items:
+                $ref: '#/components/schemas/TracingValue'
+
+    RangeTracingValue:
+      allOf:
+        - $ref: '#/components/schemas/TracingValue'
+        - type: object
+          required:
+            - from
+            - to
+          properties:
+            from:
+              $ref: '#/components/schemas/TracingValue'
+            to:
+              $ref: '#/components/schemas/TracingValue'
+
+
+    TraceDetail:
+      type: object
+      required:
+      - id
+      properties:
+        id:
+          description: Trace identifier.
+          type: string
+          example: 00000000000120CB
+        rootService:
+          description: >-
+            Root service which started the trace.
+            Examples: `user-service`, `authentication-service`, `payment-service`, `/shopping-cart`
+          type: string
+          example: user-service
+        rootResource:
+          description: >-
+            Root resource on which the trace was started.
+            Examples: `db.query`, `http.request`, `rpc.call`, `container`
+          type: string
+          example: http.request
+        rootStatus:
+          description: Status of the trace which corresponds to the status of the root span.
+          type: string
+          example: OK
+        metrics:
+          description: Calculated trace metrics.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/DoubleTracingValue'
+          example:
+            _duration: 143984411
+        startedAt:
+          description: Date and time the trace was started in [ISO 8601 / RFC3339](https://tools.ietf.org/html/rfc3339) format.
+          type: string
+          format: date-time
+          example: 2019-11-22T09:00:00Z
+        criticalPathServiceBreakdownSummary:
+          description: Summary of the service duration breakdown for this trace's critical path.
+          type: object
+          $ref: '#/components/schemas/CriticalPathServiceBreakdownSummary'
+
+    CriticalPathServiceBreakdownSummary:
+      type: object
+      required:
+        - elements
+        - otherServicesDuration
+      properties:
+        elements:
+          description: >-
+            List of the elements representing the critical path service duration breakdown - contains the first few
+            services with the longest overall duration of the spans contributing to the critical path.
+          type: array
+          items:
+            $ref: '#/components/schemas/CriticalPathServiceBreakdownElementBase'
+        otherServicesDuration:
+          description: >-
+            Overall processing time in nanoseconds consumed by the rest of the spans in the critical path
+            (a sum of the duration times of the spans' critical path segments).
+          type: integer
+          format: int64
+          example: 12957153
+
+    SpanPathSegment:
+      type: object
+      required:
+        - spanId
+        - startOffset
+        - duration
+        - ratio
+      properties:
+        spanId:
+          description: Span identifier.
+          type: string
+          example: 00000000000120CB
+        service:
+          description: The name of the service this span is part of.
+          type: string
+          example: user-service
+        serviceColor:
+          description: >-
+            Color hex code assigned to the service.
+          type: string
+          example: "#fa41c6"
+        startOffset:
+          description: Number of nanoseconds from the span startedAt the segment started.
+          type: integer
+          format: int64
+          example: 311285715
+        duration:
+          description: Number of nanoseconds the span segment lasted.
+          type: integer
+          format: int64
+          example: 12957153
+        fraction:
+          description: The fraction (value between 0.0 and 1.0) from the trace duration time this segment took.
+          type: number
+          format: double
+          example: 0.4
+
+    TraceFieldDetail:
+      type: object
+      required:
+        - field
+        - type
+      properties:
+        field:
+          description: Trace filter field name. In trace queries it can be used in `FieldTracingFilter.field`.
+          type: string
+          example: _rootService
+        valueListing:
+          description: Indicates whether values for this field can be listed.
+          type: boolean
+          example: false
+        description:
+          description: Short description of the field.
+          type: string
+          example: The root service of a trace
+        type:
+          description: >-
+            The type the values of this field will have.
+            Possible values: `DoubleTracingValue` / `IntegerTracingValue` / `StringTracingValue` / `DateTimeTracingValue`
+          type: string
+          example: StringTracingValue
+
+    TraceMetricDetail:
+      type: object
+      required:
+        - metric
+        - type
+      properties:
+        metric:
+          description: Trace metric name. In trace queries it can be used in `MetricTracingFilter.metric`.
+          type: string
+          example: _duration
+        description:
+          description: Short description of the metric.
+          type: string
+          example: The duration of a trace in nanoseconds.
+        type:
+          description: >-
+            The type the values of this field will have.
+            Possible values: `DoubleTracingValue` / `IntegerTracingValue`
+          type: string
+          example: IntegerTracingValue
+
+    TraceSpan:
+      type: object
+      required:
+        - id
+        - operationName
+        - duration
+        - startedAt
+        - status
+      properties:
+        id:
+          description: Identifier of the span.
+          type: string
+          example: 00000000002317A9
+        parentId:
+          description: Identifier of the parent span, if any. If the span has no parent it's considered a root span.
+          type: string
+          example: 000000000003C7BE
+        operationName:
+          description: The name of the operation given to the span.
+          type: string
+          example: retrieveAccount
+        resource:
+          description: The name of the resource attached to the span.
+          type: string
+          example: http.request
+        service:
+          description: The name of the service this span is part of.
+          type: string
+          example: user-service
+        serviceColor:
+          description: >-
+            Color hex code assigned to the service.
+          type: string
+          example: "#fa41c6"
+        duration:
+          description: Number of nanoseconds the span lasted.
+          type: integer
+          format: int64
+          example: 212957153
+        startedAt:
+          description: Date and time the span was started in [ISO 8601 / RFC3339](https://tools.ietf.org/html/rfc3339) format.
+          type: string
+          format: date-time
+          example: 2019-11-22T09:00:00Z
+        status:
+          description: >-
+            Status of the span.
+            <table>
+              <tr><th>status</th><th>Description</th></tr>
+              <tr><td>OK</td><td>Span finished successfully.</td></tr>
+              <tr><td>CANCELLED</td><td>The operation was cancelled, typically by the caller.</td></tr>
+              <tr><td>UNKNOWN</td><td>This status may be returned when no proper status could be extracted from the span.</td></tr>
+              <tr><td>INVALID_ARGUMENT</td><td>The client specified an invalid argument. Indicates arguments/inputs that are problematic regardless of the state of the system.</td></tr>
+              <tr><td>DEADLINE_EXCEEDED</td><td>The deadline expired before the operation could complete.</td></tr>
+              <tr><td>NOT_FOUND</td><td>Some requested entity/resource was not found.</td></tr>
+              <tr><td>ALREADY_EXISTS</td><td>The entity that a client attempted to create already exists.</td></tr>
+              <tr><td>PERMISSION_DENIED</td><td>The caller does not have permission to execute the specified operation.</td></tr>
+              <tr><td>UNAUTHENTICATED</td><td>The request does not have valid authentication credentials for the operation.</td></tr>
+              <tr><td>RESOURCE_EXHAUSTED</td><td>Some resource has been exhausted, perhaps a per-user quota, or perhaps the entire file system is out of space.</td></tr>
+              <tr><td>FAILED_PRECONDITION</td><td>The operation was rejected because the system is not in a state required for the operation's execution.</td></tr>
+              <tr><td>ABORTED</td><td>The operation was aborted.</td></tr>
+              <tr><td>OUT_OF_RANGE</td><td>The operation was attempted past the valid range.</td></tr>
+              <tr><td>UNIMPLEMENTED</td><td>The operation is not implemented or is not supported/enabled in this service.</td></tr>
+              <tr><td>INTERNAL</td><td>Internal errors.</td></tr>
+              <tr><td>UNAVAILABLE</td><td>The service is currently unavailable.</td></tr>
+              <tr><td>DATA_LOSS</td><td>Unrecoverable data loss or corruption.</td></tr>
+            </table>
+          type: string
+          example: OK
+
+    TraceSpanCriticalPathContribution:
+      type: object
+      required:
+        - duration
+        - fraction
+      properties:
+        duration:
+          description: >-
+            Overall processing time in nanoseconds consumed by this span in the critical path of its trace
+            (a sum of the duration times of this span's critical path segments).
+          type: integer
+          format: int64
+          example: 12957153
+        fraction:
+          description: >-
+            The total fraction (value between 0.0 and 1.0) of the trace duration time consumed by this span
+            in the critical path of its trace.
+          type: number
+          format: double
+          example: 0.4
+
+    TraceSpanDetail:
+      allOf:
+        - $ref: '#/components/schemas/TraceSpan'
+        - type: object
+          required:
+          properties:
+            errorMessage:
+              description: Produced error message (could be a stack trace, database error code, ..)
+              type: string
+              example: >
+                Exception in thread "local[9]" java.lang.OutOfMemoryError: Java heap space
+                    at my.app.force.fields.SpaceShipForceField.main(SpaceShipForceField.java:17)
+            fields:
+              description: Fields attached to this span.
+              type: object
+              additionalProperties:
+                $ref: '#/components/schemas/TracingValue'
+              example:
+                component:
+                  type: "StringTracingValue"
+                  value: "http"
+                http.method:
+                  type: "StringTracingValue"
+                  value: "GET"
+                http.url:
+                  type: "StringTracingValue"
+                  value: "/v1/users/123"
+                http.status_code:
+                  type: "StringTracingValue"
+                  value: "200"
+            criticalPathContribution:
+              description: Crtical path contribution of this span.
+              type: object
+              $ref: '#/components/schemas/TraceSpanCriticalPathContribution'
+            logs:
+              description: Logs attached to this span.
+              type: array
+              items:
+                type: string
+              example:
+              - "[19/Dec/2019:10:58:21 +0000] 'GET /v1/users/123 HTTP/1.1' 200 8215 'http://111.111.11.1/' 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_11_1) AppleWebKit/111.11 (KHTML, like Gecko) Chrome/11.1.1111.11 Safari/111.11'"
+              - "[19/Dec/2019:10:58:24 +0000] 'GET /logo.png HTTP/1.1' 404 555 'http://111.111.11.1/' 'Mozilla/5.0 (Macintosh; Intel Mac OS X 11_11_1) AppleWebKit/111.11 (KHTML, like Gecko) Chrome/11.1.1111.11 Safari/111.11'"
+

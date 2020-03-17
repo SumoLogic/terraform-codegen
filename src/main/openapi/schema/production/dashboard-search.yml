@@ -1,0 +1,421 @@
+paths:
+  # /dashboard/searches endpoint
+  searches:
+    post:
+      summary: Creates sessionIds to fetch search data
+      description: Creates sessionIds to fetch search data.
+      operationId: createSearchSessions
+      tags:
+        - dashboardSearch
+      requestBody:
+        description: Parameters to make searches.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DashboardSearchParameters'
+      responses:
+        200:
+          description: The sessions have been created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSearchSessionIds'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+  # /dashboard/searches/{sessionIds} endpoint
+  searchSessionIds:
+    get:
+      summary: Get SearchResults for SearchSessionIds
+      description: Get SearchResults for SearchSessionIds.
+      operationId: getSearchResultsForSessions
+      tags:
+        - dashboardSearch
+      parameters:
+      - name: sessionIds
+        description: Comma separated hex strings of search session ids.
+        required: true
+        in: path
+        schema:
+          type: string
+        example: "0000000000000001,FFFFFFFFFFFFFFFF"
+      responses:
+        200:
+          description: Search results.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSearchResultsMap'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    delete:
+      summary: Cancel search sessions.
+      description: Cancel a batch of search sessions given SearchSessionIds.
+      operationId: cancelSearchSessions
+      tags:
+        - dashboardSearch
+      parameters:
+      - name: sessionIds
+        description: Comma separated hex strings of search session ids.
+        required: true
+        in: path
+        schema:
+          type: string
+        example: "0000000000000001,FFFFFFFFFFFFFFFF"
+      responses:
+        204:
+          description: Sessions were canceled successfully.
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  # /dashboard/searches/aggregates endpoint
+  aggregateValues:
+    post:
+      summary: Gets aggregate values for selected series
+      description: Gets aggregate values for selected series
+      operationId: getAggregateValues
+      tags:
+        - dashboardSearch
+      requestBody:
+        description: Parameters to get aggregates of searches.
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/AggregateParameter'
+      responses:
+        200:
+          description: The sessions have been created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AggregateDataMap'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    DashboardSearchSessionIds:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: Map of search keys to session ids.
+          type: object
+          additionalProperties:
+            type: string
+          default: {}
+        errors:
+          description: Error description for the session keys that failed validation.
+          type: object
+          additionalProperties:
+            $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    DashboardSearchParameter:
+      type: object
+      required:
+      - key
+      - queries
+      - timerange
+      - timezone
+      - variablesValues
+      properties:
+        key:
+          description: A unique key to identify the search.
+          type: string
+        queries:
+          description: Search queries.
+          type: array
+          items:
+            $ref: './dashboard-management.yml#/components/schemas/Query'
+        timerange:
+          description: Timerange of the search query.
+          type: string
+        timezone:
+          description: Timezone of the search query.
+          type: string
+        variablesValues:
+          description: Variable values of the search query.
+          $ref: './dashboard-management.yml#/components/schemas/VariablesValuesData'
+        desiredNumberOfDataPoints:
+          description: The number of desired data points per series.
+          type: integer
+          format: int32
+        maximumNumberOfDataPoints:
+          description: The maximum number of data points per series.
+          type: integer
+          format: int32
+        requestToken:
+          description: >-
+            A user-generated string to uniquely identify the search request.
+            This field can be safely ignored if you don't intend to identify a search request.
+          type: string
+    DashboardSearchParameters:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of search queries.
+          type: array
+          items:
+            $ref: '#/components/schemas/DashboardSearchParameter'
+    DashboardSearchStatus:
+      type: object
+      required:
+      - state
+      properties:
+        state:
+          description: Current state of the search.
+          type: string
+        percentCompleted:
+          description: Percentage of search completed.
+          type: integer
+          format: int32
+          minimum: 0
+          maximum: 100
+    DashboardSearchResult:
+      type: object
+      required:
+      - status
+      - axes
+      - series
+      properties:
+        status:
+          description: Current status of the search.
+          $ref: '#/components/schemas/DashboardSearchStatus'
+        axes:
+          description: The axes returned from a search.
+          $ref: '#/components/schemas/VisualDataAxes'
+        series:
+          description: The series returned from a search.
+          type: array
+          items:
+            $ref: '#/components/schemas/VisualDataSeries'
+        errors:
+          description: Errors returned by backend.
+          type: array
+          items:
+            $ref: './generic-responses.yml#/components/schemas/ErrorDescription'
+        timeRange:
+          description: Timerange of the query.
+          $ref: './generic-models.yml#/components/schemas/BeginBoundedTimeRange'
+        requestToken:
+          description: >-
+            A user-generated string to uniquely identify the search request.
+            This field can be safely ignored if you don't intend to identify a search request.
+          type: string
+    DashboardSearchResultsMap:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: Map of session id to search result.
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/DashboardSearchResult'
+          default: {}
+    AggregateDataMap:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          description: Aggregate values returned by sessionId.
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          default: {}
+    AggregateParameter:
+      type: object
+      required:
+      - scope
+      - singleSeriesAggregateFunction
+      - multipleSeriesAggregateFunction
+      properties:
+        scope:
+          description: Regex string to match queries to apply coloring to.
+          type: string
+        singleSeriesAggregateFunction:
+          description: Function to aggregate one series into one single value.
+          type: string
+        multipleSeriesAggregateFunction:
+          description: Function to aggregate the aggregate values of multiple time series into one single value.
+          type: string
+        sessionIds:
+          description: Sessions to get aggregate values from
+          type: array
+          items:
+            type: string
+    VisualDataAxes:
+      type: object
+      required:
+        - x
+        - y
+      properties:
+        x:
+          description: TBD
+          type: array
+          items:
+            $ref: '#/components/schemas/VisualAxisData'
+        y:
+          description: TBD
+          type: array
+          items:
+            $ref: '#/components/schemas/VisualAxisData'
+        x2:
+          description: TBD
+          type: array
+          items:
+            $ref: '#/components/schemas/VisualAxisData'
+        y2:
+          description: TBD
+          type: array
+          items:
+            $ref: '#/components/schemas/VisualAxisData'
+    VisualAxisData:
+      type: object
+      properties:
+        index:
+          description: TBD
+          type: integer
+          format: int32
+    VisualDataSeries:
+      type: object
+      required:
+        - name
+        - queryId
+        - dataPoints
+      properties:
+        queryId:
+          description: TBD
+          type: string
+        name:
+          description: TBD
+          type: string
+        dataPoints:
+          description: TBD
+          type: array
+          items:
+            $ref: '#/components/schemas/VisualPointData'
+        aggregateInfo:
+          description: TBD
+          $ref: '#/components/schemas/VisualAggregateData'
+        metaData:
+          description: TBD
+          $ref: '#/components/schemas/VisualMetaData'
+        seriesType:
+          description: Type of the visual series.
+          type: string
+          example: timeseries
+        xAxisKeys:
+          description: Keys that will be plotted as a point on the x axis.
+          type: array
+          items:
+            type: string
+          example: [_sourceCategory, _sourceHost]
+        valueType:
+          description: Value that represents if the series values are String or Double
+          type: string
+          example: Double
+    VisualPointData:
+      type: object
+      required:
+        - y
+      properties:
+        x:
+          description: TBD
+          type: number
+          format: double
+        y:
+          description: Value that represents a point on the y axis.
+          type: string
+        isFilled:
+          description: TBD
+          type: boolean
+          default: false
+        xAxisValues:
+          description: Values that represents a point on the x axis.
+          type: object
+          additionalProperties:
+            type: string
+          default: {}
+          example:
+            _sourceCategory: collector
+            _collector: nite-index-7
+    VisualAggregateData:
+      type: object
+      required:
+        - max
+        - min
+        - avg
+        - sum
+        - latest
+      properties:
+        max:
+          description: TBD
+          type: number
+          format: double
+        min:
+          description: TBD
+          type: number
+          format: double
+        avg:
+          description: TBD
+          type: number
+          format: double
+        sum:
+          description: TBD
+          type: number
+          format: double
+        latest:
+          description: TBD
+          type: number
+          format: double
+        count:
+          description: TBD
+          type: number
+          format: double
+    VisualMetaData:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          description: TBD
+          type: object
+          additionalProperties:
+            type: string
+          default: {}
+    DashboardKeyedErrors:
+      description: Keyed errors object that contains errors  thrown from the backend.
+      properties:
+        key:
+          description: Key used by the UI  to map to error text.
+          type: string
+        values:
+          description: Map of error information.
+          type: object
+          additionalProperties:
+            type: string
+          default: {}

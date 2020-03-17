@@ -1,0 +1,232 @@
+paths:
+  v1:
+    metrics:
+      datapoints:
+        post:
+          description: >-
+            Run a metrics search to get time series that match up to six metrics queries. If you specify multiple queries,
+            each is returned as a separate set of time series. For more information see [Metrics Queries](http://help.sumologic.com/?cid=1079).
+          tags:
+          - metricsQuery
+          summary: Get time series.
+          operationId: getDatapoints
+          parameters: []
+          requestBody:
+            description: Metrics datapoints request.
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/MetricsDatapointsRequest'
+          responses:
+            200:
+              description: A set of time series grouped by the query.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/MetricsDatapointsResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    MetricsDatapointsRequest:
+      type: object
+      required:
+      - queryRows
+      - timeRange
+      properties:
+        queryRows:
+          description: A list of metric queries.
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryRow'
+        timeRange:
+          $ref: './generic-models.yml#/components/schemas/ResolvableTimeRange'
+        desiredQuantization:
+          description: >-
+            An expected time difference in seconds between the adjacent data points. If not set, the desired quantization
+            is chosen automatically.
+          type: integer
+          example: 1
+          format: int32
+          minimum: 1
+
+    QueryRow:
+      type: object
+      required:
+      - query
+      - rowId
+      properties:
+        query:
+          description: >-
+            The definition of the query. For more information about the query language see [Metrics Queries](http://help.sumologic.com/?cid=1079).
+          example: "metric=CPU_Idle"
+          type: string
+        rowId:
+          description: A unique identifier of the query.
+          type: string
+          example: "#A"
+        fillMissingPolicy:
+          description: A policy that is used to fill missing values. If not specified, `DoNotFillPolicy` is used.
+          $ref: '#/components/schemas/FillMissingPolicy'
+
+    FillMissingPolicy:
+      type: object
+      discriminator:
+        propertyName: policyType
+      required:
+      - policyType
+      properties:
+        policyType:
+          description: >-
+            Type of policy to fill the missing values. Possible options are:
+              1. `DoNotFillPolicy` No artificial points are created.
+              2. `FillWithConstantPolicy` All missing values are set to a given constant value.
+              3. `FillWithLastValuePolicy` All missing values are set to the last real value.
+              4. `InterpolatePolicy` New artificial points lie on the same line, that goes through the closest real point
+            on the left and closest real point on the right.
+          type: string
+
+    DoNotFillPolicy:
+      allOf:
+      - $ref: '#/components/schemas/FillMissingPolicy'
+
+    FillWithConstantPolicy:
+      allOf:
+      - $ref: '#/components/schemas/FillMissingPolicy'
+      - type: object
+        properties:
+          value:
+            description: Every missing point is set to the given `value`.
+            type: number
+            format: double
+            example: 0
+
+    FillWithLastValuePolicy:
+      allOf:
+      - $ref: '#/components/schemas/FillMissingPolicy'
+
+    InterpolatePolicy:
+      allOf:
+      - $ref: '#/components/schemas/FillMissingPolicy'
+
+    MetricsDatapointsResponse:
+      type: object
+      required:
+      - errors
+      - warnings
+      - response
+      - queryInfo
+      properties:
+        errors:
+          description: Compilation errors of queries.
+          type: array
+          items:
+            $ref: './generic-responses.yml#/components/schemas/ErrorDescription'
+        warnings:
+          description: Execution warnings of queries.
+          type: array
+          items:
+            $ref: './generic-responses.yml#/components/schemas/ErrorDescription'
+        response:
+          description: A set of time series grouped by the query.
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricsRowResults'
+        queryInfo:
+          description: Additional information.
+          $ref: '#/components/schemas/MetricsQueryInfo'
+
+    MetricsQueryInfo:
+      type: object
+      required:
+      - startTime
+      - endTime
+      - actualQuantization
+      properties:
+        startTime:
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+        endTime:
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+        actualQuantization:
+          description: >-
+            Actual quantization of returned data points in seconds. It might be different in comparison to `desiredQuantization`
+            from the request.
+          type: integer
+          example: 1
+          format: int32
+
+    MetricsRowResults:
+      type: object
+      required:
+      - rowId
+      - results
+      - fillMissingPolicy
+      properties:
+        rowId:
+          description: Unique identifier of the query.
+          type: string
+          example: "#A"
+        results:
+          description: Set of time series, that matches the given query.
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricsRowResult'
+        fillMissingPolicy:
+          description: A policy that was used to fill missing values.
+          $ref: '#/components/schemas/FillMissingPolicy'
+
+    MetricsRowResult:
+      type: object
+      required:
+      - metric
+      - datapoints
+      properties:
+        metric:
+          description: A definition of the metric, that contains `datapoints`.
+          type: object
+          $ref: '#/components/schemas/MetricDefinition'
+        datapoints:
+          description: Series of data points, that matches the query in the given time range.
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricsDataPoint'
+
+    MetricDefinition:
+      type: object
+      required:
+      - dimensions
+      properties:
+        dimensions:
+          description: The dimensions of the metric.
+          type: array
+          items:
+            $ref: "./generic-metrics-models.yml#/components/schemas/MetricDimension"
+
+    MetricsDataPoint:
+      type: object
+      required:
+      - timestamp
+      - value
+      - isFilledFromMissingPolicy
+      properties:
+        timestamp:
+          description: Timestamp in UTC in [RFC3339](https://tools.ietf.org/html/rfc3339) format.
+          type: string
+          example: 2018-10-16T09:10:00Z
+          format: date-time
+        value:
+          description: Value of the datapoint.
+          type: number
+          example: 9.5
+          format: double
+        isFilledFromMissingPolicy:
+          description: If set to true, the datapoint was created by `FillMissingPolicy`.
+          type: boolean
+          example: false
+          default: false

@@ -1,0 +1,192 @@
+paths:
+  v2:
+    content:
+      permissions:
+        # /content/{id}/permissions
+        get:
+          summary: Get permissions of a content item
+          description: Returns content permissions of a content item with the given identifier.
+          tags:
+          - contentPermissions
+          operationId: getContentPermissions
+          parameters:
+          - name: id
+            description: The identifier of the content item.
+            required: true
+            in: path
+            schema:
+              type: string
+          - name: explicitOnly
+            description: >-
+              There are two permission types: explicit and implicit. Permissions specifically assigned to the content
+              item are explicit. Permissions derived from a parent content item, like a folder are implicit. To return
+              only explicit permissions set this to true.
+            in: query
+            schema:
+              default: false
+              type: boolean
+          - name: isAdminMode
+            description: Set this to "true" if you want to perform the request as a Content Administrator.
+            required: false
+            in: header
+            schema:
+              type: string
+          responses:
+            200:
+              description: A list of permissions for the requested content item.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ContentPermissionResult'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+        # /content/{id}/permissions/add
+        add:
+          put:
+            summary: Add permissions to a content item.
+            description: Add permissions to a content item with the given identifier.
+            tags:
+            - contentPermissions
+            operationId: addContentPermissions
+            parameters:
+            - name: id
+              description: The identifier of the content item.
+              required: true
+              in: path
+              schema:
+                type: string
+            - name: isAdminMode
+              description: Set this to "true" if you want to perform the request as a Content Administrator.
+              required: false
+              in: header
+              schema:
+                type: string
+            requestBody:
+              description: New permissions to add to the content item with the given identifier.
+              required: true
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ContentPermissionUpdateRequest'
+            responses:
+              200:
+                description: Updated permission object for the requested content item.
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/ContentPermissionResult'
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+        # /content/{id}/permissions/remove
+        remove:
+          put:
+            summary: Remove permissions from a content item.
+            description: Remove permissions from a content item with the given identifier.
+            tags:
+            - contentPermissions
+            operationId: removeContentPermissions
+            parameters:
+            - name: id
+              description: The identifier of the content item.
+              required: true
+              in: path
+              schema:
+                type: string
+            - name: isAdminMode
+              description: Set this to "true" if you want to perform the request as a Content Administrator.
+              required: false
+              in: header
+              schema:
+                type: string
+            requestBody:
+              description: Permissions to remove from a content item with the given identifier.
+              required: true
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ContentPermissionUpdateRequest'
+            responses:
+              200:
+                description: Updated permissions for the requested content item.
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/ContentPermissionResult'
+              default:
+                description: Operation failed with an error. Check that your request is valid.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ContentPermissionAssignment:
+      type: object
+      required:
+      - permissionName
+      - sourceId
+      - sourceType
+      - contentId
+      properties:
+        permissionName:
+          description: >-
+            Content permission name. Valid values are: `View`, `GrantView`, `Edit`, `GrantEdit`, `Manage`, and `GrantManage`.
+          type: string
+        sourceType:
+          description: >-
+            Type of source for the permission. Valid values are: `user`, `role`, and `organization`.
+          type: string
+          example: 'role'
+        sourceId:
+          description: >-
+            An identifier that belongs to the source type chosen above. For e.g. if the sourceType is set to "user",
+            sourceId should be identifier of a user (same goes for `role` and `organization` sourceType)
+          type: string
+        contentId:
+          description: Unique identifier for the content item.
+          type: string
+    ContentPermissionUpdateRequest:
+      type: object
+      required:
+      - contentPermissionAssignments
+      - notifyRecipients
+      - notificationMessage
+      properties:
+        contentPermissionAssignments:
+          description: Content permissions to be updated.
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentPermissionAssignment'
+        notifyRecipients:
+          description: Set this to "true" to notify the users who had a permission update.
+          type: boolean
+        notificationMessage:
+          description: The notification message sent to the users who had a permission update.
+          type: string
+    ContentPermissionResult:
+      type: object
+      required:
+      - explicitPermissions
+    # Optional: implicitPermissions
+      properties:
+        explicitPermissions:
+          description: Explicitly assigned content permissions.
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentPermissionAssignment'
+        implicitPermissions:
+          description: Implicitly inherited content permissions.
+          type: array
+          items:
+            $ref: '#/components/schemas/ContentPermissionAssignment'

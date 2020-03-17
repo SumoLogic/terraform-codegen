@@ -1,0 +1,287 @@
+paths:
+  v1:
+    # /v1/accessKeys endpoint
+    accessKeys:
+      get:
+        summary: List all access keys.
+        description: List all access keys in your account.
+        operationId: listAccessKeys
+        tags:
+        - accessKeyManagement
+        parameters:
+          - name: limit
+            description: >-
+              Limit the number of access keys returned in the response. The number of access keys returned may be less than the `limit`.
+            required: false
+            in: query
+            schema:
+              default: 100
+              minimum: 1
+              type: integer
+              maximum: 1000
+              format: int32
+          - name: token
+            description: >-
+              Continuation token to get the next page of results. A page object with the next continuation token is returned
+              in the response body. Subsequent GET requests should specify the continuation token to get the next page of
+              results. `token` is set to null when no more pages are left.
+            required: false
+            in: query
+            schema:
+              type: string
+        responses:
+          200:
+            description: A list of all access keys in your account.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/PaginatedListAccessKeysResult'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      post:
+        summary: Create an access key.
+        description: >-
+          Creates a new access ID and key pair. The new access key can be used from the domains
+          specified in corsHeaders field. Whether Sumo Logic accepts or rejects an API request depends on
+          whether it contains an ORIGIN header and the entries in the whitelist.
+          Sumo Logic will reject:
+            1. Requests with an ORIGIN header but the whitelist is empty.
+            2. Requests with an ORIGIN header that don't match any entry in the whitelist.
+        operationId: createAccessKey
+        tags:
+        - accessKeyManagement
+        parameters: []
+        requestBody:
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessKeyCreateRequest'
+        responses:
+          200:
+            description: Access key created successfully.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/AccessKey'
+          default:
+            description: Access key creation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      # /v1/accessKeys/personal endpoint
+      personal:
+        get:
+          summary: List personal keys.
+          description: List all access keys that belong to your user.
+          operationId: listPersonalAccessKeys
+          tags:
+          - accessKeyManagement
+          responses:
+            200:
+              description: A list of all access keys that belong to the user making the request.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ListAccessKeysResult'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      # /v1/accessKeys/{accessId} endpoint
+      accessId:
+        put:
+          summary: Update an access key.
+          description: >-
+            Updates the properties of existing accessKey by accessId. It can be used to enable or disable the access key and
+            to update the corsHeaders list.
+          operationId: updateAccessKey
+          tags:
+          - accessKeyManagement
+          parameters:
+          - name: accessId
+            description: The accessId of the access key to update.
+            required: true
+            in: path
+            schema:
+              type: string
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/AccessKeyUpdateRequest'
+          responses:
+            200:
+              description: Access key updated successfully.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/AccessKey'
+            default:
+              description: Access key update failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+        delete:
+          summary: Delete an access key.
+          description: Deletes the access key with the given accessId.
+          operationId: deleteAccessKey
+          tags:
+          - accessKeyManagement
+          parameters:
+          - name: accessId
+            description: The accessId of the access key to delete.
+            required: true
+            in: path
+            schema:
+              type: string
+          responses:
+            204:
+              description: Access key deletion completed successfully.
+            default:
+              description: Access key deletion failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ListAccessKeysResult:
+      description: List of access keys.
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          description: An array of access keys.
+          items:
+            $ref: '#/components/schemas/AccessKey'
+    PaginatedListAccessKeysResult:
+      description: List of access keys.
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          type: array
+          description: An array of access keys.
+          items:
+            $ref: '#/components/schemas/AccessKey'
+        next:
+          description: Next continuation token.
+          type: string
+          example: GDCiRv4vebF3UWFJQ1kySXBOR3Bzh69GR0RyWm9vCtc
+    AccessKey:
+      type: object
+      required:
+      - id
+      - label
+      - corsHeaders
+      - disabled
+      - createdAt
+      - createdBy
+      - modifiedAt
+      properties:
+        id:
+          description: Identifier of the access key.
+          type: string
+          example: su0w3Q37CBzHUM
+        key:
+          description: >-
+            The key for the created access key. This field will have values only in the response for an access key create
+            request. The value will be an empty string while listing all keys.
+          type: string
+          example: F9GZvb4fISxUZHM7pqHCsGXGWf4OArgmt9Tz8ewZ
+        label:
+          description: The name of the access key.
+          type: string
+          example: collector access key
+        corsHeaders:
+          description: >-
+            An array of domains for which the access key is valid. Whether Sumo Logic accepts or rejects an API request
+            depends on whether it contains an ORIGIN header and the entries in the whitelist.
+            Sumo Logic will reject:
+              1. Requests with an ORIGIN header but the whitelist is empty.
+              2. Requests with an ORIGIN header that don't match any entry in the whitelist.
+          type: array
+          items:
+            type: string
+          example:
+          - https://my-app.com
+          - https://mail.my-app.com
+        disabled:
+          description: Indicates whether the access key is disabled or not.
+          type: boolean
+          example: false
+        createdAt:
+          description: Creation timestamp in UTC in [RFC3339](https://tools.ietf.org/html/rfc3339) format.
+          type: string
+          format: date-time
+          example: 2018-10-16T09:10:00Z
+        createdBy:
+          description: Identifier of the user who created the access key.
+          type: string
+          example: 0000000006743FDD
+        modifiedAt:
+          description: Last modification timestamp in UTC.
+          type: string
+          format: date-time
+          example: 2018-10-16T09:10:00Z
+
+    AccessKeyCreateRequest:
+      type: object
+      required:
+      - label
+      - corsHeaders
+      properties:
+        label:
+          description: A name for the access key to be created.
+          type: string
+          example: automation access key
+        corsHeaders:
+          description: |-
+            An array of domains for which the access key is valid. Whether Sumo Logic accepts or rejects an API request
+            depends on whether it contains an ORIGIN header and the entries in the whitelist.
+            Sumo Logic will reject:
+              1. Requests with an ORIGIN header but the whitelist is empty.
+              2. Requests with an ORIGIN header that don't match any entry in the whitelist.
+          type: array
+          items:
+            type: string
+          example:
+          - https://my-app.com
+          - https://mail.my-app.com
+    AccessKeyUpdateRequest:
+      type: object
+      required:
+      - disabled
+      - corsHeaders
+      properties:
+        disabled:
+          description: Indicates whether the access key is disabled or not.
+          type: boolean
+          example: true
+        corsHeaders:
+          description: >-
+            An array of domains for which the access key is valid. Whether Sumo Logic accepts or rejects an API request
+            depends on whether it contains an ORIGIN header and the entries in the whitelist.
+            Sumo Logic will reject:
+              1. Requests with an ORIGIN header but the whitelist is empty.
+              2. Requests with an ORIGIN header that don't match any entry in the whitelist.
+          type: array
+          items:
+            type: string
+          example:
+          - https://my-app.com
+          - https://mail.my-app.com

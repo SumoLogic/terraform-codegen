@@ -1,0 +1,93 @@
+components:
+  responses:
+    Moved:
+      description: The path for the given request has changed.
+    BadRequest:
+      description: >-
+        The request is invalid and cannot be processed. Check that your request has valid syntax and the correct
+        parameters.
+      content:
+        "*/*":
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Request does not have valid credentials.
+      content:
+        "*/*":
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found.
+      content:
+        "*/*":
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    UnsupportedMediaType:
+      description: The body of the request didn't have the appropriate media type (usually application/json).
+      content:
+        "*/*":
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    TooManyRequests:
+      description: Rate limit has been exceeded. Exponential backoff is recommended.
+      content:
+        "*/*":
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    InternalServerError:
+      description: Unexpected server error.
+      content:
+        "*/*":
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  schemas:
+    ErrorDescription:
+      type: object
+      required:
+      - code
+      - message
+      # Not required:
+      # - detail
+      # - meta
+      properties:
+        code:
+          type: string
+          description: An error code describing the type of error.
+          example: 'auth:password_too_short'
+        message:
+          type: string
+          description: A short English-language description of the error.
+          example: 'Your password was too short.'
+        detail:
+          type: string
+          description: An optional fuller English-language description of the error.
+          example: 'Your password was 5 characters long, the minimum length is 12 characters.
+            See http://example.com/password for more information.'
+        meta:
+          type: object
+          description: An optional list of metadata about the error.
+          example:
+            minLength: 12
+            actualLength: 5
+
+    ErrorResponse:
+      type: object
+      required:
+      - id
+      - errors
+      properties:
+        id:
+          type: string
+          description: An identifier for the error; this is unique to the specific API request.
+          example: 'IUUQI-DGH5I-TJ045'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorDescription'
+          description: A list of one or more causes of the error.
+          example:
+          - code: 'auth:password_too_short'
+            message: 'Your password was too short.'
+          - code: 'auth:password_character_classes'
+            message: 'Your password did not contain any non-alphanumeric characters'

@@ -1,0 +1,590 @@
+paths:
+  # /roles endpoint
+  roles:
+    get:
+      summary: Get a list of roles.
+      description: >-
+        Get a list of all the roles in the organization. The response is paginated with a default limit of 100 roles
+        per page.
+      operationId: listRoles
+      tags:
+      - roleManagement
+      parameters:
+      - name: limit
+        description: >-
+          Limit the number of roles returned in the response. The number of roles returned may be less than the `limit`.
+        required: false
+        in: query
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+          maximum: 1000
+          format: int32
+      - name: token
+        description: >-
+          Continuation token to get the next page of results. A page object with the next continuation token is returned
+          in the response body. Subsequent GET requests should specify the continuation token to get the next page of
+          results. `token` is set to null when no more pages are left.
+        required: false
+        in: query
+        schema:
+          type: string
+      - name: sortBy
+        description: >-
+          Sort the list of roles by the `name` field.
+        required: false
+        in: query
+        schema:
+          type: string
+      - name: name
+        description: Only return roles matching the given name.
+        required: false
+        in: query
+        schema:
+          minLength: 1
+          type: string
+      responses:
+        200:
+          description: A paginated list of roles in the organization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListRoleModelsResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    post:
+      summary: Create a new role.
+      description: Create a new role in the organization.
+      operationId: createRole
+      tags:
+      - roleManagement
+      parameters: []
+      requestBody:
+        description: Information about the new role.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateRoleDefinition'
+      responses:
+        200:
+          description: The role has been created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleModel'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    # /roles/capabilities
+    capabilities:
+      get:
+        deprecated: true
+        x-visibility: private
+        summary: Get all capabilities
+        description: Get a map of all capabilities that can be added to a role
+        operationId: getCapabilitiesMap
+        tags:
+        - roleManagement
+        responses:
+          200:
+            description: A map of capabilities that can be added to a role.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/CapabilityMap'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+
+  # /roles/{id} endpoint
+  roleId:
+    get:
+      summary: Get a role.
+      description: Get a role with the given identifier in the organization.
+      operationId: getRole
+      tags:
+      - roleManagement
+      parameters:
+      - name: id
+        description: Identifier of the role to fetch.
+        required: true
+        in: path
+        schema:
+          type: string
+      responses:
+        200:
+          description: Role object that was requested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleModel'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    put:
+      summary: Update a role.
+      description: >-
+        Update an existing role in the organization.
+      operationId: updateRole
+      tags:
+      - roleManagement
+      parameters:
+      - name: id
+        description: Identifier of the role to update.
+        required: true
+        in: path
+        schema:
+          type: string
+      requestBody:
+        description: Information to update about the role.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRoleDefinition'
+      responses:
+        200:
+          description: The user was successfully modified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RoleModel'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete a role.
+      description: Delete a role with the given identifier from the organization.
+      operationId: deleteRole
+      tags:
+      - roleManagement
+      parameters:
+      - name: id
+        description: Identifier of the role to delete.
+        required: true
+        in: path
+        schema:
+          type: string
+      responses:
+        204:
+          description: Role was deleted successfully.
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    # /roles/{roleId}/users/{userId} endpoint.
+    userId:
+      put:
+        summary: Assign a role to a user.
+        description: >-
+          Assign a role to a user in the organization.
+        operationId: assignRoleToUser
+        tags:
+        - roleManagement
+        parameters:
+        - name: roleId
+          description: Identifier of the role to assign.
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: userId
+          description: Identifier of the user to assign the role to.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          200:
+            description: Role was successfully assigned to the user.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/RoleModel'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      delete:
+        summary: Remove role from a user.
+        description: >-
+          Remove a role from a user in the organization.
+        operationId: removeRoleFromUser
+        tags:
+        - roleManagement
+        parameters:
+        - name: roleId
+          description: Identifier of the role to delete.
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: userId
+          description: Identifier of the user to remove the role from.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          204:
+            description: Role was successfully removed from the user.
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+  v2:
+    roles:
+      capabilities:
+        get:
+          x-visibility: private
+          summary: Get all capabilities
+          description: Get a list of all capabilities that can be added to a role
+          operationId: getCapabilitiesList
+          tags:
+            - roleManagement
+          responses:
+            200:
+              description: A list of capabilities that can be added to a role.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/CapabilityList'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreateRoleDefinition:
+      type: object
+      required:
+      - name
+      properties:
+        name:
+          description: Name of the role.
+          type: string
+          example: DataAdmin
+          minLength: 1
+          maxLength: 128
+        description:
+          description: Description of the role.
+          type: string
+          example: Manage data of the org.
+          minLength: 0
+          maxLength: 255
+        filterPredicate:
+          description: >-
+            A search filter to restrict access to specific logs. The filter is silently added to the beginning of each
+            query a user runs. For example, using '!_sourceCategory=billing' as a filter predicate will prevent users
+            assigned to the role from viewing logs from the source category named 'billing'.
+          type: string
+          example: '!_sourceCategory=billing'
+        users:
+          description: List of user identifiers to assign the role to.
+          type: array
+          items:
+            type: string
+          example:
+            - 0000000006743FE0
+            - 0000000005FCE0EE
+        capabilities:
+          description: >-
+            List of [capabilities](https://help.sumologic.com/Manage/Users-and-Roles/Manage-Roles/Role-Capabilities)
+            associated with this role. Valid values are
+
+            ### Data Management
+              - viewCollectors
+              - manageCollectors
+              - manageBudgets
+              - manageDataVolumeFeed
+              - viewFieldExtraction
+              - manageFieldExtractionRules
+              - manageIndexes
+              - manageS3DataForwarding
+              - manageContent
+              - dataVolumeIndex
+              - viewConnections
+              - manageConnections
+              - viewScheduledViews
+              - manageScheduledViews
+              - viewPartitions
+              - managePartitions
+              - viewFields
+              - manageFields
+              - viewAccountOverview
+              - manageTokens
+              - manageDataStreams
+
+            ### Metrics
+              - manageMonitors
+              - metricsTransformation
+              - metricsExtraction
+              - metricsRules
+
+            ### Security
+              - managePasswordPolicy
+              - ipWhitelisting
+              - manageAccessKeys
+              - manageSupportAccountAccess
+              - manageAuditDataFeed
+              - manageSaml
+              - shareDashboardOutsideOrg
+              - manageOrgSettings
+              - changeDataAccessLevel
+
+            ### Dashboards
+              - shareDashboardWorld
+              - shareDashboardWhitelist
+
+            ### UserManagement
+              - manageUsersAndRoles
+
+            ### Observability
+              - searchAuditIndex
+              - auditEventIndex
+          type: array
+          items:
+            type: string
+          example:
+            - manageContent
+            - manageDataVolumeFeed
+            - manageFieldExtractionRules
+            - manageIndexes
+            - manageS3DataForwarding
+        autofillDependencies:
+          description: >-
+            Set this to true if you want to automatically append all missing capability requirements.
+            If set to false an error will be thrown if any capabilities are missing their dependencies.
+          type: boolean
+          default: true
+    UpdateRoleDefinition:
+      type: object
+      required:
+      - name
+      - description
+      - filterPredicate
+      - users
+      - capabilities
+      properties:
+        name:
+          description: Name of the role.
+          type: string
+          example: DataAdmin
+          minLength: 1
+          maxLength: 128
+        description:
+          description: Description of the role.
+          type: string
+          example: Manage data of the org.
+          minLength: 0
+          maxLength: 255
+        filterPredicate:
+          description: >-
+            A search filter to restrict access to specific logs. The filter is silently added to the beginning of each
+            query a user runs. For example, using '!_sourceCategory=billing' as a filter predicate will prevent users
+            assigned to the role from viewing logs from the source category named 'billing'.
+          type: string
+          example: '!_sourceCategory=billing'
+        users:
+          description: List of user identifiers to assign the role to.
+          type: array
+          items:
+            type: string
+          example:
+            - 0000000006743FE0
+            - 0000000005FCE0EE
+        capabilities:
+          description: >-
+            List of [capabilities](https://help.sumologic.com/Manage/Users-and-Roles/Manage-Roles/Role-Capabilities)
+            associated with this role. Valid values are
+
+            ### Data Management
+              - viewCollectors
+              - manageCollectors
+              - manageBudgets
+              - manageDataVolumeFeed
+              - viewFieldExtraction
+              - manageFieldExtractionRules
+              - manageIndexes
+              - manageS3DataForwarding
+              - manageContent
+              - dataVolumeIndex
+              - viewConnections
+              - manageConnections
+              - viewScheduledViews
+              - manageScheduledViews
+              - viewPartitions
+              - managePartitions
+              - viewFields
+              - manageFields
+              - viewAccountOverview
+              - manageTokens
+              - manageDataStreams
+
+            ### Metrics
+              - manageMonitors
+              - metricsTransformation
+              - metricsExtraction
+              - metricsRules
+
+            ### Security
+              - managePasswordPolicy
+              - ipWhitelisting
+              - manageAccessKeys
+              - manageSupportAccountAccess
+              - manageAuditDataFeed
+              - manageSaml
+              - shareDashboardOutsideOrg
+              - manageOrgSettings
+              - changeDataAccessLevel
+
+            ### Dashboards
+              - shareDashboardWorld
+              - shareDashboardWhitelist
+
+            ### UserManagement
+              - manageUsersAndRoles
+
+            ### Observability
+              - searchAuditIndex
+              - auditEventIndex
+          type: array
+          items:
+            type: string
+          example:
+            - manageContent
+            - manageDataVolumeFeed
+            - manageFieldExtractionRules
+            - manageIndexes
+            - manageS3DataForwarding
+        autofillDependencies:
+          description: >-
+            Set this to true if you want to automatically append all missing capability requirements.
+            If set to false an error will be thrown if any capabilities are missing their dependencies.
+          type: boolean
+          default: true
+    RoleModel:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/CreateRoleDefinition'
+      - $ref: './generic-models.yml#/components/schemas/MetadataModel'
+      - required:
+        - id
+        properties:
+          id:
+            description: Unique identifier for the role.
+            type: string
+            example: 0000000000E20FE3
+          systemDefined:
+            description: Role is system or user defined.
+            type: boolean
+            example: false
+    ListRoleModelsResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of roles.
+          type: array
+          items:
+            $ref: '#/components/schemas/RoleModel'
+        next:
+          description: Next continuation token.
+          type: string
+          example: GDCiRv4vebF3UWFJQ1kySXBOR3Bzh69GR0RyWm9vCtc
+    CapabilityDefinition:
+      type: object
+      required:
+        - id
+        - label
+        - group
+        - dependsOn
+      properties:
+        id:
+          description: The name of the capability
+          type: string
+          example: manageParsers
+        label:
+          description: The UI label for the capability.
+          type: string
+          example: Manage Parsers
+        dependsOn:
+          description: Any capabilities that are required for this capability to be enabled.
+          type: array
+          items:
+            type: string
+          example:
+            - ViewParsers
+            - EditParsers
+        group:
+          description: The group that the capability belongs to.
+          type: object
+          required:
+            - id
+            - label
+          properties:
+            id:
+              description: The backend name for the capability group
+              type: string
+              example: CloudSiem
+            label:
+              description: The label for the capability group
+              type: string
+              example: Cloud Siem
+        message:
+          description: Warning message that appears when this capability is enabled.
+          type: string
+          example: >-
+            By enabling this capability, you are allowing any user in this role to share a dashboard, including its
+            contents, with ANYONE who has the URL. This URL can be shared with users outside of your organization,
+            allowing them to view the dashboard and its contents. Are you sure you want to enable this permission?
+    CapabilityList:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          description: List of capabilities
+          type: array
+          items:
+            $ref: '#/components/schemas/CapabilityDefinition'
+    CapabilityMap:
+      type: object
+      required:
+        - capabilities
+      properties:
+        capabilities:
+          description: Map of capabilities to their attributes
+          type: object
+          additionalProperties:
+            $ref: '#/components/schemas/CapabilityDefinition'
+

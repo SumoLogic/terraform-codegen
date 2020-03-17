@@ -1,0 +1,241 @@
+paths:
+  variablesValues:
+    post:
+      summary: Create a sessionId to fetch values for a set of variables
+      description: Create a sessionId to fetch values for a set of variables.
+      operationId: createDashboardVariablesValuesSession
+      tags:
+        - dashboardVariablesValues
+      requestBody:
+        description: Variables with variable values to fetch values for
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariablesAndNullableVariablesValue'
+      responses:
+        200:
+          description: The session has been created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VariablesValuesSessionId'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+  variablesValuesSessionId:
+    get:
+      summary: Return all the variables values for a session
+      description: |
+        Return all the variables values for a session in a map.
+        The key is the variableId and the value is the variable values in a list.
+      operationId: getDashboardVariablesValuesForSession
+      tags:
+        - dashboardVariablesValues
+      parameters:
+      - name: sessionId
+        description: Search session id
+        required: true
+        in: path
+        schema:
+          type: string
+      responses:
+        200:
+          description: Dashboard variables values
+          content:
+            application/json:
+              schema:
+                $ref: './dashboard-management.yml#/components/schemas/VariablesValuesData'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+  variablesValuesLogQuery:
+    post:
+      summary: Return a new log query to populate variable values.
+      description: >
+        Return a new log query to populate variable values. The new query will add a count by expression of the
+        specified field to the original query.
+      operationId: getQueryForLogVariableValues
+      tags:
+        - dashboardVariablesValues
+      requestBody:
+        description: The request to get a log query to populate variable values.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VariableValuesLogQueryRequest'
+      responses:
+        200:
+          description: The query to get variable values.
+          content:
+            application/json:
+              schema:
+                type: string
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    VariableSourceDefinition:
+      type: object
+      required:
+      - variableSourceType
+      properties:
+        variableSourceType:
+          description: Source type of the variable values.
+          type: string
+          example: 'MetricsQueryVariableSourceDefinition'
+      discriminator:
+        propertyName: variableSourceType
+    MetricsQueryVariableSourceDefinition:
+      allOf:
+        - $ref: '#/components/schemas/VariableSourceDefinition'
+        - type: object
+          required:
+          - query
+          - dimension
+          properties:
+            query:
+              description: Metrics query to get dimension values.
+              type: string
+              maxLength: 65536
+              example: '_contentType=HostMetrics metric=CPU_LoadAvg_5min | avg by metric'
+            dimension:
+              description: Dimension name to extract variable out of.
+              type: string
+              example: 'metric'
+    MagellanMetadataVariableSourceDefinition:
+      allOf:
+      - $ref: '#/components/schemas/VariableSourceDefinition'
+      - type: object
+        required:
+        - filter
+        - key
+        properties:
+          filter:
+            description: Filter to search the catalog.
+            type: string
+            maxLength: 65536
+            example: '_sourceHost=prod-* metric=CPU_Idle'
+          key:
+            description: Return the values for this given key.
+            type: string
+            example: '_sourceCategory'
+    CsvVariableSourceDefinition:
+      allOf:
+        - $ref: '#/components/schemas/VariableSourceDefinition'
+        - type: object
+          required:
+          - values
+          properties:
+            values:
+              # TODO(amy, 2018-04-25): Add documentation for how quotes and escapes work
+              description: Comma separated values for the variable.
+              type: string
+              maxLength: 65536
+              example: 'host1, host2'
+    LogQueryVariableSourceDefinition:
+      allOf:
+      - $ref: '#/components/schemas/VariableSourceDefinition'
+      - type: object
+        required:
+        - query
+        - field
+        properties:
+          query:
+            description: A log query.
+            type: string
+            maxLength: 65536
+            example: '_sourceCategory=forge error | parse "[pod=*]" podid | count by podid'
+          field:
+            description: A field in log query to populate the variable values.
+            type: string
+            maxLength: 65536
+            example: podid
+    Variable:
+      type: object
+      required:
+      - name
+      - sourceDefinition
+      - allowMultiSelect
+      - includeAllOption
+      - hideFromUI
+      properties:
+        id:
+          description: Unique identifier for the variable.
+          type: string
+        name:
+          description: |
+            Name of the variable. The variable name is case-insensitive. Only numbers, spaces, and underscores are
+            allowed in the variable name.
+          type: string
+          maxLength: 256
+          example: '_sourceHost'
+        displayName:
+          description: |
+            Display name of the variable shown in the UI. If this field is empty, the name field will be used.
+            The display name is case-insensitive. Only numbers, spaces, and underscores are allowed in the variable name.
+          type: string
+          maxLength: 256
+          example: 'Source Host'
+        defaultValue:
+          description: Default value of the variable.
+          type: string
+          example: 'default_value'
+        sourceDefinition:
+          $ref: '#/components/schemas/VariableSourceDefinition'
+        allowMultiSelect:
+          description: Allow multiple selections in the values dropdown.
+          type: boolean
+        includeAllOption:
+          description: Include an "All" option at the top of the variable's values dropdown.
+          type: boolean
+        hideFromUI:
+          description: Hide the variable in the dashboard UI.
+          type: boolean
+    VariablesAndNullableVariablesValue:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of variables.
+          type: array
+          items:
+            $ref: '#/components/schemas/Variable'
+        variablesValues:
+          description: Nullable map of variable name to chosen variable value.
+          $ref: './dashboard-management.yml#/components/schemas/VariablesValuesData'
+    VariablesValuesSessionId:
+      type: object
+      required:
+      - sessionId
+      properties:
+        sessionId:
+          description: Search session Id
+          type: string
+    VariableValuesLogQueryRequest:
+      type: object
+      description: The request to get a log query to populate variable values.
+      required:
+        - query
+        - field
+      properties:
+        query:
+          description: The original log query of the variable.
+          type: string
+          example: '_sourceCategory=forge | count by _sourceHost'
+        field:
+          description: A field in log query to populate the variable values.
+          type: string
+          example: '_sourceHost'

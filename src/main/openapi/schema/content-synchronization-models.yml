@@ -1,0 +1,701 @@
+components:
+  schemas:
+    FolderSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ContentSyncDefinition'
+      - type: object
+        required:
+          # Not required: description
+        - children
+        properties:
+          description:
+            description: An optional description for the folder.
+            type: string
+          children:
+            description: The items in the folder, a list of Dashboard and/or Folder items.
+            type: array
+            items:
+              $ref: '#/components/schemas/ContentSyncDefinition'
+
+    ContentSyncDefinition:
+      type: object
+      required:
+      - type
+      - name
+      properties:
+        type:
+          description: The item type. Dashboard links are not supported.
+          type: string
+        name:
+          description: The name of the item.
+          type: string
+      discriminator:
+
+        propertyName: type
+    AutoCompleteValueSyncDefinition:
+      type: object
+      required:
+      - label
+      - value
+      properties:
+        label:
+          description: The label of the autocomplete value.
+          type: string
+        value:
+          description: The value of the autocomplete value.
+          type: string
+
+    ParameterAutoCompleteSyncDefinition:
+      type: object
+      required:
+      - autoCompleteType
+      properties:
+        autoCompleteType:
+          description: >-
+            The autocomplete parameter type. Supported values are:
+              1. `SKIP_AUTOCOMPLETE`
+              2. `CSV_AUTOCOMPLETE`
+              3. `AUTOCOMPLETE_KEY`
+              4. `VALUE_ONLY_AUTOCOMPLETE`
+              5. `VALUE_ONLY_LOOKUP_AUTOCOMPLETE`
+              6. `LABEL_VALUE_LOOKUP_AUTOCOMPLETE`
+          type: string
+        autoCompleteValues:
+          description: The array of values of the corresponding autocomplete parameter.
+          type: array
+          items:
+            $ref: '#/components/schemas/AutoCompleteValueSyncDefinition'
+        lookupFileName:
+          description: The lookup file to use as a source for autocomplete values.
+          type: string
+        lookupLabelColumn:
+          description: The column from the lookup file to use for autocomplete labels.
+          type: string
+        lookupValueColumn:
+          description: The column from the lookup file to fill the actual value when a particular label is selected.
+          type: string
+
+    QueryParameterSyncDefinition:
+      type: object
+      required:
+      - name
+      - label
+      - description
+      - dataType
+      - value
+      - autoComplete
+      properties:
+        name:
+          description: The name of the parameter.
+          type: string
+        label:
+          description: The label of the parameter.
+          type: string
+        description:
+          description: A description of the parameter.
+          type: string
+        dataType:
+          description: >-
+            The data type of the parameter. Supported values are:
+              1. `NUMBER`
+              2. `STRING`
+              3. `QUERY_FRAGMENT`
+              4. `SEARCH_KEYWORD`
+          type: string
+        value:
+          description: A value for the parameter. Should be compatible with the type set in dataType field.
+          type: string
+        autoComplete:
+          description: The object that contains all relevant information to support autocomplete for template variables.
+          $ref: ParameterAutoCompleteSyncDefinition
+
+    MetricsQuerySyncDefinition:
+      type: object
+      required:
+      - query
+      - rowId
+      properties:
+        query:
+          description: The text of a metrics query.
+          type: string
+        rowId:
+          description: A label referring to the query; used if other metrics queries reference this one.
+          type: string
+
+    LookupTableSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ContentSyncDefinition'
+      - $ref: './lookup.yml#/components/schemas/ExportableLookupTableInfo'
+
+    DashboardSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ContentSyncDefinition'
+      - type: object
+        required:
+        - description
+        - detailLevel
+        - properties
+        - panels
+        - filters
+        properties:
+          description:
+            description: A description of the dashboard.
+            type: string
+          detailLevel:
+#            # TODO: add description
+            description: >-
+              Supported values are:
+                - `1` for small
+                - `2` for medium
+                - `3` for large
+            type: integer
+          properties:
+            description: >-
+              Visual settings for the panel.
+            type: string
+          panels:
+            description: The panels of the dashboard. _Dashboard links are not supported._
+            type: array
+            items:
+              $ref: '#/components/schemas/ReportPanelSyncDefinition'
+          filters:
+            description: >-
+              The filters for the dashboard. Filters allow you to control the amount of information displayed in your
+              dashboards.
+            type: array
+            items:
+              $ref: '#/components/schemas/ReportFilterSyncDefinition'
+
+    MewboardSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ContentSyncDefinition'
+      - type: object
+        required:
+        - description
+        - title
+        - rootPanel
+        - topologyLabelMap
+        properties:
+          description:
+            description: A description of the dashboard.
+            type: string
+          title:
+            description: The title of the dashboard.
+            type: string
+          rootPanel:
+            description: The root level panel of the dashboard.
+            $ref: './dashboard-management.yml#/components/schemas/ContainerPanel'
+          theme:
+            description: Theme for the dashboard, can be light or dark.
+            type: string
+            example:
+            - light
+          topologyLabelMap:
+            description: Map of topology labels associated with the dashboard.
+            example:
+              - namespace:
+                - kube-system
+            $ref: './topology-label-management.yml#/components/schemas/TopologyLabelMap'
+          refreshInterval:
+            description: >-
+              Interval of time (in seconds) to automatically refresh the dashboard. A value of 0 means we never automatically
+              refresh the dashboard.
+            type: number
+            format: int32
+            example:
+            - 5
+          timeRange:
+            description: Timerange of the dashboard. All panels by default will have this timerange.
+            $ref: './generic-models.yml#/components/schemas/ResolvableTimeRange'
+    ReportFilterSyncDefinition:
+      type: object
+      required:
+      - fieldName
+      - label
+      # Not required:
+      # - defaultValue
+      - filterType
+      - properties
+      - panelIds
+      properties:
+        fieldName:
+          description: The name af the field being filtered on, as listed in PanelField.
+          type: string
+        label:
+          description: The name of the field being filtered on, as displayed to the user.
+          type: string
+        defaultValue:
+          description: The default value of the parameter.
+          type: string
+        filterType:
+          description: Type of filter. Can only be `numeric` or `textbox`.
+          type: string
+        properties:
+          description: >-
+            Visual settings for the panel.
+          type: string
+        panelIds:
+          description: A list of panel identifiers that the filter applies to.
+          type: array
+          items:
+            type: string
+
+    ReportPanelSyncDefinition:
+      type: object
+      required:
+      - name
+      - viewerType
+      - detailLevel
+      - queryString
+      - metricsQueries
+      - timeRange
+      - x
+      - y
+      - width
+      - height
+      - properties
+      - id
+      # Not required:
+      # desiredQuantizationInSeconds
+      - queryParameters
+      properties:
+        name:
+          description: The title of the panel.
+          type: string
+        viewerType:
+          description: >-
+            Type of [area chart](https://help.sumologic.com/Dashboards-and-Alerts/Dashboards/Chart-Panel-Types). Supported
+            values are:
+              1. `table` for Table
+              2. `bar` for Bar Chart
+              3. `column` for Column Chart
+              4. `line` for Line Chart
+              5. `area` for Area Chart
+              6. `pie` for Pie Chart
+              7. `svv` for Single Value Viewer
+              8. `title` for Title Panel
+              9. `text` for Text Panel
+
+            Values 1-7 are used for Data Panels.
+          type: string
+        detailLevel:
+          description: >-
+            Supported values are:
+              - `1` for small
+              - `2` for medium
+              - `3` for large
+          type: integer
+        queryString:
+          description: The query to run, for panels associated to log searches.
+          type: string
+        metricsQueries:
+          description: The query or queries to run, for panels associated to metrics searches.
+          type: array
+          items:
+            $ref: '#/components/schemas/MetricsQuerySyncDefinition'
+        timeRange:
+          description: The time range for the query to run.
+          $ref: './generic-models.yml#/components/schemas/ResolvableTimeRange'
+        x:
+          description: >-
+            The horizontal position of the panel. A sumo screen is divided into 24 columns. The value for x can be any
+            integer from 0 to 24.
+          type: integer
+        y:
+          description: >-
+            The vertical position of the panel. A sumo screen is divided into 24 rows. The value for y can be any integer
+            from 0 to 24.
+          type: integer
+        width:
+          description: The width of the panel.
+          type: integer
+        height:
+          description: The height of the panel.
+          type: integer
+        properties:
+          description: >-
+            Visual settings for the panel.
+          type: string
+        id:
+          description: A string identifier that you can use to refer to the panel in filters.panelIds.
+          type: string
+        desiredQuantizationInSecs:
+          description: >-
+            The quantization interval aligns your time series data to common intervals on the time axis (for example
+            every one minute) to optimize the visualization and performance.
+          type: integer
+        queryParameters:
+          description: The parameters for parameterized searches.
+          type: array
+          items:
+            $ref: '#/components/schemas/QueryParameterSyncDefinition'
+
+    SavedSearchWithScheduleSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ContentSyncDefinition'
+      - type: object
+        required:
+        - search
+        - description
+        properties:
+          search:
+            description: A saved search.
+            $ref: '#/components/schemas/SavedSearchSyncDefinition'
+          searchSchedule:
+            description: Schedule details for a saved search.
+            $ref: '#/components/schemas/SearchScheduleSyncDefinition'
+          description:
+            description: Description of the saved search.
+            type: string
+
+    SavedSearchSyncDefinition:
+      type: object
+      required:
+      - queryText
+      - defaultTimeRange
+      - byReceiptTime
+      - queryParameters
+      properties:
+        queryText:
+          description: The text of a Sumo Logic query.
+          type: string
+        defaultTimeRange:
+          description: >-
+            Default time range for the search. Possible types of time ranges are:
+              - relative time range: e.g. "-1d -12h" represents a time range from one day ago to 12 hours ago.
+              - absolute time range: e.g. "01-04-2017 20:32:00 to 01-04-2017 20:35:00" represents a time range
+                from April 1st, 2017 at 8:32 PM until April 1st, 2017 at 8:35 PM.
+          type: string
+        byReceiptTime:
+          description: >-
+            Set it to true to run the search using receipt time. By default, searches do not run by receipt time.
+          type: boolean
+          default: false
+        viewName:
+          description: >-
+            The name of the Scheduled View that has indexed the data you want to search.
+          type: string
+        viewStartTime:
+          description: >-
+            Start timestamp of the Scheduled View in UTC format.
+          type: string
+          format: date-time
+        queryParameters:
+          description: An array of search query parameter objects.
+          type: array
+          items:
+            $ref: QueryParameterSyncDefinition
+        parsingMode:
+          description: >-
+            Define the parsing mode to scan the JSON format log messages. Possible values are:
+              1. `AutoParse`
+              2. `Manual`
+            In AutoParse mode, the system automatically figures out fields to parse based on the search query.
+            While in the Manual mode, no fields are parsed out automatically.
+            For more information see [Dynamic Parsing](https://help.sumologic.com/?cid=0011).
+          type: string
+          example: "AutoParse"
+          default: "Manual"
+
+    SearchScheduleSyncDefinition:
+      type: object
+      required:
+      - scheduleType
+      - parseableTimeRange
+      - timeZone
+      - notification
+      - parameters
+      properties:
+        cronExpression:
+          description: >-
+            Cron-like expression specifying the search's schedule. Field scheduleType must be set to "Custom", otherwise,
+            scheduleType takes precedence over cronExpression.
+          type: string
+        displayableTimeRange:
+          description: >-
+            A human-friendly text describing the query time range. For e.g. "-2h", "last three days", "team default time"
+          type: string
+          example: "-2h"
+        parseableTimeRange:
+          description: >-
+            The time range for the search query.
+          $ref: './generic-models.yml#/components/schemas/ResolvableTimeRange'
+        timeZone:
+          description: >-
+            Time zone identifier for time specification. Either an abbreviation such as "PST", a full name such as "America/Los_Angeles",
+            or a custom ID such as "GMT-8:00". Note that the support of abbreviations is for JDK 1.1.x compatibility
+            only and full names should be used.
+          type: string
+        threshold:
+          description: >-
+            A defined threshold to trigger a notification.
+          $ref: NotificationThresholdSyncDefinition
+        notification:
+          description: Description of how the notification should be sent out.
+          $ref: '#/components/schemas/ScheduleNotificationSyncDefinition'
+        scheduleType:
+          description: >-
+            Run schedule of the scheduled search. Set to "Custom" to specify the schedule with a CRON expression. Possible
+            schedule types are:
+              - `RealTime`
+              - `15Minutes`
+              - `1Hour`
+              - `2Hours`
+              - `4Hours`
+              - `6Hours`
+              - `8Hours`
+              - `12Hours`
+              - `1Day`
+              - `1Week`
+              - `Custom`
+          type: string
+        muteErrorEmails:
+          description: >-
+            If enabled, emails are not sent out in case of errors with the search.
+          type: boolean
+        parameters:
+          description: A list of scheduled search parameters.
+          type: array
+          items:
+            $ref: ScheduleSearchParameterSyncDefinition
+
+    ScheduleSearchParameterSyncDefinition:
+      type: object
+      required:
+      - name
+      - value
+      properties:
+        name:
+          description: >-
+            Name of scheduled search parameter.
+          type: string
+        value:
+          description: >-
+            Value of scheduled search parameter.
+          type: string
+
+    NotificationThresholdSyncDefinition:
+      type: object
+      required:
+      - thresholdType
+      - operator
+      - count
+      properties:
+        thresholdType:
+          description: >-
+            Threshold type. Possible values are:
+             1. `message`
+             2. `group`
+          type: string
+        operator:
+          description: >-
+            Criterion to be applied when comparing actual result count with expected count. Possible values are:
+             1. `eq`
+             2. `gt`
+             3. `ge`
+             4. `lt`
+             5. `le`
+          type: string
+        count:
+          description: Expected result count.
+          type: integer
+
+    ScheduleNotificationSyncDefinition:
+      type: object
+      required:
+      - taskType
+      discriminator:
+        propertyName: taskType
+      properties:
+        taskType:
+          description: >-
+            Delivery channel for notifications.
+          type: string
+
+    EmailSearchNotificationSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ScheduleNotificationSyncDefinition'
+      - type: object
+        required:
+        - toList
+        properties:
+          toList:
+            description: >-
+              A list of email recipients.
+            type: array
+            items:
+              type: string
+          subjectTemplate:
+            description: >-
+              If the notification is scheduled with a threshold, the default subject template will be "Search Alert:
+              $AlertCondition results found for $SearchName". For email notifications without a threshold, the default
+              subject template is "Search Results: $SearchName".
+            type: string
+          includeQuery:
+            description: >-
+              A boolean value to indicate if the search query should be included in the notification email.
+            type: boolean
+            default: true
+          includeResultSet:
+            description: >-
+              A boolean value to indicate if the search result set should be included in the notification email.
+            type: boolean
+            default: true
+          includeHistogram:
+            description: >-
+              A boolean value to indicate if the search result histogram should be included in the notification email.
+            type: boolean
+            default: true
+          includeCsvAttachment:
+            description: >-
+              A boolean value to indicate if the search results should be included in the notification email as a CSV
+              attachment.
+            type: boolean
+            default: false
+
+    SaveToViewNotificationSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ScheduleNotificationSyncDefinition'
+      - type: object
+        required:
+        - viewName
+        properties:
+          viewName:
+            description: >-
+              Name of the View to save the notification to.
+            type: string
+
+    AlertSearchNotificationSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ScheduleNotificationSyncDefinition'
+      - type: object
+        required:
+        - sourceId
+        properties:
+          sourceId:
+            description: A String value to uniquely identify a Collector's Source.
+            type: string
+
+    ServiceNowSearchNotificationSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ScheduleNotificationSyncDefinition'
+      - type: object
+        required:
+        - externalId
+        properties:
+          externalId:
+            description: >-
+              ServiceNow identifier.
+            type: string
+          fields:
+            description: ServiceNow notification fields.
+            $ref: '#/components/schemas/ServiceNowFieldsSyncDefinition'
+
+    ServiceNowFieldsSyncDefinition:
+      type: object
+      required:
+      properties:
+        eventType:
+          description: The category that the event source uses to identify the event.
+          type: string
+        severity:
+          description: >-
+            An integer value representing the severity of the alert. Supported values are:
+              - `0` for Clear
+              - `1` for Critical
+              - `2` for Major
+              - `3` for Minor
+              - `4` for Warning
+          type: integer
+        resource:
+          description: The component on the node to which the event applies.
+          type: string
+        node:
+          description: The physical or virtual device on which the event occurred.
+          type: string
+
+    WebhookSearchNotificationSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ScheduleNotificationSyncDefinition'
+      - type: object
+        required:
+        - webhookId
+        properties:
+          webhookId:
+            description: Identifier of the webhook connection.
+            type: string
+          payload:
+            description: >-
+              A JSON object in the format required by the target WebHook URL. For details on variables that can be used
+              as parameters within your JSON object, please refer to Sumo Logic Doc Hub.
+            type: string
+          itemizeAlerts:
+            description: >-
+              If this field is set to true, one webhook per result will be sent when the trigger conditions are met
+            example: true
+            type: boolean
+            default: false
+          maxItemizedAlerts:
+            description: >-
+              The maximum number of results for which we send separate alerts. This value should be between 1 and 100.
+            example: 10
+            type: integer
+            format: int32
+            minimum: 0
+            maximum: 100
+
+    MetricsSavedSearchSyncDefinition:
+      allOf:
+      - $ref: '#/components/schemas/ContentSyncDefinition'
+      - type: object
+        required:
+        - timeRange
+        - metricsQueries
+        - desiredQuantizationInSecs
+        properties:
+          description:
+            description: Item description in the content library.
+            type: string
+            maxLength: 8192
+            example: "Long and detailed description"
+          timeRange:
+            $ref: './generic-models.yml#/components/schemas/ResolvableTimeRange'
+          logQuery:
+            description: >-
+              Query used to add an overlay to the chart.
+            type: string
+            maxLength: 10240
+            example: "my_metric | timeslice 1m | count by _timeslice"
+          metricsQueries:
+            description: Metrics queries.
+            type: array
+            items:
+              $ref: '#/components/schemas/MetricsSavedSearchQuerySyncDefinition'
+          desiredQuantizationInSecs:
+            description: Desired quantization in seconds.
+            type: integer
+            minimum: 0
+            format: int32
+            example: 60
+          properties:
+            description: >-
+              Chart properties. This field is optional.
+            type: string
+            example: "{ \\\"key\\\": \\\"value\\\" }"
+
+    MetricsSavedSearchQuerySyncDefinition:
+      description: Definition of a metrics query.
+      type: object
+      required:
+      - rowId
+      - query
+      properties:
+        rowId:
+          description: >-
+            Row id. All rows ids are represented by subsequent upper case letters starting with `A`.
+          type: string
+          example: 'A'
+        query:
+          description: Metrics query.
+          type: string
+          example: 'my_metric | avg'

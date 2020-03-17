@@ -1,0 +1,1549 @@
+paths:
+  eventEnrichment:
+    root:
+      get:
+        summary: Get the root folder in the library.
+        description: >-
+          Get the root folder in the library.
+        operationId: getEventEnrichmentLibraryRoot
+        tags:
+        - eventEnrichmentLibraryManagement
+        responses:
+          200:
+            description: Root folder in the library.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryFolderResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    post:
+      summary: >
+        Create a folder or eventEnrichment.
+      description: >-
+        Create a folder or eventEnrichment.
+      operationId: eventEnrichmentCreate
+      tags:
+      - eventEnrichmentLibraryManagement
+      parameters:
+      - name: parentId
+        description: Identifier of the parent folder in which to create the folder or eventEnrichment.
+        required: true
+        in: query
+        schema:
+          type: string
+      requestBody:
+        description: The folder or eventEnrichment to be created.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventEnrichmentLibraryBase'
+      responses:
+        200:
+          description: Newly created folder or eventEnrichment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Bulk read folders and eventEnrichment.
+      description: >-
+        Bulk read folders and eventEnrichment by the given identifiers from the library.
+      operationId: eventEnrichmentReadByIds
+      tags:
+      - eventEnrichmentLibraryManagement
+      parameters:
+      - name: ids
+        description: A comma-separated list of identifiers.
+        required: true
+        in: query
+        example: 0000000000000001,0000000000000002,0000000000000003
+        schema:
+          items:
+            type: string
+          type: array
+      responses:
+        200:
+          description: A map between an identifier and its definition (folder or eventEnrichment).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdToEventEnrichmentLibraryBaseResponseMap'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: >
+        Bulk delete folders and eventEnrichment.
+      description: >-
+        Bulk delete folders and eventEnrichment by the given identifiers from the library.
+      operationId: eventEnrichmentDeleteByIds
+      tags:
+      - eventEnrichmentLibraryManagement
+      parameters:
+      - name: ids
+        description: A comma-separated list of identifiers.
+        required: true
+        in: query
+        example: 0000000000000001,0000000000000002,0000000000000003
+        schema:
+          items:
+            type: string
+          type: array
+      responses:
+        200:
+          description: A map between the deleted identifier and its meta data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdToEventEnrichmentLibraryBaseResponseMap'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    path:
+      get:
+        summary: Read a folder or eventEnrichment by its path.
+        description: >-
+          Read a folder or eventEnrichment by its path.
+        operationId: eventEnrichmentGetByPath
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: path
+          description: The path of the folder or eventEnrichment.
+          required: true
+          in: query
+          schema:
+            type: string
+        responses:
+          200:
+            description: Requested folder or eventEnrichment.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+
+    search:
+      get:
+        summary: Search for folders or eventEnrichment.
+        description: >-
+          Search for a folder or eventEnrichment in the cloud SIEM eventEnrichment library structure.
+        operationId: eventEnrichmentSearch
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: query
+          description: >-
+            The search query to find folder or eventEnrichment. Below is the list of different filters with examples:
+              - **createdBy** : Filter by the user's identifier who created the content. Example: `createdBy:000000000000968B`.
+              - **createdBefore** : Filter by the content objects created before the given timestamp(in milliseconds).
+            Example: `createdBefore:1457997222`.
+              - **createdAfter** : Filter by the content objects created after the given timestamp(in milliseconds).
+            Example: `createdAfter:1457997111`.waggerConvertersInformationModelsLibraryTest.scala
+              - **modifiedBefore** : Filter by the content objects modified before the given timestamp(in milliseconds).
+            Example: `modifiedBefore:1457997222`.
+              - **modifiedAfter** : Filter by the content objects modified after the given timestamp(in milliseconds).
+            Example: `modifiedAfter:1457997111`.
+              - **type** : Filter by the type of the content object. Example: `type:folder`.
+
+            You can also use multiple filters in one query. For example to search for all content objects created by
+            user with identifier 000000000000968B with creation timestamp after 1457997222 containing the text Test,
+            the query would look like:
+
+              `createdBy:000000000000968B createdAfter:1457997222 Test`
+          required: true
+          in: query
+          schema:
+            type: string
+          example: "createdBy:000000000000968B Test"
+        - name: limit
+          description: Maximum number of items you want in the response.
+          required: false
+          in: query
+          example: 10
+          schema:
+            default: 100
+            type: integer
+            format: int32
+        - name: offset
+          description: The position or row from where to start the search operation.
+          required: false
+          in: query
+          example: 5
+          schema:
+            default: 0
+            type: integer
+            format: int32
+        responses:
+          200:
+            description: List of folders and eventEnrichment matching the search query.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ListEventEnrichmentLibraryItemWithPath'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  eventEnrichmentId:
+    put:
+      summary: >
+        Update a folder or eventEnrichment.
+      description: >-
+        Update a folder or eventEnrichment.
+      operationId: eventEnrichmentUpdateById
+      tags:
+      - eventEnrichmentLibraryManagement
+      parameters:
+      - name: id
+        description: Identifier of the folder or eventEnrichment to update.
+        required: true
+        in: path
+        schema:
+          type: string
+      requestBody:
+        description: >-
+          The folder or eventEnrichment to be updated. Content version must match its latest version number in the library.
+          Any staled version will not be updated.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EventEnrichmentLibraryBaseUpdate'
+      responses:
+        200:
+          description: Updated folder or eventEnrichment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    get:
+      summary: >
+        Read a folder or eventEnrichment.
+      description: >-
+        Read a folder or eventEnrichment.
+      operationId: eventEnrichmentReadById
+      tags:
+      - eventEnrichmentLibraryManagement
+      parameters:
+      - name: id
+        description: Identifier of the folder or eventEnrichment to read.
+        required: true
+        in: path
+        schema:
+          type: string
+      responses:
+        200:
+          description: Requested folder or eventEnrichment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: >
+        Delete a folder or eventEnrichment.
+      description: >-
+        Delete a folder or eventEnrichment.
+      operationId: eventEnrichmentDeleteById
+      tags:
+      - eventEnrichmentLibraryManagement
+      parameters:
+      - name: id
+        description: Identifier of the folder or eventEnrichment to delete.
+        required: true
+        in: path
+        schema:
+          type: string
+      responses:
+        204:
+          description: The folder or eventEnrichment was successfully deleted.
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    unlock:
+      post:
+        summary: Unlock a folder or a eventEnrichment.
+        description: >-
+          Unlocking requires the `LockEventEnrichment` capability. It is only possible to unlock the highest locked object
+          in a tree of locked objects. Unlocking recursively unlocks all of the objects children.
+        operationId: eventEnrichmentUnlockById
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: id
+          description: The id of the folder or eventEnrichment that needs to be unlocked.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          200:
+            description: Updated folder or eventEnrichment.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    lock:
+      post:
+        summary: Lock a folder or a eventEnrichment.
+        description: >-
+          Locking requires the `LockEventEnrichment` capability. When an object is locked, it can't be moved or deleted
+          and only the local fields can be modified. Locking recursively locks all of the objects children.
+        operationId: eventEnrichmentLockById
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: id
+          description: The id of the folder or eventEnrichment that needs to be locked.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          200:
+            description: Updated folder or eventEnrichment.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    path:
+      get:
+        summary: Get full path of folder or eventEnrichment.
+        description: >-
+          Get full path of folder or eventEnrichment.
+        operationId: getEventEnrichmentFullPath
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: id
+          description: Identifier of the folder or eventEnrichment.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          200:
+            description: Full path of the folder or eventEnrichment.
+            content:
+              application/json:
+                schema:
+                  $ref: './content-library-models.yml#/components/schemas/Path'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    move:
+      post:
+        summary: Move a folder or eventEnrichment.
+        description: >-
+          Move a folder or eventEnrichment.
+        operationId: eventEnrichmentMove
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: id
+          description: Identifier of the folder or eventEnrichment to move.
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: parentId
+          description: Identifier of the parent folder to move the folder or eventEnrichment to.
+          required: true
+          in: query
+          schema:
+            type: string
+        responses:
+          200:
+            description: Moved folder or eventEnrichment.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    copy:
+      post:
+        summary: Copy a folder or eventEnrichment.
+        description: >-
+          Copy a folder or eventEnrichment.
+        operationId: eventEnrichmentCopy
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: id
+          description: Identifier of the folder or eventEnrichment to copy.
+          required: true
+          in: path
+          schema:
+            type: string
+        requestBody:
+          description: >-
+            Fields include:
+              1) Identifier of the parent folder to copy to.
+              2) Optionally provide a new name.
+              3) Optionally provide a new description.
+              4) Optionally set to true if you want to copy and preserved the locked status. Requires `LockEventEnrichment`
+            capability.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: './content-library-models.yml#/components/schemas/ContentCopyParams'
+        responses:
+          200:
+            description: Newly copied folder or eventEnrichment.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    export:
+      get:
+        summary: Export a folder or eventEnrichment.
+        description: Export a folder or eventEnrichment.
+        operationId: eventEnrichmentExportItem
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: id
+          description: Identifier of the folder or eventEnrichment to export.
+          required: true
+          in: path
+          schema:
+            type: string
+        - name: preserveLock
+          description: >-
+            Set this to true if you want to export an object and preserve the locked status.
+          required: false
+          in: query
+          schema:
+            default: false
+            type: boolean
+        responses:
+          200:
+            description: Exported folder or eventEnrichment
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryExportBase'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    import:
+      post:
+        summary: Import a folder or eventEnrichment
+        description: >-
+          Import a folder or eventEnrichment
+        operationId: eventEnrichmentImportItem
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: parentId
+          description: Identifier of the parent folder in which to import the folder or eventEnrichment.
+          required: true
+          in: path
+          schema:
+            type: string
+        requestBody:
+          description: >-
+            The folder or eventEnrichment to be imported.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventEnrichmentLibraryExportBase'
+        responses:
+          200:
+            description: Newly imported folder or eventEnrichment.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  system:
+    eventEnrichment:
+      root:
+        get:
+          x-visibility: private
+          summary: Get the root folder in the library.
+          description: >-
+            Get the root folder in the library.
+          operationId: getSystemEventEnrichmentLibraryRoot
+          tags:
+          - eventEnrichmentLibraryManagement
+          responses:
+            200:
+              description: Root folder in the library.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/EventEnrichmentLibraryFolderResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      post:
+        x-visibility: private
+        summary: >
+          Create a folder or eventEnrichment.
+        description: >-
+          Create a folder or eventEnrichment.
+        operationId: systemEventEnrichmentCreate
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: parentId
+          description: Identifier of the parent folder in which to create the folder or eventEnrichment.
+          required: true
+          in: query
+          schema:
+            type: string
+        requestBody:
+          description: The folder or eventEnrichment to be created.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventEnrichmentLibraryBase'
+        responses:
+          200:
+            description: Newly created folder or eventEnrichment.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      get:
+        x-visibility: private
+        summary: Bulk read folders and eventEnrichment.
+        description: >-
+          Bulk read folders and eventEnrichment by the given identifiers from the library.
+        operationId: systemEventEnrichmentReadByIds
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: ids
+          description: A comma-separated list of identifiers.
+          required: true
+          in: query
+          example: 0000000000000001,0000000000000002,0000000000000003
+          schema:
+            items:
+              type: string
+            type: array
+        responses:
+          200:
+            description: A map between an identifier and its definition (folder or eventEnrichment).
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/IdToEventEnrichmentLibraryBaseResponseMap'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      delete:
+        x-visibility: private
+        summary: >
+          Bulk delete folders and eventEnrichment.
+        description: >-
+          Bulk delete folders and eventEnrichment by the given identifiers from the library.
+        operationId: systemEventEnrichmentDeleteByIds
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: ids
+          description: A comma-separated list of identifiers.
+          required: true
+          in: query
+          example: 0000000000000001,0000000000000002,0000000000000003
+          schema:
+            items:
+              type: string
+            type: array
+        responses:
+          200:
+            description: A map between the deleted identifier and its meta data.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/IdToEventEnrichmentLibraryBaseResponseMap'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      search:
+        get:
+          x-visibility: private
+          summary: Search for folders or eventEnrichment.
+          description: >-
+            Search for a folder or eventEnrichment in the cloud SIEM eventEnrichment library structure.
+          operationId: systemEventEnrichmentSearch
+          tags:
+          - eventEnrichmentLibraryManagement
+          parameters:
+          - name: query
+            description: >-
+              The search query to find folder or eventEnrichment. Below is the list of different filters with examples:
+                - **createdBy** : Filter by the user's email who created the content. Example: `createdBy:user@demo.com`.
+                - **createdBefore** : Filter by the content objects created before the given timestamp(in milliseconds).
+              Example: `createdBefore:1457997222`.
+                - **createdAfter** : Filter by the content objects created after the given timestamp(in milliseconds).
+              Example: `createdAfter:1457997111`.
+                - **modifiedBefore** : Filter by the content objects modified before the given timestamp(in milliseconds).
+              Example: `modifiedBefore:1457997222`.
+                - **modifiedAfter** : Filter by the content objects modified after the given timestamp(in milliseconds).
+              Example: `modifiedAfter:1457997111`.
+                You can also use multiple filters in one query. For example to search for all content objects created
+              by user@demo.com with creation timestamp after 1457997222 containing the text Test, the query would look
+              like:
+                `createdBy:user@demo.com createdAfter:1457997222 Test`
+            required: true
+            in: query
+            schema:
+              type: string
+            example: "createdBy:user@demo.com Test"
+          - name: limit
+            description: Maximum number of items you want in the response.
+            required: false
+            in: query
+            example: 10
+            schema:
+              default: 100
+              type: integer
+              format: int32
+          - name: offset
+            description: The position or row from where to start the search operation.
+            required: false
+            in: query
+            example: 5
+            schema:
+              default: 0
+              type: integer
+              format: int32
+          responses:
+            200:
+              description: List of folders and eventEnrichment matching the search query.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ListEventEnrichmentLibraryItemWithPath'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      path:
+        get:
+          x-visibility: private
+          summary: Read a folder or eventEnrichment by its path.
+          description: >-
+            Read a folder or eventEnrichment by its path.
+          operationId: systemEventEnrichmentGetByPath
+          tags:
+          - eventEnrichmentLibraryManagement
+          parameters:
+          - name: path
+            description: The path of the folder or eventEnrichment.
+            required: true
+            in: query
+            schema:
+              type: string
+          responses:
+            200:
+              description: Requested folder or eventEnrichment.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    eventEnrichmentId:
+      put:
+        x-visibility: private
+        summary: >
+          Update a folder or eventEnrichment.
+        description: >-
+          Update a folder or eventEnrichment.
+        operationId: systemEventEnrichmentUpdateById
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: id
+          description: Identifier of the folder or eventEnrichment to update.
+          required: true
+          in: path
+          schema:
+            type: string
+        requestBody:
+          description: >-
+            The folder or eventEnrichment to be updated. Content version must match its latest version number in the
+            library. Any staled version will not be updated.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventEnrichmentLibraryBaseUpdate'
+        responses:
+          200:
+            description: Updated folder or eventEnrichment.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      get:
+        x-visibility: private
+        summary: >
+          Read a folder or eventEnrichment.
+        description: >-
+          Read a folder or eventEnrichment.
+        operationId: systemEventEnrichmentReadById
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: id
+          description: Identifier of the folder or eventEnrichment to read.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          200:
+            description: Requested folder or eventEnrichment.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      delete:
+        x-visibility: private
+        summary: >
+          Delete a folder or eventEnrichment.
+        description: >-
+          Delete a folder or eventEnrichment.
+        operationId: systemEventEnrichmentDeleteById
+        tags:
+        - eventEnrichmentLibraryManagement
+        parameters:
+        - name: id
+          description: Identifier of the folder or eventEnrichment to delete.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          204:
+            description: The folder or eventEnrichment was successfully deleted.
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      unlock:
+        post:
+          x-visibility: private
+          summary: Unlock a folder or a eventEnrichment.
+          description: >-
+            Unlocking requires the `LockEventEnrichment` capability. It is only possible to unlock the highest locked
+            object in a tree of locked objects. Unlocking recursively unlocks all of the objects children.
+          operationId: systemEventEnrichmentUnlockById
+          tags:
+          - eventEnrichmentLibraryManagement
+          parameters:
+          - name: id
+            description: The id of the folder or eventEnrichment that needs to be unlocked.
+            required: true
+            in: path
+            schema:
+              type: string
+          responses:
+            200:
+              description: Updated folder or eventEnrichment.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      lock:
+        post:
+          x-visibility: private
+          summary: Lock a folder or a eventEnrichment.
+          description: >-
+            Locking requires the `LockEventEnrichment` capability. When an object is locked, it can't be moved or deleted
+            and only the local fields can be modified. Locking recursively locks all of the objects children.
+          operationId: systemEventEnrichmentLockById
+          tags:
+          - eventEnrichmentLibraryManagement
+          parameters:
+          - name: id
+            description: The id of the folder or eventEnrichment that needs to be locked.
+            required: true
+            in: path
+            schema:
+              type: string
+          responses:
+            200:
+              description: Updated folder or eventEnrichment.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      path:
+        get:
+          x-visibility: private
+          summary: Get full path of folder or eventEnrichment.
+          description: >-
+            Get full path of folder or eventEnrichment.
+          operationId: getSystemEventEnrichmentFullPath
+          tags:
+          - eventEnrichmentLibraryManagement
+          parameters:
+          - name: id
+            description: Identifier of the folder or eventEnrichment.
+            required: true
+            in: path
+            schema:
+              type: string
+          responses:
+            200:
+              description: Full path of the folder or eventEnrichment.
+              content:
+                application/json:
+                  schema:
+                    $ref: './content-library-models.yml#/components/schemas/Path'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      move:
+        post:
+          x-visibility: private
+          summary: Move a folder or eventEnrichment.
+          description: >-
+            Move a folder or eventEnrichment.
+          operationId: systemEventEnrichmentMove
+          tags:
+          - eventEnrichmentLibraryManagement
+          parameters:
+          - name: id
+            description: Identifier of the folder or eventEnrichment to move.
+            required: true
+            in: path
+            schema:
+              type: string
+          - name: parentId
+            description: Identifier of the parent folder to move the folder or eventEnrichment to.
+            required: true
+            in: query
+            schema:
+              type: string
+          responses:
+            200:
+              description: Moved folder or eventEnrichment.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      copy:
+        post:
+          x-visibility: private
+          summary: Copy a folder or eventEnrichment.
+          description: >-
+            Copy a folder or eventEnrichment.
+          operationId: systemEventEnrichmentCopy
+          tags:
+          - eventEnrichmentLibraryManagement
+          parameters:
+          - name: id
+            description: Identifier of the folder or eventEnrichment to copy.
+            required: true
+            in: path
+            schema:
+              type: string
+          requestBody:
+            description: >-
+              Fields include:
+                1) Identifier of the parent folder to copy to.
+                2) Optionally provide a new name.
+                3) Optionally provide a new description.
+                4) Optionally set to true if you want to copy and preserved the locked status. Requires `LockEventEnrichment`
+              capability.
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: './content-library-models.yml#/components/schemas/ContentCopyParams'
+          responses:
+            200:
+              description: Newly copied folder or eventEnrichment.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      export:
+        get:
+          x-visibility: private
+          summary: Export a folder or eventEnrichment.
+          description: Export a folder or eventEnrichment.
+          operationId: systemEventEnrichmentExportItem
+          tags:
+          - eventEnrichmentLibraryManagement
+          parameters:
+          - name: id
+            description: Identifier of the folder or eventEnrichment to export.
+            required: true
+            in: path
+            schema:
+              type: string
+          - name: preserveLock
+            description: >-
+              Set this to true if you want to export an object and preserve the locked status.
+            required: false
+            in: query
+            schema:
+              default: false
+              type: boolean
+          responses:
+            200:
+              description: Exported folder or eventEnrichment
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/EventEnrichmentLibraryExportBase'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      import:
+        post:
+          x-visibility: private
+          summary: Import a folder or eventEnrichment
+          description: >-
+            Import a folder or eventEnrichment
+          operationId: systemEventEnrichmentImportItem
+          tags:
+          - eventEnrichmentLibraryManagement
+          parameters:
+          - name: parentId
+            description: Identifier of the parent folder in which to import the folder or eventEnrichment.
+            required: true
+            in: path
+            schema:
+              type: string
+          requestBody:
+            description: >-
+              The folder or eventEnrichment to be imported.
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/EventEnrichmentLibraryExportBase'
+          responses:
+            200:
+              description: Newly imported folder or eventEnrichment.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    EventEnrichmentLinkType:
+      type: object
+      description: Configuration for each linkType in the event enrichment.
+      required:
+      - summary
+      - details
+      - isActivated
+      properties:
+        summary:
+          $ref: '#/components/schemas/EventEnrichmentSummary'
+        details:
+          $ref: '#/components/schemas/EventEnrichmentDetails'
+        isActivated:
+          type: boolean
+          description: >-
+            A linkType configuration can be deactivated. If it is deactivated, this linkType will not be returned in
+            the event enrichment.
+
+    EventEnrichmentSummary:
+      type: object
+      description: >-
+        Summary Configuration for event enrichment linkType. It specifies what to return in a summary event
+        enrichment lookup.
+      required:
+      - isActivated
+      - widgets
+      properties:
+        isActivated:
+          type: boolean
+          description: >-
+            Summary can be deactivated. If summary is deactivated, it is not returned in the event enrichment lookup.
+        widgets:
+          type: object
+          description: Map of event enrichment widget configurations.
+          additionalProperties:
+            $ref: '#/components/schemas/EventEnrichmentWidget'
+
+    EventEnrichmentDetails:
+      type: object
+      description: >-
+        Details Configuration for event enrichment linkType. It specifies what to return in a details event
+        enrichment lookup.
+      required:
+      - isActivated
+      - tables
+      properties:
+        isActivated:
+          type: boolean
+          description: >-
+            Details can be deactivated. If details is deactivated, it is not returned in the event enrichment lookup.
+        tables:
+          type: object
+          description: Map of event enrichment table configurations
+          additionalProperties:
+            $ref: '#/components/schemas/EventEnrichmentTable'
+
+    EventEnrichmentWidget:
+      type: object
+      description: Configuration for each event enrichment widget.
+      required:
+      - isActivated
+      - tables
+      - presentation
+      properties:
+        isActivated:
+          type: boolean
+          description: >-
+            A widget can be deactivated. If it is deactivated, it is not returned in the event enrichment lookup.
+        refreshRate:
+          type: integer
+          format: int32
+          description: >-
+            The time (in seconds) the widget waits before getting the event enrichment summary. By default, the widgets
+            don't auto refresh. When the refreshRate is 0, the widget won't auto-refresh.
+          example: 1
+          default: 0
+        presentation:
+          type: string
+          description: The custom HTML that is used to present the widget in the UI.
+          example: <div>{widgetData}</div>
+        tables:
+          type: object
+          description: Map of event enrichment table configurations
+          additionalProperties:
+            $ref: '#/components/schemas/EventEnrichmentTable'
+
+    EventEnrichmentTable:
+      type: object
+      description: >-
+        Configuration describing which columns to be returned in the event enrichment lookup for corresponding table.
+      required:
+      - isActivated
+      - columns
+      properties:
+        isActivated:
+          type: boolean
+          description: >-
+            A table can be deactivated. If it is deactivated, it is not returned in the event enrichment lookup.
+        columns:
+          type: object
+          description: Map of event enrichment column configurations.
+          additionalProperties:
+            $ref: '#/components/schemas/EventEnrichmentColumn'
+        alias:
+          type: string
+          description: >-
+            Alias for lookup table. If defined, the table will be returned with this name in the
+            event enrichment lookup.
+          example: Table Alias 1
+
+    EventEnrichmentColumn:
+      type: object
+      description: >-
+        Configuration for each event enrichment column.
+      required:
+        - isActivated
+      properties:
+        isActivated:
+          type: boolean
+          description: >-
+            A column can be deactivated. If it is deactivated, it is not returned in the event enrichment lookup.
+        alias:
+          type: string
+          description: >-
+            Alias for lookup table column. If defined, the column will be returned with this name in the
+            event enrichment lookup.
+          example: Column Alias 1
+
+    EventEnrichmentLibraryBase:
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+      - name
+      - description
+      - type
+      properties:
+        name:
+          description: Name of the folder or eventEnrichment.
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: EventConfiguration1
+        description:
+          description: Description of the folder or eventEnrichment.
+          type: string
+          maxLength: 4096
+          example: Configuration for customer's event enrichment lookups.
+        type:
+          description: Type of the object model.
+          type: string
+          example: EventEnrichmentContentObject
+        isLocked:
+          description: >-
+            Locking/Unlocking requires the `LockEventEnrichment` capability. Locked objects can only be `Localized`.
+            Updating or moving requires unlocking the object. Locking/Unlocking recursively locks all of the objects
+            children. All children of a locked object must be locked.
+          type: boolean
+          default: false
+
+    EventEnrichmentLibraryEventEnrichment:
+      allOf:
+      - $ref: '#/components/schemas/EventEnrichmentLibraryBase'
+      - type: object
+        required:
+        - configuration
+        properties:
+          configuration:
+            type: object
+            description: Configuration for event enrichment lookup.
+            additionalProperties:
+              $ref: '#/components/schemas/EventEnrichmentLinkType'
+          localConfiguration:
+            type: object
+            description: Local configuration for event enrichment lookup.
+            additionalProperties:
+              $ref: '#/components/schemas/EventEnrichmentLinkType'
+
+    EventEnrichmentLibraryFolder:
+      allOf:
+      - $ref: '#/components/schemas/EventEnrichmentLibraryBase'
+
+    EventEnrichmentLibraryBaseUpdate:
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+      - name
+      - description
+      - version
+      properties:
+        name:
+          description: Name of the folder or eventEnrichment.
+          type: string
+          minLength: 1
+          maxLength: 255
+          example: EventConfiguration1
+        description:
+          description: Description of the folder or eventEnrichment.
+          type: string
+          maxLength: 4096
+          example: Configuration for customer's event enrichment lookups.
+        version:
+          description: Version of the folder or eventEnrichment.
+          type: integer
+          format: int64
+          example: 1
+        type:
+          description: Type of the object model.
+          type: string
+          example: EventEnrichmentContentObject
+
+    EventEnrichmentLibraryEventEnrichmentUpdate:
+      allOf:
+      - $ref: '#/components/schemas/EventEnrichmentLibraryBaseUpdate'
+      - type: object
+        required:
+        - configuration
+        properties:
+          configuration:
+            type: object
+            description: Configuration for event enrichment lookup.
+            additionalProperties:
+              $ref: '#/components/schemas/EventEnrichmentLinkType'
+          localConfiguration:
+            type: object
+            description: Local configuration for event enrichment lookup.
+            additionalProperties:
+              $ref: '#/components/schemas/EventEnrichmentLinkType'
+
+    EventEnrichmentLibraryFolderUpdate:
+      allOf:
+      - $ref: '#/components/schemas/EventEnrichmentLibraryBaseUpdate'
+
+    EventEnrichmentLibraryBaseResponse:
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+      - id
+      - name
+      - description
+      - version
+      - createdAt
+      - createdBy
+      - modifiedAt
+      - modifiedBy
+      - parentId
+      - contentType
+      - type
+      - isLocked
+      - isSystem
+      - isMutable
+      properties:
+        id:
+          description: Identifier of the folder or eventEnrichment.
+          type: string
+          example: 1
+        name:
+          description: Name of the folder or eventEnrichment.
+          type: string
+          example: EventConfiguration1
+        description:
+          description: Description of the folder or eventEnrichment.
+          type: string
+          example: Configuration for customer's event enrichment lookups.
+        version:
+          description: Version of the folder or eventEnrichment.
+          type: integer
+          format: int64
+          example: 1
+        createdAt:
+          description: >-
+            Creation timestamp in UTC in [RFC3339](https://tools.ietf.org/html/rfc3339) format.
+          type: string
+          format: date-time
+          example: 2019-10-28T21:32:35+00:00
+        createdBy:
+          description: Identifier of the user who created the resource.
+          type: string
+          example: customer1
+        modifiedAt:
+          description: Last modification timestamp in UTC.
+          type: string
+          format: date-time
+          example: 1572298355
+        modifiedBy:
+          description: Identifier of the user who last modified the resource.
+          type: string
+          example: customer1
+        parentId:
+          description: Identifier of the parent folder.
+          type: string
+          example: 1
+        contentType:
+          description: >-
+            Type of the content. Valid values:
+              1) Folder
+              2) EventEnrichment
+          type: string
+          example: EventEnrichment
+        type:
+          description: Type of the object model.
+          type: string
+          example: EventEnrichmentContentObject
+        isLocked:
+          description: Whether the object is locked.
+          type: boolean
+        isSystem:
+          description: >-
+            System objects are objects provided by Sumo Logic. System objects can only be localized. Non-local fields
+            can't be updated.
+          type: boolean
+        isMutable:
+          description: >-
+            Immutable objects are "READ-ONLY".
+          type: boolean
+
+    ListEventEnrichmentLibraryItemWithPath:
+      description: List of folders or eventEnrichment.
+      type: array
+      items:
+        $ref: '#/components/schemas/EventEnrichmentLibraryItemWithPath'
+
+    EventEnrichmentLibraryItemWithPath:
+      type: object
+      required:
+      - item
+      - path
+      properties:
+        item:
+          description: Folder or eventEnrichment.
+          $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+        path:
+          description: Path of the folder or eventEnrichment.
+          type: string
+          example: "/EventEnrichment/SampleFolder/TestEventEnrichment"
+
+    ListEventEnrichmentLibraryBaseResponse:
+      description: List of folders or eventEnrichment.
+      type: array
+      items:
+        $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+
+    EventEnrichmentLibraryEventEnrichmentResponse:
+      allOf:
+      - $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+      - type: object
+        required:
+        - configuration
+        properties:
+          configuration:
+            type: object
+            description: Configuration for event enrichment lookup.
+            additionalProperties:
+              $ref: '#/components/schemas/EventEnrichmentLinkType'
+          localConfiguration:
+            type: object
+            description: Local configuration for event enrichment lookup.
+            additionalProperties:
+              $ref: '#/components/schemas/EventEnrichmentLinkType'
+    EventEnrichmentLibraryFolderResponse:
+      allOf:
+      - $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+      - type: object
+        required:
+        - children
+        properties:
+          children:
+            description: Children of the folder.
+            type: array
+            items:
+              $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+
+    IdToEventEnrichmentLibraryBaseResponseMap:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/EventEnrichmentLibraryBaseResponse'
+
+    EventEnrichmentLibraryExportBase:
+      type: object
+      discriminator:
+        propertyName: type
+      required:
+      - name
+      - description
+      - type
+      properties:
+        name:
+          description: Name of the folder or eventEnrichment.
+          type: string
+          example: EventEnrichment1
+          minLength: 1
+          maxLength: 255
+        description:
+          description: Description of the folder or eventEnrichment.
+          type: string
+          example: Configuration for customer's event enrichment lookups.
+          maxLength: 4096
+        type:
+          description: Type of the object model.
+          type: string
+          example: EventEnrichmentContentObject
+        isLocked:
+          description: Whether the object is locked.
+          type: boolean
+
+    EventEnrichmentLibraryEventEnrichmentExport:
+      allOf:
+      - $ref: '#/components/schemas/EventEnrichmentLibraryExportBase'
+      - type: object
+        required:
+        - configuration
+        properties:
+          configuration:
+            type: object
+            description: Configuration for event enrichment lookup.
+            additionalProperties:
+              $ref: '#/components/schemas/EventEnrichmentLinkType'
+          localConfiguration:
+            type: object
+            description: Local configuration for event enrichment lookup.
+            additionalProperties:
+              $ref: '#/components/schemas/EventEnrichmentLinkType'
+
+    EventEnrichmentLibraryFolderExport:
+      allOf:
+      - $ref: '#/components/schemas/EventEnrichmentLibraryExportBase'
+      - type: object
+        properties:
+          children:
+            description: Children of the folder
+            type: array
+            items:
+              $ref: '#/components/schemas/EventEnrichmentLibraryExportBase'

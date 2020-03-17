@@ -1,0 +1,1498 @@
+paths:
+  parsers:
+    root:
+      get:
+        summary: Get the root folder in the library.
+        description: >
+          Get the root folder in the library.
+        operationId: getParsersLibraryRoot
+        tags:
+          - parsersLibraryManagement
+        responses:
+          200:
+            description: Root folder in the library.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryFolderResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    post:
+      summary: >
+        Create a folder or parser.
+      description: >
+        Create a folder or parser.
+      operationId: parsersCreate
+      tags:
+        - parsersLibraryManagement
+      parameters:
+        - name: parentId
+          description: Identifier of the parent folder in which to create the folder or parser.
+          required: true
+          in: query
+          schema:
+            type: string
+      requestBody:
+        description: The folder or parser to be created.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParsersLibraryBase'
+      responses:
+        200:
+          description: Newly created folder or parser.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Bulk read folders and parsers.
+      description: >
+        Bulk read folders and parsers by the given identifiers from the library.
+      operationId: parsersReadByIds
+      tags:
+        - parsersLibraryManagement
+      parameters:
+        - name: ids
+          description: A comma-separated list of identifiers.
+          required: true
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+            example: 0000000000000001,0000000000000002,0000000000000003
+      responses:
+        200:
+          description: A map between an identifier and its definition (folder or parser).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdToParsersLibraryBaseResponseMap'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: >
+        Bulk delete folders and parsers.
+      description: >
+        Bulk delete folders and parsers by the given identifiers from the library.
+      operationId: parsersDeleteByIds
+      tags:
+        - parsersLibraryManagement
+      parameters:
+        - name: ids
+          description: A comma-separated list of identifiers.
+          required: true
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+            example: 0000000000000001,0000000000000002,0000000000000003
+      responses:
+        200:
+          description: A map between the deleted identifier and its meta data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/IdToParsersLibraryBaseResponseMap'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    path:
+      get:
+        summary: Read a folder or parser by its path.
+        description: >
+          Read a folder or parser by its path.
+        operationId: parsersGetByPath
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: path
+            description: The path of the folder or parser.
+            required: true
+            in: query
+            schema:
+              type: string
+        responses:
+          200:
+            description: Requested folder or parser.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    search:
+      get:
+        summary: Search for folders or parsers.
+        description: >-
+          Search for a folder or parser in the cloud SIEM parsers library structure.
+        operationId: parsersSearch
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: query
+            description: >-
+              The search query to find folder or parsers. Below is the list of different filters with examples:
+                - **createdBy** : Filter by the user's identifier who created the content. Example: `createdBy:000000000000968B`.
+                - **createdBefore** : Filter by the content objects created before the given timestamp(in milliseconds). Example: `createdBefore:1457997222`.
+                - **createdAfter** : Filter by the content objects created after the given timestamp(in milliseconds). Example: `createdAfter:1457997111`.
+                - **modifiedBefore** : Filter by the content objects modified before the given timestamp(in milliseconds). Example: `modifiedBefore:1457997222`.
+                - **modifiedAfter** : Filter by the content objects modified after the given timestamp(in milliseconds). Example: `modifiedAfter:1457997111`.
+                - **type** : Filter by the type of the content object. Example: `type:folder`.
+              You can also use multiple filters in one query. For example to search for all content objects created by user with identifier 000000000000968B with creation timestamp after 1457997222 containing the text Test, the query would look like:
+                `createdBy:000000000000968B createdAfter:1457997222 Test`
+            required: true
+            in: query
+            schema:
+              type: string
+              example: "createdBy:000000000000968B Test"
+          - name: limit
+            description: Maximum number of items you want in the response.
+            required: false
+            in: query
+            schema:
+              type: integer
+              format: int32
+              example: 10
+              default: 100
+          - name: offset
+            description: The position or row from where to start the search operation.
+            required: false
+            in: query
+            schema:
+              type: integer
+              format: int32
+              example: 5
+              default: 0
+        responses:
+          200:
+            description: List of folders and parsers matching the search query.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ListParsersLibraryItemWithPath'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  parserId:
+    put:
+      summary: >
+        Update a folder or parser.
+      description: >
+        Update a folder or parser.
+      operationId: parsersUpdateById
+      tags:
+        - parsersLibraryManagement
+      parameters:
+        - name: id
+          description: Identifier of the folder or parser to update.
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        description: >
+          The folder or parser to be updated. Content version must match its latest version number in the library.
+          Any staled version will not be updated.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ParsersLibraryBaseUpdate'
+      responses:
+        200:
+          description: Updated folder or parser.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    get:
+      summary: >
+        Read a folder or parser.
+      description: >
+        Read a folder or parser.
+      operationId: parsersReadById
+      tags:
+        - parsersLibraryManagement
+      parameters:
+        - name: id
+          description: Identifier of the folder or parser to read.
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        200:
+          description: Requested folder or parser.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    delete:
+      summary: >
+        Delete a folder or parser.
+      description: >
+        Delete a folder or parser.
+      operationId: parsersDeleteById
+      tags:
+        - parsersLibraryManagement
+      parameters:
+        - name: id
+          description: Identifier of the folder or parser to delete.
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        204:
+          description: The folder or parser was successfully deleted.
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    unlock:
+      post:
+        summary: Unlock a folder or a parser.
+        description: >
+          Unlocking requires the `LockParsers` capability.
+          It is only possible to unlock the highest locked object in a tree of locked objects.
+          Unlocking recursively unlocks all of the objects children.
+        operationId: parsersUnlockById
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: id
+            description: The id of the folder or parser that needs to be unlocked.
+            required: true
+            in: path
+            schema:
+              type: string
+        responses:
+          200:
+            description: Updated folder or parser.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    lock:
+      post:
+        summary: Lock a folder or a parser.
+        description: >
+          Locking requires the `LockParsers` capability.
+          When an object is locked, it can't be moved or deleted and only the local fields can be modified.
+          Locking recursively locks all of the objects children.
+        operationId: parsersLockById
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: id
+            description: The id of the folder or parser that needs to be locked.
+            required: true
+            in: path
+            schema:
+              type: string
+        responses:
+          200:
+            description: Updated folder or parser.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    path:
+      get:
+        summary: Get full path of folder or parser.
+        description: >
+          Get full path of folder or parser.
+        operationId: getParsersFullPath
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: id
+            description: Identifier of the folder or parser.
+            required: true
+            in: path
+            schema:
+              type: string
+        responses:
+          200:
+            description: Full path of the folder or parser.
+            content:
+              application/json:
+                schema:
+                  $ref: './content-library-models.yml#/components/schemas/Path'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    move:
+      post:
+        summary: Move a folder or parser.
+        description: >
+          Move a folder or parser.
+        operationId: parsersMove
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: id
+            description: Identifier of the folder or parser to move.
+            required: true
+            in: path
+            schema:
+              type: string
+          - name: parentId
+            description: Identifier of the parent folder to move the folder or parser to.
+            required: true
+            in: query
+            schema:
+              type: string
+        responses:
+          200:
+            description: Moved folder or parser.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    copy:
+      post:
+        summary: Copy a folder or parser.
+        description: >
+          Copy a folder or parser.
+        operationId: parsersCopy
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: id
+            description: Identifier of the folder or parser to copy.
+            required: true
+            in: path
+            schema:
+              type: string
+        requestBody:
+          description: >
+            Fields include:
+              1) Identifier of the parent folder to copy to.
+              2) Optionally provide a new name.
+              3) Optionally provide a new description.
+              4) Optionally set to true if you want to copy and preserved the locked status. Requires `LockParsers` capability.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: './content-library-models.yml#/components/schemas/ContentCopyParams'
+        responses:
+          200:
+            description: Newly copied folder or parser.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    export:
+      get:
+        summary: Export a folder or parser.
+        description: Export a folder or parser.
+        operationId: parsersExportItem
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: id
+            description: Identifier of the folder or parser to export.
+            required: true
+            in: path
+            schema:
+              type: string
+          - name: preserveLock
+            description: >
+              Set this to true if you want to export an object and preserve the locked status.
+            required: false
+            in: query
+            schema:
+              type: boolean
+              default: false
+        responses:
+          200:
+            description: Exported folder or parser
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryExportBase'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    import:
+      post:
+        summary: Import a folder or parser
+        description: >
+          Import a folder or parser
+        operationId: parsersImportItem
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: parentId
+            description: Identifier of the parent folder in which to import the folder or parser.
+            required: true
+            in: path
+            schema:
+              type: string
+        requestBody:
+          description: >
+            The folder or parser to be imported.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParsersLibraryExportBase'
+        responses:
+          200:
+            description: Newly imported folder or parser.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  system:
+    parsers:
+
+      root:
+        get:
+          x-visibility: private
+          summary: Get the root folder in the library.
+          description: >
+            Get the root folder in the library.
+          operationId: getSystemParsersLibraryRoot
+          tags:
+            - parsersLibraryManagement
+          responses:
+            200:
+              description: Root folder in the library.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ParsersLibraryFolderResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      post:
+        x-visibility: private
+        summary: >
+          Create a folder or parser.
+        description: >
+          Create a folder or parser.
+        operationId: systemParsersCreate
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: parentId
+            description: Identifier of the parent folder in which to create the folder or parser.
+            required: true
+            in: query
+            schema:
+              type: string
+        requestBody:
+          description: The folder or parser to be created.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParsersLibraryBase'
+        responses:
+          200:
+            description: Newly created folder or parser.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      get:
+        x-visibility: private
+        summary: Bulk read folders and parsers.
+        description: >
+          Bulk read folders and parsers by the given identifiers from the library.
+        operationId: systemParsersReadByIds
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: ids
+            description: A comma-separated list of identifiers.
+            required: true
+            in: query
+            schema:
+              type: array
+              items:
+                type: string
+              example: 0000000000000001,0000000000000002,0000000000000003
+        responses:
+          200:
+            description: A map between an identifier and its definition (folder or parser).
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/IdToParsersLibraryBaseResponseMap'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      delete:
+        x-visibility: private
+        summary: >
+          Bulk delete folders and parsers.
+        description: >
+          Bulk delete folders and parsers by the given identifiers from the library.
+        operationId: systemParsersDeleteByIds
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: ids
+            description: A comma-separated list of identifiers.
+            required: true
+            in: query
+            schema:
+              type: array
+              items:
+                type: string
+              example: 0000000000000001,0000000000000002,0000000000000003
+        responses:
+          200:
+            description: A map between the deleted identifier and its meta data.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/IdToParsersLibraryBaseResponseMap'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      search:
+        get:
+          x-visibility: private
+          summary: Search for folders or parsers.
+          description: >-
+            Search for a folder or parser in the cloud SIEM parsers library structure.
+          operationId: systemParsersSearch
+          tags:
+            - parsersLibraryManagement
+          parameters:
+            - name: query
+              description: >-
+                The search query to find folder or parsers. Below is the list of different filters with examples:
+                  - **createdBy** : Filter by the user's email who created the content. Example: `createdBy:user@demo.com`.
+                  - **createdBefore** : Filter by the content objects created before the given timestamp(in milliseconds). Example: `createdBefore:1457997222`.
+                  - **createdAfter** : Filter by the content objects created after the given timestamp(in milliseconds). Example: `createdAfter:1457997111`.
+                  - **modifiedBefore** : Filter by the content objects modified before the given timestamp(in milliseconds). Example: `modifiedBefore:1457997222`.
+                  - **modifiedAfter** : Filter by the content objects modified after the given timestamp(in milliseconds). Example: `modifiedAfter:1457997111`.
+                  You can also use multiple filters in one query. For example to search for all content objects created by user@demo.com with creation timestamp after 1457997222 containing the text Test, the query would look like:
+                  `createdBy:user@demo.com createdAfter:1457997222 Test`
+              required: true
+              in: query
+              schema:
+                type: string
+                example: "createdBy:user@demo.com Test"
+            - name: limit
+              description: Maximum number of items you want in the response.
+              required: false
+              in: query
+              schema:
+                type: integer
+                format: int32
+                example: 10
+                default: 100
+            - name: offset
+              description: The position or row from where to start the search operation.
+              required: false
+              in: query
+              schema:
+                type: integer
+                format: int32
+                example: 5
+                default: 0
+          responses:
+            200:
+              description: List of folders and parsers matching the search query.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ListParsersLibraryItemWithPath'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      path:
+        get:
+          x-visibility: private
+          summary: Read a folder or parser by its path.
+          description: >
+            Read a folder or parser by its path.
+          operationId: systemParsersGetByPath
+          tags:
+            - parsersLibraryManagement
+          parameters:
+            - name: path
+              description: The path of the folder or parser.
+              required: true
+              in: query
+              schema:
+                type: string
+          responses:
+            200:
+              description: Requested folder or parser.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    parserId:
+      put:
+        x-visibility: private
+        summary: >
+          Update a folder or parser.
+        description: >
+          Update a folder or parser.
+        operationId: systemParsersUpdateById
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: id
+            description: Identifier of the folder or parser to update.
+            required: true
+            in: path
+            schema:
+              type: string
+        requestBody:
+          description: >
+            The folder or parser to be updated. Content version must match its latest version number in the library.
+            Any staled version will not be updated.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ParsersLibraryBaseUpdate'
+        responses:
+          200:
+            description: Updated folder or parser.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      get:
+        x-visibility: private
+        summary: >
+          Read a folder or parser.
+        description: >
+          Read a folder or parser.
+        operationId: systemParsersReadById
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: id
+            description: Identifier of the folder or parser to read.
+            required: true
+            in: path
+            schema:
+              type: string
+        responses:
+          200:
+            description: Requested folder or parser.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      delete:
+        x-visibility: private
+        summary: >
+          Delete a folder or parser.
+        description: >
+          Delete a folder or parser.
+        operationId: systemParsersDeleteById
+        tags:
+          - parsersLibraryManagement
+        parameters:
+          - name: id
+            description: Identifier of the folder or parser to delete.
+            required: true
+            in: path
+            schema:
+              type: string
+        responses:
+          204:
+            description: The folder or parser was successfully deleted.
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      unlock:
+        post:
+          summary: Unlock a folder or a parser.
+          description: >
+            Unlocking requires the `LockParsers` capability.
+            It is only possible to unlock the highest locked object in a tree of locked objects.
+            Unlocking recursively unlocks all of the objects children.
+          operationId: systemParsersUnlockById
+          tags:
+            - parsersLibraryManagement
+          parameters:
+            - name: id
+              description: The id of the folder or parser that needs to be unlocked.
+              required: true
+              in: path
+              schema:
+                type: string
+          responses:
+            200:
+              description: Updated folder or parser.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      lock:
+        post:
+          summary: Lock a folder or a parser.
+          description: >
+            Locking requires the `LockParsers` capability.
+            When an object is locked, it can't be moved or deleted and only the local fields can be modified.
+            Locking recursively locks all of the objects children.
+          operationId: systemParsersLockById
+          tags:
+            - parsersLibraryManagement
+          parameters:
+            - name: id
+              description: The id of the folder or parser that needs to be locked.
+              required: true
+              in: path
+              schema:
+                type: string
+          responses:
+            200:
+              description: Updated folder or parser.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      path:
+        get:
+          x-visibility: private
+          summary: Get full path of folder or parser.
+          description: >
+            Get full path of folder or parser.
+          operationId: getSystemParsersFullPath
+          tags:
+            - parsersLibraryManagement
+          parameters:
+            - name: id
+              description: Identifier of the folder or parser.
+              required: true
+              in: path
+              schema:
+                type: string
+          responses:
+            200:
+              description: Full path of the folder or parser.
+              content:
+                application/json:
+                  schema:
+                    $ref: './content-library-models.yml#/components/schemas/Path'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      move:
+        post:
+          x-visibility: private
+          summary: Move a folder or parser.
+          description: >
+            Move a folder or parser.
+          operationId: systemParsersMove
+          tags:
+            - parsersLibraryManagement
+          parameters:
+            - name: id
+              description: Identifier of the folder or parser to move.
+              required: true
+              in: path
+              schema:
+                type: string
+            - name: parentId
+              description: Identifier of the parent folder to move the folder or parser to.
+              required: true
+              in: query
+              schema:
+                type: string
+          responses:
+            200:
+              description: Moved folder or parser.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      copy:
+        post:
+          x-visibility: private
+          summary: Copy a folder or parser.
+          description: >
+            Copy a folder or parser.
+          operationId: systemParsersCopy
+          tags:
+            - parsersLibraryManagement
+          parameters:
+            - name: id
+              description: Identifier of the folder or parser to copy.
+              required: true
+              in: path
+              schema:
+                type: string
+          requestBody:
+            description: >
+              Fields include:
+                1) Identifier of the parent folder to copy to.
+                2) Optionally provide a new name.
+                3) Optionally provide a new description.
+                4) Optionally set to true if you want to copy and preserved the locked status. Requires `LockParsers` capability.
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: './content-library-models.yml#/components/schemas/ContentCopyParams'
+          responses:
+            200:
+              description: Newly copied folder or parser.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      export:
+        get:
+          x-visibility: private
+          summary: Export a folder or parser.
+          description: Export a folder or parser.
+          operationId: systemParsersExportItem
+          tags:
+            - parsersLibraryManagement
+          parameters:
+            - name: id
+              description: Identifier of the folder or parser to export.
+              required: true
+              in: path
+              schema:
+                type: string
+            - name: preserveLock
+              description: >
+                Set this to true if you want to export an object and preserve the locked status.
+              required: false
+              in: query
+              schema:
+                type: boolean
+                default: false
+          responses:
+            200:
+              description: Exported folder or parser
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ParsersLibraryExportBase'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+      import:
+        post:
+          x-visibility: private
+          summary: Import a folder or parser
+          description: >
+            Import a folder or parser
+          operationId: systemParsersImportItem
+          tags:
+            - parsersLibraryManagement
+          parameters:
+            - name: parentId
+              description: Identifier of the parent folder in which to import the folder or parser.
+              required: true
+              in: path
+              schema:
+                type: string
+          requestBody:
+            description: >
+              The folder or parser to be imported.
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ParsersLibraryExportBase'
+          responses:
+            200:
+              description: Newly imported folder or parser.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ParsersLibraryBase:
+      type: object
+      discriminator:
+        propertyName:
+          type
+      required:
+        - name
+        - description
+        - type
+      properties:
+        name:
+          description: Name of the folder or parser.
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          description: Description of the folder or parser.
+          type: string
+          maxLength: 4096
+        type:
+          description: Type of the object model.
+          type: string
+        isLocked:
+          description: >-
+            Locking/Unlocking requires the `LockParsers` capability.
+            Locked objects can only be `Localized`. Updating or moving requires unlocking the object.
+            Locking/Unlocking recursively locks all of the objects children.
+            All children of a locked object must be locked.
+          type: boolean
+          default: false
+
+    ParsersLibraryParser:
+      allOf:
+        - $ref: '#/components/schemas/ParsersLibraryBase'
+        - type: object
+          required:
+            - stanzas
+          properties:
+            stanzas:
+              description: Collection of stanzas describing the parser.
+              type: string
+              example: |
+                [sourcetype:PAN-firewall]
+                EVENT_MULTILINE = False
+                FORMAT = CSV
+            modelPath:
+              description: The path to the Model a Model-Connector is associated with.
+              type: string
+              example: "Models/firewalls/PAN"
+            sourcetypePath:
+              description: The path to the sourcetype a Model-Connector is associated with.
+              type: string
+              example: "Parsers/firewalls/PAN-firewall"
+            families:
+              description: CSV list of model families this object belongs/applies to
+              type: string
+              example: "firewalls,IDS"
+            isPartial:
+              description: Is this a complete Parser or Model-Connector, or just a config fragment?
+              type: boolean
+              default: false
+            localStanzas:
+              description: Localized stanzas.
+              type: string
+              example: |
+                [sourcetype:PAN-firewall]
+                WRAPPER = BSD_SYSLOG
+    ParsersLibraryFolder:
+      allOf:
+        - $ref: '#/components/schemas/ParsersLibraryBase'
+
+    ParsersLibraryBaseUpdate:
+      type: object
+      discriminator:
+        propertyName:
+          type
+      # NOTE(vishal, 2019-04-01) Repeating ParsersLibraryBase properties here. Our documentation tool
+      # break with allOf and discriminator in same object.
+      required:
+        - name
+        - description
+        - version
+      properties:
+        name:
+          description: Name of the folder or parser.
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          description: Description of the folder or parser.
+          type: string
+          maxLength: 4096
+        version:
+          description: Version of the folder or parser.
+          type: integer
+          format: int64
+        type:
+          description: Type of the object model.
+          type: string
+
+    ParsersLibraryParserUpdate:
+      allOf:
+        - $ref: '#/components/schemas/ParsersLibraryBaseUpdate'
+        - type: object
+          required:
+            - stanzas
+          properties:
+            stanzas:
+              description: Collection of stanzas describing the parser.
+              type: string
+              example: |
+                [sourcetype:PAN-firewall]
+                EVENT_MULTILINE = False
+                FORMAT = CSV
+            modelPath:
+              description: The path to the Model a Model-Connector is associated with.
+              type: string
+              example: "Models/firewalls/PAN"
+            sourcetypePath:
+              description: The path to the sourcetype a Model-Connector is associated with.
+              type: string
+              example: "Parsers/firewalls/PAN-firewall"
+            families:
+              description: CSV list of model families this object belongs/applies to
+              type: string
+              example: "firewalls,IDS"
+            isPartial:
+              description: Is this a complete Parser or Model-Connector, or just a config fragment?
+              type: boolean
+              default: false
+            localStanzas:
+              description: Localized stanzas.
+              type: string
+              example: |
+                [sourcetype:PAN-firewall]
+                WRAPPER = BSD_SYSLOG
+    ParsersLibraryFolderUpdate:
+      allOf:
+        - $ref: '#/components/schemas/ParsersLibraryBaseUpdate'
+
+    ParsersLibraryBaseResponse:
+      type: object
+      discriminator:
+        propertyName:
+          type
+      required:
+        - id
+        - name
+        - description
+        - version
+        # NOTE(vishal, 2019-04-01) Don't refer to MetadataModel. Don't know why but it
+        # breaks documentation.
+        - createdAt
+        - createdBy
+        - modifiedAt
+        - modifiedBy
+        - parentId
+        - contentType
+        - type
+        - isLocked
+        - isSystem
+        - isMutable
+      properties:
+        id:
+          description: Identifier of the folder or parser.
+          type: string
+        name:
+          description: Name of the folder or parser.
+          type: string
+        description:
+          description: Description of the folder or parser.
+          type: string
+        version:
+          description: Version of the folder or parser.
+          type: integer
+          format: int64
+        createdAt:
+          description: >
+            Creation timestamp in UTC in [RFC3339](https://tools.ietf.org/html/rfc3339) format.
+          type: string
+          format: date-time
+        createdBy:
+          description: Identifier of the user who created the resource.
+          type: string
+        modifiedAt:
+          description: Last modification timestamp in UTC.
+          type: string
+          format: date-time
+        modifiedBy:
+          description: Identifier of the user who last modified the resource.
+          type: string
+        parentId:
+          description: Identifier of the parent folder.
+          type: string
+        contentType:
+          description: >
+            Type of the content.
+            Valid values:
+              1) Folder
+              2) Parser
+          type: string
+        type:
+          description: Type of the object model.
+          type: string
+        isLocked:
+          description: Whether the object is locked.
+          type: boolean
+        isSystem:
+          description: >-
+            System objects are objects provided by Sumo Logic.
+            System objects can only be localized. Non-local fields can't be updated.
+          type: boolean
+        isMutable:
+          description: >-
+            Immutable objects are "READ-ONLY".
+          type: boolean
+
+    ListParsersLibraryItemWithPath:
+      description: List of folders or parsers.
+      type: array
+      items:
+        $ref: '#/components/schemas/ParsersLibraryItemWithPath'
+
+    ParsersLibraryItemWithPath:
+      type: object
+      required:
+        - item
+        - path
+      properties:
+        item:
+          description: Folder or parser.
+          $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+        path:
+          description: Path of the folder or parser.
+          type: string
+          example: "/Parsers/SampleFolder/TestParser"
+
+    ParsersLibraryParserResponse:
+      allOf:
+        - $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+        - type: object
+          required:
+            - stanzas
+          properties:
+            stanzas:
+              description: Collection of stanzas describing the parser.
+              type: string
+              example: |
+                [sourcetype:PAN-firewall]
+                EVENT_MULTILINE = False
+                FORMAT = CSV
+            modelPath:
+              description: The path to the Model a Model-Connector is associated with.
+              type: string
+              example: "Models/firewalls/PAN"
+            sourcetypePath:
+              description: The path to the sourcetype a Model-Connector is associated with.
+              type: string
+              example: "Parsers/firewalls/PAN-firewall"
+            families:
+              description: CSV list of model families this object belongs/applies to
+              type: string
+              example: "firewalls,IDS"
+            isPartial:
+              description: Is this a complete Parser or Model-Connector, or just a config fragment?
+              type: boolean
+              default: false
+            localStanzas:
+              description: Localized stanzas.
+              type: string
+              example: |
+                [sourcetype:PAN-firewall]
+                WRAPPER = BSD_SYSLOG
+    ParsersLibraryFolderResponse:
+      allOf:
+        - $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+        - type: object
+          required:
+            - children
+          properties:
+            children:
+              description: Children of the folder.
+              type: array
+              items:
+                $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+
+    IdToParsersLibraryBaseResponseMap:
+      type: object
+      additionalProperties:
+        $ref: '#/components/schemas/ParsersLibraryBaseResponse'
+
+    ParsersLibraryExportBase:
+      type: object
+      discriminator:
+        propertyName:
+          type
+      required:
+        - name
+        - description
+        - type
+      properties:
+        name:
+          description: Name of the folder or parser.
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          description: Description of the folder or parser.
+          type: string
+          maxLength: 4096
+        type:
+          description: Type of the object model.
+          type: string
+
+    ParsersLibraryParserExport:
+      allOf:
+        - $ref: '#/components/schemas/ParsersLibraryExportBase'
+        - type: object
+          required:
+            - stanzas
+          properties:
+            stanzas:
+              description: Collection of stanza or array of lines of stanzas describing the parser.
+              type: string
+              example: |
+                [sourcetype:PAN-firewall]
+                EVENT_MULTILINE = False
+                FORMAT = CSV
+            modelPath:
+              description: The path to the Model a Model-Connector is associated with.
+              type: string
+              example: "Models/firewalls/PAN"
+            sourcetypePath:
+              description: The path to the sourcetype a Model-Connector is associated with.
+              type: string
+              example: "Parsers/firewalls/PAN-firewall"
+            families:
+              description: CSV list of model families this object belongs/applies to
+              type: string
+              example: "firewalls,IDS"
+            isPartial:
+              description: Is this a complete Parser or Model-Connector, or just a config fragment?
+              type: boolean
+              default: false
+            localStanzas:
+              description: Localized stanzas.
+              type: string
+              example: |
+                [sourcetype:PAN-firewall]
+                WRAPPER = BSD_SYSLOG
+    ParsersLibraryParserExportV2:
+      allOf:
+        - $ref: '#/components/schemas/ParsersLibraryExportBase'
+        - type: object
+          required:
+            - stanzas
+          properties:
+            stanzas:
+              description: Array of lines of stanzas describing the parser.
+              type: array
+              items:
+                type: string
+              example: |
+                ["[sourcetype:PAN-firewall]",
+                "EVENT_MULTILINE = False",
+                "FORMAT = CSV"]
+            modelPath:
+              description: The path to the Model a Model-Connector is associated with.
+              type: string
+              example: "Models/firewalls/PAN"
+            sourcetypePath:
+              description: The path to the sourcetype a Model-Connector is associated with.
+              type: string
+              example: "Parsers/firewalls/PAN-firewall"
+            families:
+              description: CSV list of model families this object belongs/applies to
+              type: string
+              example: "firewalls,IDS"
+            isPartial:
+              description: Is this a complete Parser or Model-Connector, or just a config fragment?
+              type: boolean
+              default: false
+            localStanzas:
+              description: Localized stanzas.
+              type: string
+              example: |
+                [sourcetype:PAN-firewall]
+                WRAPPER = BSD_SYSLOG
+    ParsersLibraryFolderExport:
+      allOf:
+        - $ref: '#/components/schemas/ParsersLibraryExportBase'
+        - type: object
+          properties:
+            children:
+              description: Children of the folder
+              type: array
+              items:
+                $ref: '#/components/schemas/ParsersLibraryExportBase'

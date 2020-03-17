@@ -1,0 +1,329 @@
+paths:
+  v1:
+      # /scheduledViews endpoint
+    scheduledViews:
+      get:
+        summary: Get a list of scheduled views.
+        description: >-
+          Get a list of all scheduled views in the organization. The response is paginated with a default limit of 100
+          scheduled views per page.
+        operationId: listScheduledViews
+        tags:
+        - scheduledViewManagement
+        parameters:
+        - name: limit
+          description: >-
+            Limit the number of scheduled views returned in the response. The number of scheduled views returned may
+            be less than the `limit`.
+          required: false
+          in: query
+          schema:
+            default: 100
+            minimum: 1
+            type: integer
+            maximum: 1000
+            format: int32
+        - name: token
+          description: >-
+            Continuation token to get the next page of results. A page object with the next continuation token is returned
+            in the response body. Subsequent GET requests should specify the continuation token to get the next page
+            of results. `token` is set to null when no more pages are left.
+          required: false
+          in: query
+          schema:
+            type: string
+        responses:
+          200:
+            description: A paginated list of scheduled views in the organization.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ListScheduledViewsResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      post:
+        summary: Create a new scheduled view.
+        description: Creates a new scheduled view in the organization.
+        operationId: createScheduledView
+        tags:
+        - scheduledViewManagement
+        parameters: []
+        requestBody:
+          description: Information about the new scheduled view.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateScheduledViewDefinition'
+        responses:
+          200:
+            description: The scheduled view has been created.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ScheduledView'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    # /scheduledViews/{id} endpoint
+    scheduledViewId:
+      get:
+        summary: Get a scheduled view.
+        description: Get a scheduled view with the given identifier.
+        operationId: getScheduledView
+        tags:
+        - scheduledViewManagement
+        parameters:
+        - name: id
+          description: Identifier of the scheduled view to fetch.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          200:
+            description: Scheduled view object that was requested.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ScheduledView'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      put:
+        summary: Update a scheduled view.
+        description: Update an existing scheduled view.
+        operationId: updateScheduledView
+        tags:
+        - scheduledViewManagement
+        parameters:
+        - name: id
+          description: Identifier of the scheduled view to update.
+          required: true
+          in: path
+          schema:
+            type: string
+        requestBody:
+          description: Information to update about the scheduled view.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateScheduledViewDefinition'
+        responses:
+          200:
+            description: The scheduled view was successfully modified.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ScheduledView'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    # /scheduledViews/{id}/disable endpoint
+    scheduledViewIdDisable:
+      delete:
+        summary: Disable a scheduled view.
+        description: Disable a scheduled view with the given identifier.
+        operationId: disableScheduledView
+        tags:
+        - scheduledViewManagement
+        parameters:
+        - name: id
+          description: Identifier of the scheduled view to disable.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          204:
+            description: The scheduled view was disabled successfully.
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    # /scheduledViews/{id}/pause endpoint
+    scheduledViewIdPause:
+      post:
+        summary: Pause a scheduled view.
+        description: Pause a scheduled view with the given identifier.
+        operationId: pauseScheduledView
+        tags:
+        - scheduledViewManagement
+        parameters:
+        - name: id
+          description: Identifier of the scheduled view to pause.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          200:
+            description: The scheduled view was paused successfully.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ScheduledView'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    # /scheduledViews/{id}/start endpoint
+    scheduledViewIdStart:
+      post:
+        summary: Start a scheduled view.
+        description: Start a scheduled view with the given identifier.
+        operationId: startScheduledView
+        tags:
+        - scheduledViewManagement
+        parameters:
+        - name: id
+          description: Identifier of the scheduled view to start.
+          required: true
+          in: path
+          schema:
+            type: string
+        responses:
+          200:
+            description: The scheduled view was started successfully.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ScheduledView'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+components:
+  schemas:
+  # FIXME(prashant, 2018-08-06): I was not sure about the description for many fields and also I couldn't find any place
+  # where I could find the descriptions of all the fields. I have added the descriptions based on the field names for now.
+  # Someone needs to review these descriptions and update if required(Specially various fields in "ScheduledView" definition.
+  # Also I have created a JIRA(https://jira.kumoroku.com/jira/browse/SUMO-93805) to review if all fields needs to be exposed
+  # as part of response and also have a look at the name of these fields as some are really confusing(specially indexName and
+  # viewName). For now I have used the same names as the existing object.
+    CreateScheduledViewDefinition:
+      type: object
+      required:
+      - query
+      - indexName
+      - store
+      - startTime
+      - currentRetentionDays
+      properties:
+        query:
+          description: The query that defines the data to be included in the scheduled view.
+          type: string
+          example: "_sourcecategory=*/Apache"
+          minLength: 1
+          maxLength: 16384
+        indexName:
+          description: Name of the index for the scheduled view.
+          type: string
+          example: "TestScheduledView"
+          minLength: 0
+          maxLength: 255
+        startTime:
+          description: Start timestamp in UTC in [RFC3339](https://tools.ietf.org/html/rfc3339) format.
+          type: string
+          format: date-time
+        retentionPeriod:
+          description: >-
+            The number of days to retain data in the scheduled view, or -1 to use the default value for your account.  Only
+            relevant if your account has multi-retention. enabled.
+          type: integer
+          format: int32
+          example: 365
+          default: -1
+        dataForwardingId:
+          description: An optional ID of a data forwarding configuration to be used by the scheduled view.
+          type: string
+    UpdateScheduledViewDefinition:
+      type: object
+      properties:
+        dataForwardingId:
+          description: An optional ID of a data forwarding configuration to be used by the scheduled view.
+          type: string
+        retentionPeriod:
+          description: >-
+            The number of days to retain data in the scheduled view, or -1 to use the default value for your account.  Only
+            relevant if your account has multi-retention. enabled.
+          type: integer
+          format: int32
+          example: 365
+          default: -1
+        reduceRetentionPeriodImmediately:
+          description: >-
+            This is required if the newly specified `retentionPeriod` is less than the existing retention period.  In
+            such a situation, a value of `true` says that data between the existing retention period and the new retention
+            period should be deleted immediately; if `false`, such data will be deleted after seven days. This property
+            is optional and ignored if the specified `retentionPeriod` is greater than or equal to the current retention
+            period.
+          type: boolean
+          default: false
+    ScheduledView:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/CreateScheduledViewDefinition'
+      - required:
+        - id
+        properties:
+          id:
+            description: Identifier for the scheduled view.
+            type: string
+          createdAt:
+            description: Creation timestamp in UTC.
+            type: string
+            format: date-time
+          createdByOptimizeIt:
+            description: If the scheduled view is created by OptimizeIt.
+            type: boolean
+          error:
+            description: Errors related to the scheduled view.
+            type: string
+          status:
+            description: Status of the scheduled view.
+            type: string
+          totalBytes:
+            description: Total storage consumed by the scheduled view.
+            type: integer
+            format: int64
+          totalMessageCount:
+            description: Total number of messages for the scheduled view.
+            type: integer
+            format: int64
+          createdBy:
+            description: Identifier of the user who created the scheduled view.
+            type: string
+    ListScheduledViewsResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of scheduled views.
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduledView'
+        next:
+          description: Next continuation token.
+          type: string

@@ -1,0 +1,360 @@
+paths:
+  v1alpha:
+
+    # /healthEvents endpoint
+    all:
+      get:
+        summary: Get a list of health events.
+        description: Get a list of all the unresolved health events in your account.
+        operationId: listAllHealthEvents
+        tags:
+          - healthEvents
+        parameters:
+          - name: limit
+            description: >-
+              Limit the number of health events returned in the response. The number of health events returned may be less
+              than the `limit`.
+            required: false
+            in: query
+            schema:
+              default: 100
+              minimum: 1
+              type: integer
+              maximum: 1000
+              format: int32
+          - name: token
+            description: >-
+              Continuation token to get the next page of results. A page object with the next continuation token is
+              returned in the response body. Subsequent GET requests should specify the continuation token to get the
+              next page of results. `token` is set to null when no more pages are left.
+            required: false
+            in: query
+            schema:
+              type: string
+        responses:
+          200:
+            description: A paginated list of all the health events.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ListHealthEventResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    # /healthEvents/resources endpoint
+    resources:
+      post:
+        summary: Health events for specific resources.
+        description: >-
+          Get a list of all the unresolved events in your account that belong to the supplied
+          resource identifiers.
+        operationId: listAllHealthEventsForResources
+        tags:
+          - healthEvents
+        requestBody:
+          description: Resource identifiers to request health events from.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceIdentities'
+        parameters:
+          - name: limit
+            description: >-
+              Limit the number of health events returned in the response. The number of health events returned
+              may be less than the `limit`.
+            required: false
+            in: query
+            schema:
+              type: integer
+              format: int32
+              default: 100
+              minimum: 1
+              maximum: 1000
+          - name: token
+            description: >-
+              Continuation token to get the next page of results. A page object with the next continuation token is
+              returned in the response body. Subsequent GET requests should specify the continuation token to get the
+              next page of results. `token` is set to null when no more pages are left.
+            required: false
+            in: query
+            schema:
+              type: string
+        responses:
+          200:
+            description: List of all the health events for the specified resources.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/ListHealthEventResponse'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+components:
+  schemas:
+    ResourceIdentity:
+      type: object
+      discriminator:
+        propertyName: type
+        mapping:
+          Collector: '#/components/schemas/CollectorResource'
+          Source: '#/components/schemas/SourceResource'
+          IngestBudget: '#/components/schemas/IngestBudgetResource'
+          Organisation: '#/components/schemas/OrgResource'
+      required:
+        - id
+        - type
+      properties:
+        id:
+          type: string
+          description: The unique identifier of the resource.
+          example: C03E086C137F38B4
+        name:
+          type: string
+          description: The name of the resource.
+          example: S3 Source, Scheduled View name.
+          default: Unknown
+        type:
+          description: ->
+            Resource type. Supported types are - `Collector`, `Source`, `IngestBudget` and `Organisation`.
+          type: string
+          example: Collector
+    CollectorResource:
+      allOf:
+        - $ref: '#/components/schemas/ResourceIdentity'
+        - type: object
+    OrgResource:
+      allOf:
+        - $ref: '#/components/schemas/ResourceIdentity'
+        - type: object
+    SourceResource:
+      allOf:
+        - $ref: '#/components/schemas/ResourceIdentity'
+        - type: object
+          properties:
+            collectorId:
+              type: string
+              description: The unique identifier of the Collector this Source belongs to.
+              default: Unknown
+            collectorName:
+              type: string
+              description: The name of the Collector this Source belongs to.
+              default: Unknown
+    IngestBudgetResource:
+      allOf:
+        - $ref: '#/components/schemas/ResourceIdentity'
+        - type: object
+          properties:
+            ingestBudgetFieldValue:
+              type: string
+              description: The unique field value of the ingest budget.
+              default: Unknown
+    ResourceIdentities:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          description: A list of the resources.
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceIdentity'
+
+    TrackerIdentity:
+      type: object
+      discriminator:
+        propertyName: description
+      required:
+        - trackerId
+        - error
+        - description
+      properties:
+        trackerId:
+          description: Name (PascalCase) that uniquely identifies the health tracker. It focuses on what happened rather than why.
+          type: string
+          example: S3CollectionBroken
+        error:
+          description: Category description of the underlying reason for the event change.
+          type: string
+          example: Access denied to Amazon S3 bucket
+        description:
+          type: string
+          description: A more elaborate description of why the event occurred.
+          example: S3 collection is not working as expected because of access issues.
+    OAuthRefreshFailedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+          properties:
+            exceptionType:
+              type: string
+              description: The type of exception received while attempting OAuth.
+            exceptionMessage:
+              type: string
+              description: The error message received with the failed OAuth request.
+    IngestBudgetExceededTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+    CollectionS3AccessDeniedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+          properties:
+            bucketName:
+              type: string
+              description: The bucket name of the associated Source.
+            accessKey:
+              type: string
+              description: The access key used to make the request. In the case of IAM roles, this is the temporary key used for authentication.
+    CollectionS3InvalidKeyTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+          properties:
+            accessKey:
+              type: string
+              description: The access key used to make the request. In the case of IAM roles, this is the temporary key used for authentication.
+    CollectionS3ListingFailedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+          properties:
+            bucketName:
+              type: string
+              description: The bucket name of the associated Source.
+    InstalledCollectorOfflineTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+          properties:
+            minutesSinceLastHeartbeat:
+              type: string
+              description: The bucket name of the associated Source.
+    IngestThrottlingTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+          properties:
+            dataType:
+              type: string
+              description: The type of data for which the rate limit was enabled. The possible values are `LogIngest` and `MetricsIngest`.
+    CollectionInvalidFilePathTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+          properties:
+            path:
+              type: string
+              description: The path to the file.
+    CollectionPathAccessDeniedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+          properties:
+            path:
+              type: string
+              description: The path to the file.
+    CollectionRemoteConnectionFailedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+    CollectionDockerClientBuildingFailedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+    CollectionWindowsEventChannelConnectionFailedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+    CollectionWindowsHostConnectionFailedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+    CollectionAwsMetadataTagsFetchDeniedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+    CollectionCloudWatchTagsFetchDeniedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+    CollectionCloudWatchListMetricsDeniedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+          properties:
+            errorCode:
+              type: string
+              description: The error code from AWS for the request made to get metrics.
+            errorMessage:
+              type: string
+              description: The error message from AWS for the request made to get metrics.
+    CollectionCloudWatchGetStatisticsDeniedTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+          properties:
+            errorCode:
+              type: string
+              description: The error code from AWS for the request made to get metrics.
+            errorMessage:
+              type: string
+              description: The error message from AWS for the request made to get metrics.
+    CollectionCloudWatchGetStatisticsThrottledTracker:
+      allOf:
+        - $ref: '#/components/schemas/TrackerIdentity'
+        - type: object
+
+    HealthEvent:
+      type: object
+      required:
+        - eventId
+        - details
+        - subsystem
+        - resourceIdentity
+        - eventTime
+        - severityLevel
+      properties:
+        eventId:
+          description: The unique identifier of the event.
+          type: string
+          example: e801dc7d-f483-46e9-bcc9-410f08f96497
+        details:
+          description: Details related to the event such as the name of the event, error, and related descriptions.
+          $ref: "#/components/schemas/TrackerIdentity"
+        resourceIdentity:
+          description: Resource for which this event took place.
+          $ref: '#/components/schemas/ResourceIdentity'
+        eventTime:
+          description: Creation timestamp in UTC in [RFC3339](https://tools.ietf.org/html/rfc3339) format.
+          type: string
+          format: date-time
+          example: 2018-10-16T09:10:00Z
+        subsystem:
+          type: string
+          description: The product area of the event.
+        severityLevel:
+          type: string
+          description: The criticality of the event. It is either `Error` or `Warning`
+
+    ListHealthEventResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          description: List of health events.
+          type: array
+          items:
+            $ref: '#/components/schemas/HealthEvent'
+        next:
+          description: Next continuation token.
+          type: string

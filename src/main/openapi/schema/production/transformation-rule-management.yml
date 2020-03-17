@@ -1,0 +1,292 @@
+paths:
+  transformationRules:
+    get:
+      description: >-
+        Get a list of transformation rules in the organization. The response is paginated with a default limit of 100
+        rules per page.
+      tags:
+      - transformationRuleManagement
+      summary: Get a list of transformation rules.
+      operationId: getTransformationRules
+      parameters:
+      - name: limit
+        description: Limit the number of transformation rules returned in the response.
+        required: false
+        in: query
+        example: 10
+        schema:
+          default: 100
+          minimum: 1
+          type: integer
+          maximum: 1000
+          format: int32
+      - name: token
+        description: >-
+          Continuation token to get the next page of results. A page object with the next continuation token is returned
+          in the response body. Subsequent GET requests should specify the continuation token to get the next page of
+          results. `token` is set to null when no more pages are left.
+        required: false
+        in: query
+        schema:
+          type: string
+      responses:
+        200:
+          description: List of transformation rules.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransformationRulesResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    post:
+      description: Create a new transformation rule.
+      tags:
+      - transformationRuleManagement
+      summary: Create a new transformation rule.
+      operationId: createRule
+      parameters: []
+      requestBody:
+        description: The configuration of the transformation rule to create.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransformationRuleRequest'
+      responses:
+        200:
+          description: The transformation rule was successfully created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransformationRuleResponse'
+        default:
+          description: The operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  transformationRuleId:
+    put:
+      summary: Update a transformation rule.
+      description: >-
+        Update an existing transformation rule. All properties specified in the request are replaced. Missing properties
+        will remain the same.
+      operationId: updateTransformationRule
+      tags:
+      - transformationRuleManagement
+      parameters:
+      - name: id
+        description: Identifier of the transformation rule to update.
+        required: true
+        in: path
+        schema:
+          type: string
+      requestBody:
+        description: Information to update about the transformation rule.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransformationRuleRequest'
+      responses:
+        200:
+          description: The transformation rule was successfully modified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransformationRuleResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    delete:
+      description: Delete a transformation rule with the given identifier.
+      tags:
+      - transformationRuleManagement
+      summary: Delete a transformation rule.
+      operationId: deleteRule
+      parameters:
+      - name: id
+        description: Identifier of the transformation rule to delete.
+        required: true
+        in: path
+        schema:
+          type: string
+      responses:
+        default:
+          description: The operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+        204:
+          description: The transformation rule was successfully deleted.
+
+    get:
+      summary: Get a transformation rule.
+      description: Get a transformation rule with the given identifier.
+      operationId: getTransformationRule
+      tags:
+      - transformationRuleManagement
+      parameters:
+      - name: id
+        description: Identifier of transformation rule to return.
+        required: true
+        in: path
+        schema:
+          type: string
+      responses:
+        200:
+          description: Transformation rule object that was requested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransformationRuleResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    TransformationRuleDefinition:
+      description: The properties that define a transformation rule.
+      type: object
+      required:
+      - name
+      - selector
+      - retention
+      properties:
+        name:
+          description: Name of the transformation rule.
+          type: string
+          example: "Transformation Rule 1"
+        selector:
+          description: Selector of the transformation rule.
+          type: string
+          example: "_sourceCategory=metricsstore"
+        dimensionTransformations:
+          description: Dimension transformations of the transformation rule.
+          type: array
+          items:
+            $ref: '#/components/schemas/DimensionTransformation'
+          example: [{"transformationType": "AggregateOnTransformation", "aggregateOn": ["metric"]},
+                    {"transformationType": "AddOrReplaceTransformation", "dimensionToReplace": "metric", "value": "{{metric}}_aggregated"}]
+          default: []
+        transformedMetricsRetention:
+          description: >-
+            Retention period in days for the transformed metrics that are generated by this rule. The supported
+            retention periods for transformed metrics are 8 days, and 400 days. If no dimension transformations are
+            defined, this value will be set to 0.
+          type: integer
+          format: int64
+          example: 8
+          default: 0
+        retention:
+          description: >-
+            Retention period in days for the metrics that are selected by the selector. The supported retention periods
+            for selected metrics are 8 days, 400 days, and 0 (Do not store) if this rule contains dimension
+            transformation.
+          type: integer
+          format: int64
+          example: 8
+          default: 400
+
+    TransformationRuleRequest:
+      description: A request for creating or updating a transformation rule.
+      type: object
+      required:
+      - ruleDefinition
+      - enabled
+      properties:
+        ruleDefinition:
+          type: object
+          $ref: '#/components/schemas/TransformationRuleDefinition'
+        enabled:
+          description: True if the rule is enabled.
+          type: boolean
+          example: true
+
+    TransformationRuleResponse:
+      description: A generic response for transformation rule.
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/TransformationRuleRequest'
+      - $ref: './generic-models.yml#/components/schemas/MetadataModel'
+      - required:
+        - ruleId
+        properties:
+          ruleId:
+            description: Unique identifier for the transformation rule.
+            type: string
+
+    TransformationRulesResponse:
+      description: A generic response for transformation rule.
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of transformation rules.
+          type: array
+          items:
+            $ref: '#/components/schemas/TransformationRuleResponse'
+        next:
+          description: Next continuation token.
+          type: string
+          example: aGNzTmZBN1ZZWFk9
+
+    DimensionTransformation:
+      description: Base class of all transformation types.
+      type: object
+      discriminator:
+        propertyName: transformationType
+      required:
+      - transformationType
+      properties:
+        transformationType:
+          description: This is the base type of all dimension transformations.
+          type: string
+
+    AddOrReplaceTransformation:
+      allOf:
+      - $ref: '#/components/schemas/DimensionTransformation'
+      - type: object
+        required:
+        - dimensionToReplace
+        - value
+        properties:
+          dimensionToReplace:
+            description: The dimension that needs to be modified or added.
+            type: string
+            example: "metric"
+          value:
+            description: The value for the dimension.
+            type: string
+            example: "{{metric}}_aggregated"
+
+    AggregateOnTransformation:
+      allOf:
+      - $ref: '#/components/schemas/DimensionTransformation'
+      - type: object
+        required:
+        - aggregateOn
+        properties:
+          aggregateOn:
+            description: A list of dimensions that should be aggregated on.
+            type: array
+            items:
+              type: string
+            example: ["metric", "cluster"]
+            default: []

@@ -1,0 +1,90 @@
+paths:
+  # /org/settings endpoint
+  org:
+    settings:
+      get:
+        summary: Get org settings
+        description: Get settings for organization.
+        operationId: getOrgSettings
+        tags:
+          - orgManagement
+        parameters:
+          - name: keys
+            description: List of keys to fetch. Don't set the field to get all org settings.
+            required: false
+            in: query
+            style: form
+            explode: false
+            schema:
+              type: array
+              items:
+                description: The name of the key.
+                type: string
+                example: dashboardSharingDefault
+        responses:
+          200:
+            description: A key value map of the requested org settings.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/OrgSettingsList'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      put:
+        summary: Update org settings
+        description: Update the org settings for the organization
+        operationId: updateOrgSettings
+        tags:
+        - orgManagement
+        parameters: []
+        requestBody:
+          description: Key value pairs for org settings that should be updated.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrgSettingsList'
+        responses:
+          200:
+            description: A key value map of the updated org settings.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/OrgSettingsList'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    OrgSettings:
+      type: object
+      required:
+      - key
+      - value
+      properties:
+        key:
+          description: The key for the org setting.
+          type: string
+          example: dashboardSharingDefault
+        value:
+          description: The value of the org setting.
+          type: string
+          example: viewer
+    OrgSettingsList:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of org settings.
+          type: array
+          items:
+            $ref: '#/components/schemas/OrgSettings'

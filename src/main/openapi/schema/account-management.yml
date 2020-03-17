@@ -1,0 +1,357 @@
+paths:
+  v1:
+    account:
+      contract:   #v1/account/contract
+        get:
+          x-visibility: private
+          summary: Get an account contract.
+          description: >-
+            Contract details include entitlements of the customer such as ContinuousLogs, FrequentLogs, Metrics, Storage, and
+            Dashboards along with the entitlement value of each entitlement.
+          operationId: getContractDetails
+          tags:
+            - accountManagement
+          responses:
+            200:
+              description: Contract details for the account.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ContractDetails'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      consumption:
+        get:
+          x-visibility: private
+          summary: Get consumption details.
+          description: >-
+            Get the consumption details for different entitlements for the specified period of time
+            given as input in the form of a start and end date with a specific grouping according to `day`, `week`, `month`,
+             Different operations can be performed on the returned usages such as
+            `sum`, `average`.
+          operationId: getConsumptionDetails
+          tags:
+            - accountManagement
+          parameters:
+            - name: entitlements
+              description: >-
+                List of the entitlements to be fetched, if no entitlement is given, it will fetch all of them. Use the following
+                values - `continuous` for
+                Continuous Analytics, - `frequent` for Frequent Analytics, - `storage` for Total Storage, - `metrics` for
+                Metrics.
+              required: false
+              in: query
+              example:
+                oneId:
+                  summary: Example of a single entitlement.
+                  value: continuous
+                multipleIds:
+                  summary: Example of multiple entitlements.
+                  value: continuous, frequent
+              schema:
+                items:
+                  type: string
+                type: array
+            - name: startDate
+              description: >-
+                Start date, without the time, of the entitlement consumption data to fetch. If no value
+                is provided startDate is used as the start of the subscription.
+              required: false
+              in: query
+              example: 2019-07-20
+              schema:
+                type: string
+            - name: endDate
+              description: >-
+                End date, without the time, of the entitlement consumption data to fetch. If no value
+                is provided endDate is used as the end of the subscription.
+              required: false
+              in: query
+              example: 2019-08-20
+              schema:
+                type: string
+            - name: groupBy
+              description: >-
+                Perform a groupBy operation on the usage details of the entitlements. If no value is provided data is grouped
+                by `Day` - `day`: Aggregate the data by day - `week`: Aggregate the data by week. Week starts at Monday
+                and ends at sunday night. - `month`: Aggregate the data by calendar month.
+              example: day
+              schema:
+                default: day
+                type: string
+              required: false
+              in: query
+            - name: operators
+              description: >-
+                Operators to apply on the usage data of the entitlement. Available operators are `sum`,`average`,
+                `usage_percentage`,`forecast_value`, `forecast_percentage`, and `forecast_date`. If no value is provided sum
+                is used.
+              schema:
+                type: string
+              required: false
+              in: query
+              default: sum
+              example: average
+          responses:
+            200:
+              description: Consumption details for the account.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/ConsumptionDetails'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      owner:
+        get:
+          summary: Get the owner of an account.
+          description: >-
+            Returns the user identifier of the account owner.
+          operationId: getAccountOwner
+          tags:
+            - accountManagement
+          responses:
+            200:
+              description: User identifier of the account owner.
+              content:
+                text/plain:
+                  schema:
+                    type: string
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ContractDetails:
+      description: >
+        Contract details include Entitlements of the customer such as ContinuosLogs, FrequentLogs, Metrics, Storage, and
+        Dashboards
+        along with the entitlement value of each entitlement.
+      type: object
+      required:
+        - orgId
+        - planType
+        - entitlements
+        - contractPeriod
+        - currentBillingPeriod
+      properties:
+        orgId:
+          type: string
+          description: Organization identifier of the account.
+        planType:
+          type: string
+          description: Plan name of the account.
+          example: Sumo Logic Logs and Metrics Analytics Service - Enterprise Edition (Cloud Flex)
+        entitlements:
+          type: array
+          description: List of the entitlements of the account. Entitlements of the account are the list of products subscribed
+            by the user.
+          items:
+            $ref: '#/components/schemas/Entitlements'
+        contractPeriod:
+          type: object
+          description: Contract period of the current subscription. Contains information related to the start and end
+            date of the contract.
+          $ref: '#/components/schemas/ContractPeriod'
+        currentBillingPeriod:
+          type: object
+          description: Current billing period.
+          $ref: '#/components/schemas/CurrentBillingPeriod'
+    Entitlements:
+      type: object
+      required:
+        - contractType
+        - entitlementType
+        - label
+        - capacity
+      properties:
+        contractType:
+          type: string
+          description: >-
+            Details of the contract type. `AnnualBucket` are contracts that buy and consume ingest on yearly basis. `Credits`
+            are contracts that buy a single unit called credits for all our features. `DailyAverage` are contracts
+            that buy and consume ingest on a monthly basis.
+          example: AnnualBucket, Credits, DailyAverage
+        entitlementType:
+          type: string
+          description: >-
+            Text denoting the type of entitlement. - `continuous` for Continuous Analytics, - `frequent` for Frequent
+            Analytics, - `storage` for Total Storage, - `metrics` for Metrics.
+        label:
+          type: string
+          description: The label of an entitlement is the plan name displayed on the accounts page in our user interface.
+          example: Continuous log entitlement is represented by `Daily Log Ingest (Continuous Analytics)`.
+        capacity:
+          $ref: '#/components/schemas/Capacity'
+    ContractPeriod:
+      type: object
+      required:
+        - startDate
+        - endDate
+      properties:
+        startDate:
+          description: Start date of the contract.
+          type: string
+          format: date
+        endDate:
+          description: End date of the contract.
+          type: string
+          format: date
+    CurrentBillingPeriod:
+      type: object
+      required:
+        - startDate
+        - endDate
+      properties:
+        startDate:
+          description: Start date of the current billing period.
+          type: string
+          format: date
+          example: "2012-02-02"
+        endDate:
+          description: End date of the current billing period.
+          type: string
+          format: date
+          example: "2012-02-02"
+    Capacity:
+      description: Amount of entitlement provided by Sumo Logic for the entitlement type of the account.
+      type: object
+      required:
+        - value
+        - unit
+      properties:
+        value:
+          description: The value of the entitlement in units.
+          example: 61425
+          type: integer
+          format: int64
+        unit:
+          description: The unit of the entitlement. Units are provided in `GB` or `DPM`(data points per minute).
+          example: "GB"
+          type: string
+
+    ConsumptionDetails:
+      description: List of entitlements consumption.
+      type: object
+      required:
+        - entitlementConsumptions
+        - startDate
+        - endDate
+      properties:
+        entitlementConsumptions:
+          type: array
+          description: An array of entitlements.
+          items:
+            $ref: '#/components/schemas/EntitlementConsumption'
+        startDate:
+          type: string
+          format: date
+          description: Start date of the data usage.
+          example: 2019-07-20
+        endDate:
+          type: string
+          format: date
+          description: End date of the data usage.
+          example: 2019-10-20
+
+
+    EntitlementConsumption:
+      type: object
+      required:
+        - entitlementType
+        - dataPoints
+        - operators
+        - contractType
+      properties:
+        entitlementType:
+          type: string
+          description: >-
+            String value denoting the type of entitlement. - `continuous` for Continuous Analytics, - `frequent` for
+            Frequent Analytics, - `storage` for Total Storage, - `metrics` for Metrics.
+        datapoints:
+          description: >-
+            Array of data points of the entitlement with their respective date range.
+          type: array
+          items:
+            $ref: '#/components/schemas/DataPoints'
+        operators:
+          description: >-
+            Operators used on the data. Available operators are `sum`, `average`, `usagePercentage`, `forecastValue`, `forecastPercentage`,
+            and `forecastRemainingDays`.
+            sum - Returns the sum of the usages. average - Returns the average of the usages. usagePercentage - Returns percentage
+            of total capacity used for the startDate and endDate. forecastValue - Returns expected usage value assuming
+            current usage behavior continues. forecastPercentage - Returns expected percentage usage by the endDate assuming
+            current usage behavior continues. forecastRemainingDays- Returns the number of expected days, from today, that consumption
+            will last assuming current usage behavior continues.
+          type: array
+          items:
+            $ref: '#/components/schemas/Operator'
+        contractType:
+          description: >-
+            Consumption model of the entitlements, available values are `DailyAverage`, `AnnualBucket`, and `Credits`.
+          type: string
+          example: "DailyAverage"
+
+
+    Operator:
+      description: >-
+        Result of the aggregations performed on the usages. Operator can be `sum`, `average`,
+        `usagePercentage`, `forecastValue`,`forecastPercentage`, or `forecastRemainingDays`.
+      type: object
+      required:
+        - values
+        - name
+      properties:
+        values:
+          description: An array of objects denoting the value and unit of the results.
+          type: array
+          items:
+            $ref: '#/components/schemas/DataValue'
+        name:
+          type: string
+          description: The name of the operator applied to the data.
+          example: "sum"
+
+    DataPoints:
+      description: Denotes the data points as a result of the groupBy function performed on the usage data.
+      type: object
+      required:
+        - timeRange
+        - value
+      properties:
+        timeRange:
+          description: The time range of the data provided.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/BeginBoundedTimeRange'
+        values:
+          description: An array of objects denoting the value and unit of the data points.
+          type: array
+          items:
+            $ref: '#/components/schemas/DataValue'
+
+    DataValue:
+      type: object
+      required:
+        - value
+        - unit
+      properties:
+        value:
+          type: number
+          format: double
+          description: The value of the data point in units.
+          example: 425
+        unit:
+          type: string
+          description: The unit of the entitlement, possible values are `GB`, `DPM`, or `Credits`.
+          example: "GB"

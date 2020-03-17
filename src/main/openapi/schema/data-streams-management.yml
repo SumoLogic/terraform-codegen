@@ -1,0 +1,318 @@
+paths:
+  dataStreams:
+    get:
+      summary: Get a list of data streams.
+      description: >-
+        Get a list of all data streams in the organization. The response is paginated with a default limit of
+        100 data streams per page.
+      operationId: listDataStreams
+      tags:
+        - dataStreamsManagement
+      parameters:
+        - name: limit
+          description: >-
+            Limit the number of data streams returned in the response. The number of data streams returned may be less
+            than the `limit`.
+          required: false
+          in: query
+          schema:
+            default: 50
+            minimum: 1
+            type: integer
+            maximum: 100
+            format: int32
+        - name: token
+          description: >-
+            Continuation token to get the next page of results. A page object with the next continuation token is returned
+            in the response body. Subsequent GET requests should specify the continuation token to get the next page of
+            results. `token` is set to null when no more pages are left.
+          required: false
+          in: query
+          schema:
+            type: string
+      responses:
+        200:
+          description: A paginated list of data streams in the organization.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDataStreamsResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    post:
+      summary: Create a new data stream.
+      description: Create a new data stream.
+      operationId: createDataStream
+      tags:
+        - dataStreamsManagement
+      parameters: []
+      requestBody:
+        description: Information about the new data stream.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDataStreamDefinition'
+      responses:
+        200:
+          description: The data stream has been created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataStream'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  # /dataStreams/id/ endpoint
+  dataStreamsId:
+    get:
+      summary: Get a data stream.
+      description: Get a data stream with the given identifier from the organization.
+      operationId: getDataStream
+      tags:
+        - dataStreamsManagement
+      parameters:
+        - name: id
+          description: Identifier of data stream to return.
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        200:
+          description: Data stream object that was requested.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataStream'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    put:
+      summary: Update a data stream.
+      description: >-
+        Update an existing data stream in the organization.
+      operationId: updateDataStream
+      tags:
+        - dataStreamsManagement
+      parameters:
+        - name: id
+          description: Identifier of the data stream to update.
+          required: true
+          in: path
+          schema:
+            type: string
+      requestBody:
+        description: Information to update about the data stream.
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDataStreamDefinition'
+      responses:
+        200:
+          description: The data stream was successfully modified.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataStream'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete a data stream.
+      description: >-
+        Delete a data stream with the given identifier from the organization.
+      operationId: deleteDataStream
+      tags:
+        - dataStreamsManagement
+      parameters:
+        - name: id
+          description: Identifier of the data stream to delete.
+          required: true
+          in: path
+          schema:
+            type: string
+      responses:
+        204:
+          description: The data stream was deleted successfully.
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+  dataStreamsByIds:
+    get:
+      x-visibility: private
+      summary: Bulk read data streams.
+      description: Bulk read data streams by the given identifiers.
+      operationId: dataStreamsReadByIds
+      tags:
+        - dataStreamsManagement
+      parameters:
+        - name: ids
+          description: A comma-separated list of identifiers.
+          required: true
+          in: path
+          schema:
+            type: array
+            items:
+              type: string
+            uniqueItems: true
+            minItems: 1
+            maxItems: 100
+          example: 0000000000000001,0000000000000002,0000000000000003
+      responses:
+        200:
+          description: Array of data streams for requested identifiers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataStreamsResponse'
+        default:
+          description: Operation failed with an error.
+          content:
+            application/json:
+              schema:
+                $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CreateDataStreamDefinition:
+      type: object
+      required:
+        - name
+        - scope
+        - analyticsTier
+        - partitionIdToStore
+      properties:
+        name:
+          description: The name of the data stream.
+          type: string
+          example: "apache"
+          maxLength: 255
+        scope:
+          description: The query that defines the data to be included in the data stream.
+          type: string
+          example: "_sourcecategory=*/Apache"
+          minLength: 1
+          maxLength: 16384
+        analyticsTier:
+          description: >-
+            The Cloud Flex analytics tier for your data; only relevant if your account has basic
+            analytics enabled. Possible values are:
+              1. `continuous`
+              2. `frequent`
+              3. `infrequent`
+          type: string
+          example: "continuous"
+          default: "continuous"
+        partitionIdToStore:
+          description: The identifier of the partition to store data matching the scope of this data stream.
+          type: string
+          example: "000000000000002A"
+    UpdateDataStreamDefinition:
+      type: object
+      properties:
+        name:
+          description: The name of the data stream.
+          type: string
+          example: "apache"
+          maxLength: 255
+        scope:
+          description: The query that defines the data to be included in the data stream.
+          type: string
+          example: "_sourcecategory=*/Apache"
+          minLength: 1
+          maxLength: 16384
+        analyticsTier:
+          description: >-
+            The Cloud Flex analytics tier for your data; only relevant if your account has basic
+            analytics enabled. Possible values are:
+              1. `continuous`
+              2. `frequent`
+              3. `infrequent`
+          type: string
+          example: "continuous"
+          default: "continuous"
+        partitionIdToStore:
+          description: The identifier of the partition to store data matching the scope of this data stream.
+          type: string
+          example: "000000000000002A"
+        isEnabled:
+          description: >-
+            Indicates whether the data stream is enabled or not.
+          type: boolean
+    DataStream:
+      type: object
+      allOf:
+      - $ref: '#/components/schemas/CreateDataStreamDefinition'
+      - required:
+          - id
+          - isEnabled
+          - createdAt
+          - createdBy
+          - modifiedAt
+          - modifiedBy
+        properties:
+          id:
+            description: Unique identifier of the data stream.
+            type: string
+          isEnabled:
+            description: >-
+              Indicates whether the data stream is enabled or not.
+            type: boolean
+          createdAt:
+            description: >-
+              Creation timestamp in UTC in [RFC3339](https://tools.ietf.org/html/rfc3339) format.
+            type: string
+            format: date-time
+          createdBy:
+            description: Identifier of the user who created the resource.
+            type: string
+          modifiedAt:
+            description: Last modification timestamp in UTC in [RFC3339](https://tools.ietf.org/html/rfc3339) format.
+            type: string
+            format: date-time
+          modifiedBy:
+            description: Identifier of the user who last modified the resource.
+            type: string
+    ListDataStreamsResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          description: List of data streams.
+          type: array
+          items:
+            $ref: '#/components/schemas/DataStream'
+        next:
+          description: Next continuation token.
+          type: string
+    DataStreamsResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: Array of data streams.
+          type: array
+          items:
+            $ref: '#/components/schemas/DataStream'

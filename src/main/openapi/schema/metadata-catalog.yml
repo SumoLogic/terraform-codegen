@@ -1,0 +1,811 @@
+paths:
+  v1:
+    metadataCatalog:
+      valuesWithinDimension:
+        post:
+          description: >-
+            Contextual search for values of a given dimension. Results may be limited by time range, term occurrence, or
+            an additional selector. All time-series have metric definitions which uniquely identify them. Each metric definition is
+            a unique set of dimensions and their values.
+          tags:
+          - metadataCatalog
+          summary: Search for values within a dimension.
+          operationId: searchValuesWithinDimension
+          parameters:
+          - name: dimension
+            description: The metric dimension needed.
+            required: true
+            in: path
+            schema:
+              type: string
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/SearchValuesWithinDimensionDefinition'
+          responses:
+            200:
+              description: Values within dimension search results.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/SearchValuesWithinDimensionResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      dimensions:
+        post:
+          description: >-
+            Contextual search for dimensions which appear in metric definitions. Results may be limited by time range,
+            term occurrence, or an additional selector. All time-series have metric definitions which uniquely identify them.
+            Each metric definition is a unique set of dimensions and their values.
+          tags:
+          - metadataCatalog
+          summary: Search for dimensions.
+          operationId: searchDimensions
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/SearchDimensionsDefinition'
+          responses:
+            200:
+              description: Results of the search.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/SearchDimensionsResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      values:
+        # NOTE(fmikina, 2019-07-23): This endpoint, namely /searchValues, is internally too slow.
+        # Consequently, we need to hide it from documentation as for now. After some performance
+        # leveraging we can unmark this one.
+        post:
+          x-visibility: private
+          description: >-
+            Contextual search for values. Results may be limited by time range, term occurrence and an additional selector.
+            All time-series have metric definitions which uniquely identify them. Each metric definition is a unique set
+            of dimensions and their values.
+          tags:
+          - metadataCatalog
+          summary: Search for values.
+          operationId: searchValues
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/SearchValuesDefinition'
+          responses:
+            200:
+              description: Results of the search.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/SearchValuesResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      query:
+        post:
+          description: >-
+            Search metric definitions in metadata catalog that match certain criteria. This endpoint can be used
+            to understand which times-series are being sent from a specific source without fetching data-points.
+          tags:
+          - metadataCatalog
+          summary: Search metric definitions.
+          operationId: metadataCatalogQuery
+          parameters:
+          - name: limit
+            description: The maximum number of results to fetch.
+            required: false
+            in: query
+            schema:
+              default: 100
+              minimum: 1
+              type: integer
+              maximum: 10000
+              format: int32
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/MetadataCatalogQueryDefinition'
+          responses:
+            200:
+              description: Query result.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/MetadataCatalogQueryResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      count:
+        post:
+          description: >-
+            Counts metric definitions inside metadata catalog which match certain search criteria. It allows
+            to for example figure out a structure of metric definitions or the number of unique metrics
+            sent from specific source.
+          tags:
+          - metadataCatalog
+          summary: Get the number of metric definitions that match search criteria.
+          operationId: metadataCatalogQueryCount
+          parameters: []
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/MetadataCatalogQueryDefinition'
+          responses:
+            200:
+              description: Count of metric definitions which match a given query.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/MetadataCatalogCountResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      extendedCount:
+        post:
+          # NOTE(asznajder, 2019-09-24): This is for internal usage only.
+          x-visibility: private
+          description: >-
+            Counts metric definitions inside the metadata catalog that match search criteria. In addition to
+            `count`, it can indicate which retention bucket to scan.
+          tags:
+          - metadataCatalog
+          summary: Get the number of metric definitions and bucket information that match search criteria.
+          operationId: metadataCatalogExtendedQueryCount
+          parameters: []
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/MetadataCatalogExtendedQueryDefinition'
+          responses:
+            200:
+              description: Count of metric definitions in a selected retention bucket.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/MetadataCatalogCountResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      dimensionCount:
+        post:
+          description: >-
+            Counts metric definitions that have a specific dimension. Metric definitions may be limited by time range, term
+            occurrence, or additional filters. All time-series have metric definitions which uniquely identify them.
+            Each metric definition is a unique set of dimensions and their values.
+          tags:
+          - metadataCatalog
+          summary: Get metric definitions count with a specific dimension.
+          operationId: metadataCatalogDimensionCount
+          parameters:
+          - name: dimension
+            description: Metadata dimension for which metric definitions are being counted.
+            required: true
+            in: path
+            schema:
+              type: string
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/MetadataCatalogQueryDefinition'
+          responses:
+            200:
+              description: Count of metric definitions which match a given query.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/MetadataCatalogCountResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      dimensionCardinality:
+        post:
+          description: >-
+            Return a number of unique values inside a dimension. Metric definitions that will be counted can be limited
+            by time range, term occurrence or a list of filters.
+          tags:
+            - metadataCatalog
+          summary: Get dimension cardinality.
+          operationId: dimensionCardinality
+          parameters:
+            - name: dimension
+              description: Metadata dimension for which we’re looking for a cardinality.
+              required: true
+              in: path
+              schema:
+                type: string
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/DimensionCardinalityDefinition'
+          responses:
+            200:
+              description: Count of unique values inside a dimension.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/DimensionCardinalityResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      delete:
+        post:
+          description: >-
+            Delete existing metric definitions that match specific criteria. This operation doesn't remove
+            data points, it makes them unsearchable. In order to make them available again,
+            re-send exactly the same metrics with at least one data point.
+          tags:
+          - metadataCatalog
+          summary: Delete metrics definition that match filtering criteria.
+          operationId: metadataCatalogDelete
+          parameters: []
+          requestBody:
+            required: true
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/MetadataCatalogQueryDefinition'
+          responses:
+            200:
+              description: Deletion results.
+              content:
+                application/json:
+                  schema:
+                    $ref: '#/components/schemas/MetadataCatalogDeleteResponse'
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      blacklist:
+        removeAll:
+          post:
+            # NOTE(asznajder, 2019-09-25): This is for internal usage only.
+            x-visibility: private
+            description: >-
+              In some cases, Sumo Logic disables a metrics source to limit the number of ingested metric definitions.
+              This is referred to as blacklisting. It happens when one source sends too many unique metric definitions.
+              Very often this indicates some misconfiguration. This endpoint re-enables all the sources. Please keep
+              in mind that in case of not fixing underlying issue with source, it might get blacklisted automatically
+              again. This operation can succeed partially and will return a list of sources that failed to be removed
+              when it happens. To fix this the same request can be send again - to be specific, when one tries to remove
+              the source from the blacklist that is not there the operation will succeed.
+            tags:
+            - metadataCatalog
+            summary: Remove all sources from blacklist.
+            operationId: blacklistRemoveAll
+            responses:
+              200:
+                description: List of sources that failed to be removed.
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/BlacklistRemoveAllResponse'
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+        addSourceId:
+          post:
+            description: >-
+              Add a source to blacklist. As a result, all data points and metric definitions from it will not be accepted.
+
+              In some cases, Sumo Logic disables a metrics source to limit the number of ingested metric definitions.
+              This is referred to as blacklisting. It happens automatically when the number of sent time-series from
+              a single source within a week exceeds limits.
+            tags:
+            - metadataCatalog
+            summary: Add a single source to blacklist.
+            operationId: blacklistAddSourceId
+            parameters:
+            - name: sourceId
+              description: Identifier of the source to blacklist.
+              required: true
+              in: path
+              schema:
+                type: string
+            responses:
+              204:
+                description: The requested source was added to the blacklist.
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+        removeSourceId:
+          post:
+            # NOTE(asznajder, 2019-09-25): This is for internal usage only.
+            x-visibility: private
+            description: >-
+              Re-enable single source that has been blacklisted. As a result, all data from it will be accepted.
+              Please keep in mind that in case of not fixing underlying issue with source, it might get blacklisted
+              automatically again.
+
+              In some cases, Sumo Logic disables a metrics source to limit the number of ingested metric definitions.
+              This is referred to as blacklisting. It happens automatically when the number of sent time-series from
+              a single source within a week exceeds limit.
+            tags:
+            - metadataCatalog
+            summary: Remove a source from blacklist.
+            operationId: blacklistRemoveSourceId
+            parameters:
+            - name: sourceId
+              description: Identifier of the source that is blacklisted.
+              required: true
+              in: path
+              schema:
+                type: string
+            responses:
+              204:
+                description: The requested source was removed from the blacklist.
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+        sources:
+          get:
+            description: >-
+              List all the sources that are currently blacklisted.
+
+              In some cases, Sumo Logic disables a metrics source to limit the number of ingested metric definitions.
+              This is referred to as blacklisting. It happens automatically when the number of sent time-series from
+              a single source within a week exceeds limits.
+            tags:
+            - metadataCatalog
+            summary: List all blacklisted sources.
+            operationId: listBlacklistedSources
+            responses:
+              200:
+                description: List of all blacklisted sources.
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/BlacklistSourcesResponse'
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+        quota:
+          get:
+            description: >-
+              Get the maximum number of unique metric definitions that may be sent from the same source within a week.
+              Exceeding that threshold results in blacklisting the source. Any data received from a blacklisted source
+              will be dropped. Returns default limit if a contentType is invalid.
+            tags:
+            - metadataCatalog
+            summary: Get the quota of unique metrics definitions per week.
+            operationId: blacklistLimit
+            parameters:
+              - name: contentType
+                description: >-
+                  Type of content for which we want to find the limit. Valid types of content: AwsCloudWatch,
+                  AwsMetadata, Carbon2, DockerMetrics, Graphite, HostMetrics, JFrogArtifactory, JFrogBintray,
+                  MetricFromLog, Prometheus.
+                required: false
+                in: query
+                schema:
+                  type: string
+                example: "AwsCloudWatch"
+            responses:
+              200:
+                description: Total number of unique metrics definitions per source (weekly quota).
+                content:
+                  application/json:
+                    schema:
+                      $ref: '#/components/schemas/BlacklistLimitResponse'
+              default:
+                description: Operation failed with an error.
+                content:
+                  application/json:
+                    schema:
+                      $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    SearchValuesDefinition:
+      type: object
+      required:
+      - from
+      properties:
+        maxResults:
+          description: The maximum number of values of a single dimension to fetch.
+          type: integer
+          format: int32
+          minimum: 0
+          default: 100
+          maximum: 1000
+        term:
+          description: >-
+            String which is expected to be in a value of a specified dimension. The definition of containment is as
+            follows: term has to be a prefix of one of the tokens. The dimension value is tokenized using whitespace
+            characters, '-' and '_'. For example: term 'user' will match dimension value 'CPU_User'.
+          type: string
+          example: "cpu"
+        selector:
+          description: >-
+            A list of filters that specify conditions that have to be matched by metrics definitions
+            regardless of the fact that they also have to contain a term. It’s a list of exact matches.
+          type: array
+          items:
+            type: string
+          example: ["_collector=collectorName", "_source=19JulyCount"]
+        from:
+          description: Lower boundary of the time range.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+        to:
+          description: Upper boundary of the time range. If not set, there is no upper boundary.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+
+    SearchValuesWithinDimensionDefinition:
+      type: object
+      required:
+      - from
+      properties:
+        term:
+          description: >-
+            String which is expected to be in a value of a specified dimension. The definition of containment is as
+            follows: term has to be a prefix of one of the tokens. The dimension value is tokenized using whitespace
+            characters, '-' and '_'. For example: term 'user' will match dimension value 'CPU_User'.
+          type: string
+          example: "cpu"
+        selector:
+          description: >-
+            A list of filters that specify conditions that have to be matched by a metric definition regardless of
+            the fact that it has to contain a term. It’s a list of exact matches.
+          type: array
+          items:
+            type: string
+          example: ["_collector=collectorName", "_source=19JulyCount"]
+        from:
+          description: Lower boundary of the time range.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+        to:
+          description: Upper boundary of the time range. If not set, there is no upper boundary.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+
+    DimensionCardinalityDefinition:
+      type: object
+      required:
+        - from
+      properties:
+        term:
+          description: >-
+            A string that we expect to find in any of the result values. In case of no term provided it defaults to
+            one that matches all the metric definitions.
+          type: string
+          example: "metric"
+          default: ""
+        selector:
+          description: >-
+            A list of filters that specify conditions that have to be matched by a document
+            regardless of the fact that it has to contain a term. It’s a list of exact matches.
+            When no filters are provided a query will match all the metric definitions.
+          type: array
+          items:
+            type: string
+          example: ["_collector=collectorName", "_source=19JulyCount"]
+        from:
+          description: Lower boundary of the time range.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+        to:
+          description: Upper boundary of the time range. If not set, there is no upper boundary.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+
+    DimensionCardinalityResponse:
+      type: object
+      required:
+        - cardinality
+      properties:
+        cardinality:
+          description: The count of unique values inside a dimension.
+          type: integer
+          format: int64
+          example: 101010
+
+    SearchDimensionsDefinition:
+      type: object
+      required:
+      - from
+      properties:
+        term:
+          description: The prefix of the dimension name.
+          type: string
+          example: "metric"
+        selector:
+          description: >-
+            A list of filters that specify conditions that have to be matched by metric definitions regardless
+            of the fact that one of the dimensions used to define them has to contain a term. It’s a list of exact
+            matches.
+          type: array
+          items:
+            type: string
+          example: ["_collector=collectorName", "_source=19JulyCount"]
+        from:
+          description: Lower boundary of the time range.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+        to:
+          description: Upper boundary of the time range. If not set, there is no upper boundary.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+
+    MetadataCatalogQueryDefinition:
+      type: object
+      required:
+      - query
+      - from
+      properties:
+        query:
+          description: >-
+            A query for the metadata catalog. It has to be a selector. Any aggregations will be discarded.
+            For example, a query "_source = sourceName | count by dimension" will be processed as
+            "_source = sourceName".
+          type: string
+          minLength: 1
+          maxLength: 1500
+          example: ["*", "_source=graphite.metrics", "_source=collect.graphite"]
+        from:
+          description: Lower boundary of the time range.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+        to:
+          description: Upper boundary of the time range. If not set, there is no upper boundary.
+          type: object
+          $ref: './generic-models.yml#/components/schemas/TimeRangeBoundary'
+
+    MetadataCatalogExtendedQueryDefinition:
+      allOf:
+      - $ref: '#/components/schemas/MetadataCatalogQueryDefinition'
+      - type: object
+        properties:
+          retention:
+            description: >-
+              A string which indicates metrics retention. When not specified it defaults to empty string, which indicates
+              not filtering by retention. Possible values are: - `short` - `long`
+            type: string
+            default: ""
+            example: "long"
+
+    SearchValuesResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of values that match search criteria and their corresponding dimensions.
+          type: array
+          items:
+            type: string
+            $ref: '#/components/schemas/ValuesWithinDimension'
+
+    BlacklistRemoveAllResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of identificatiors of sources that failed to be removed from blacklist.
+          type: array
+          items:
+            type: string
+
+    ValuesWithinDimension:
+      type: object
+      required:
+      - dimension
+      - values
+      properties:
+        dimension:
+          description: A dimension.
+          type: string
+        values:
+          description: List of values within the corresponding dimension.
+          type: array
+          items:
+            type: string
+
+    SearchValuesWithinDimensionResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of results consisting of values with an optional corresponding number of metric definitions.
+          type: array
+          items:
+            type: string
+            $ref: '#/components/schemas/ValueWithinDimension'
+
+    ValueWithinDimension:
+      type: object
+      required:
+      - value
+      properties:
+        value:
+          description: A value.
+          type: string
+        count:
+          description: Estimated number of metric definitions for this value.
+          type: integer
+          format: int32
+
+    SearchDimensionsResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of results consisting of dimensions with corresponding number of metric definitions.
+          type: array
+          items:
+            type: string
+            $ref: '#/components/schemas/Dimension'
+
+    Dimension:
+      type: object
+      required:
+      - dimension
+      - count
+      properties:
+        dimension:
+          description: A dimension name that is used in metric defintions.
+          type: string
+          example: "_3"
+        count:
+          description: Number of metric definitions which have specific dimension.
+          type: integer
+          format: int32
+          example: 102
+
+    MetadataCatalogDeleteResponse:
+      type: object
+      required:
+      - count
+      properties:
+        count:
+          description: Number of deleted metric definitions.
+          type: integer
+          format: int32
+          example: 2137
+
+    MetadataCatalogCountResponse:
+      type: object
+      required:
+      - count
+      properties:
+        count:
+          description: Number of metric definitions which match a given query.
+          type: integer
+          format: int32
+          example: 2137
+
+    MetadataCatalogQueryResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: List of metric definitions matching a particular query.
+          type: array
+          items:
+            type: string
+            $ref: '#/components/schemas/MetadataCatalogMetricDefinition'
+
+    MetadataCatalogMetricDefinition:
+      type: object
+      required:
+      - dimensions
+      properties:
+        dimensions:
+          type: array
+          description: Dimensions within a metadata catalog.
+          items:
+            type: string
+            $ref: './generic-metrics-models.yml#/components/schemas/MetricDimension'
+
+    BlacklistSourcesResponse:
+      type: object
+      required:
+      - data
+      properties:
+        data:
+          description: A list of blaclisted sources with description.
+          type: array
+          items:
+            type: string
+            $ref: '#/components/schemas/BlacklistedSource'
+
+    BlacklistedSource:
+      type: object
+      properties:
+        sourceId:
+          description: Identifier of the source to blacklist.
+          type: string
+          example: "0000000005F5E100"
+        sourceName:
+          description: Name of a source.
+          type: string
+          example: "host.metrics"
+        sourceCategory:
+          description: Category of a cource.
+          type: string
+          example: "host.metrics"
+        sourceHostName:
+          description: Host name of a source.
+          type: string
+        collector:
+          description: Identifier of a collector.
+          type: string
+          example: "0000000005F5E100"
+        collectorName:
+          description: Name of a collector.
+          type: string
+          example: "instance-100"
+        metadata:
+          type: object
+          $ref: './generic-models.yml#/components/schemas/MetadataModel'
+
+    BlacklistLimitResponse:
+      type: object
+      properties:
+        limit:
+          description: A limit of unique metrics name.
+          type: integer
+          format: int64
+

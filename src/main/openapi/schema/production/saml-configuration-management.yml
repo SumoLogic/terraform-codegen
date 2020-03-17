@@ -1,0 +1,406 @@
+paths:
+  saml:
+    #  /identityProviders/ endpoint
+    identityProviders:
+      post:
+        summary: Create a new SAML configuration.
+        description: Create a new SAML configuration in the organization.
+        operationId: createIdentityProvider
+        tags:
+          - samlConfigurationManagement
+        parameters: []
+        requestBody:
+          description: The configuration of the SAML identity provider.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SamlIdentityProviderRequest'
+        responses:
+          200:
+            description: The SAML configuration was successfully created.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/SamlIdentityProvider'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      get:
+        summary: Get a list of SAML configurations.
+        description: >-
+          Get a list of all SAML configurations in the organization.
+        operationId: getIdentityProviders
+        tags:
+          - samlConfigurationManagement
+        responses:
+          200:
+            description: A list of SAML configurations in the organization.
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/SamlIdentityProvider'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    # /identityProviders/{id} endpoint
+    identityProvidersId:
+      delete:
+        summary: Delete a SAML configuration.
+        description: Delete a SAML configuration with the given identifier from the organization.
+        operationId: deleteIdentityProvider
+        tags:
+          - samlConfigurationManagement
+        parameters:
+          - name: id
+            description: Identifier of the SAML configuration to delete.
+            required: true
+            in: path
+            schema:
+              type: string
+        responses:
+          204:
+            description: The SAML configuration was deleted successfully.
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      put:
+        summary: Update a SAML configuration.
+        description: >-
+          Update an existing SAML configuration in the organization.
+        operationId: updateIdentityProvider
+        tags:
+          - samlConfigurationManagement
+        parameters:
+          - name: id
+            description: Identifier of the SAML configuration to update.
+            required: true
+            in: path
+            schema:
+              type: string
+        requestBody:
+          description: Information to update in the SAML configuration.
+          required: true
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SamlIdentityProviderRequest'
+        responses:
+          200:
+            description: The SAML configuration was successfully modified.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/SamlIdentityProvider'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    # /whitelistedUsers  endpoint
+    whitelistedUsers:
+      get:
+        summary: Get list of whitelisted users.
+        description: >-
+          Get a list of whitelisted users.
+        operationId: getWhitelistedUsers
+        tags:
+          - samlConfigurationManagement
+        responses:
+          200:
+            description: A list of whitelisted users from the organization.
+            content:
+              application/json:
+                schema:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/WhitelistedUserResult'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    # /whitelistedUsers/{userId}   endpoint
+    whitelistedUsersId:
+      post:
+        summary: Whitelist a user.
+        description: Whitelist a user from SAML lockdown allowing them to sign in using a password in addition to SAML.
+        operationId: createWhitelistedUser
+        tags:
+          - samlConfigurationManagement
+        parameters:
+          - name: userId
+            description: Identifier of the user.
+            required: true
+            in: path
+            schema:
+              type: string
+        responses:
+          200:
+            description: User was successfully whitelisted.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/WhitelistedUserResult'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      delete:
+        summary: Remove a whitelisted user.
+        description: Remove a whitelisted user requiring them to sign in using SAML.
+        operationId: deleteWhitelistedUser
+        tags:
+          - samlConfigurationManagement
+        parameters:
+          - name: userId
+            description: Identifier of user that will no longer be whitelisted from SAML Lockdown.
+            required: true
+            in: path
+            schema:
+              type: string
+        responses:
+          204:
+            description: User was successfully removed from the whitelist for SAML Lockdown.
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    # /authnCertificates/ endpoint
+    authnCertificates:
+      get:
+        summary: Get a Sumo Logic X-509 certificate.
+        description: >-
+          Get a Sumo Logic X-509 certificate used to verify the signature of Authn requests sent by Sumo.
+        operationId: getAuthnCertificate
+        tags:
+          - samlConfigurationManagement
+        responses:
+          200:
+            description: The Sumo Logic X-509 certificate that was requested.
+            content:
+              application/json:
+                schema:
+                  $ref: '#/components/schemas/AuthnCertificateResult'
+          default:
+            description: Operation failed with an error.
+            content:
+              application/json:
+                schema:
+                  $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+    # /samllockdown/ endpoint
+    lockdown:
+      enable:
+        post:
+          summary: Require SAML for sign-in.
+          description: Enabling SAML lockdown requires users to sign in using SAML preventing them from logging in with an email and password.
+          operationId: enableSamlLockdown
+          tags:
+            - samlConfigurationManagement
+          responses:
+            204:
+              description: SAML lockdown was enabled successfully.
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+      disable:
+        post:
+          summary: Disable SAML lockdown.
+          description: Disable SAML lockdown for the organization.
+          operationId: disableSamlLockdown
+          tags:
+            - samlConfigurationManagement
+          responses:
+            204:
+              description: SAML lockdown was disabled successfully.
+            default:
+              description: Operation failed with an error.
+              content:
+                application/json:
+                  schema:
+                    $ref: './generic-responses.yml#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    SamlIdentityProviderRequest:
+      type: object
+      required:
+        - configurationName
+        - issuer
+        - x509cert1
+      properties:
+        spInitiatedLoginPath:
+          description: The identifier used to generate a unique URL for user login.
+          type: string
+          default: ""
+          example: 'http://www.okta.com/abxcseyuiwelflkdjh'
+        configurationName:
+          description: Name of the SSO policy or another name used to describe the policy internally.
+          type: string
+          example: 'SumoLogic'
+        issuer:
+          description: The unique URL assigned to the organization by the SAML Identity Provider.
+          type: string
+          example: 'http://www.okta.com/abxcseyuiwelflkdjh'
+        spInitiatedLoginEnabled:
+          description: >-
+            True if Sumo Logic redirects users to your identity provider with a SAML AuthnRequest when signing in.
+          type: boolean
+          default: false
+        authnRequestUrl:
+          description: >-
+            The URL that the identity provider has assigned for Sumo Logic to submit SAML authentication requests to the
+            identity provider.
+          type: string
+          default: ""
+          example: 'https://nite-www.sumologic.net/sumo/saml/login/9483922'
+        x509cert1:
+          description: The certificate is used to verify the signature in SAML assertions.
+          type: string
+        x509cert2:
+          description: >-
+            The backup certificate used to verify the signature in SAML assertions when x509cert1 expires.
+          type: string
+          default: ""
+        x509cert3:
+          description: >-
+            The backup certificate used to verify the signature in SAML assertions when x509cert1 expires and
+            x509cert2 is empty.
+          type: string
+          default: ""
+        onDemandProvisioningEnabled:
+          $ref: '#/components/schemas/OnDemandProvisioningInfo'
+        rolesAttribute:
+          description: The role that Sumo Logic will assign to users when they sign in.
+          type: string
+          example: 'Sumo_Role'
+          default: ""
+        logoutEnabled:
+          description: True if users are redirected to a URL after signing out of Sumo Logic.
+          type: boolean
+          default: false
+        logoutUrl:
+          description: The URL that users will be redirected to after signing out of Sumo Logic.
+          type: string
+          example: 'https://www.sumologic.com'
+          default: ""
+        emailAttribute:
+          description: The email address of the new user account.
+          type: string
+          default: ""
+          example: "attribute/subject"
+        debugMode:
+          description: True if additional details are included when a user fails to sign in.
+          type: boolean
+          default: false
+        signAuthnRequest:
+          description: True if Sumo Logic will send signed Authn requests to the identity provider.
+          type: boolean
+          default: false
+        disableRequestedAuthnContext:
+          description: >-
+            True if Sumo Logic will include the RequestedAuthnContext element of the SAML AuthnRequests it sends to the identity
+            provider.
+          type: boolean
+          default: false
+    SamlIdentityProvider:
+      type: object
+      allOf:
+        - $ref: '#/components/schemas/SamlIdentityProviderRequest'
+        - $ref: './generic-models.yml#/components/schemas/MetadataModel'
+        - required:
+            - id
+          properties:
+            id:
+              description: Unique identifier of the SAML Identity Provider.
+              type: string
+              example: '00000000361130F7'
+    WhitelistedUserResult:
+      type: object
+      required:
+        - userId
+        - firstName
+        - lastName
+        - email
+        - canManageSaml
+        - isActive
+        - lastLogin
+      properties:
+        userId:
+          description: Unique identifier of the user.
+          type: string
+        firstName:
+          description: First name of the user.
+          type: string
+        lastName:
+          description: Last name of the user.
+          type: string
+        email:
+          description: Email of the user.
+          type: string
+          example: 'john@sumologic.com'
+        canManageSaml:
+          description: If the user can manage SAML Configurations.
+          type: boolean
+        isActive:
+          description: Checks if the user is active.
+          type: boolean
+        lastLogin:
+          description: Timestamp of the last login of the user.
+          type: string
+          format: date-time
+    AuthnCertificateResult:
+      type: object
+      required:
+        - certificate
+      properties:
+        certificate:
+          description: Authentication Request Signing Certificate for the user.
+          type: string
+    OnDemandProvisioningInfo:
+      type: object
+      required:
+        - onDemandProvisioningRoles
+      properties:
+        firstNameAttribute:
+          description: First name attribute of the new user account.
+          type: string
+          example: 'http://schemas.microsoft.com/ws/2008/06/identity/claims/givenname'
+          default: ""
+        lastNameAttribute:
+          description: Last name attribute of the new user account.
+          type: string
+          example: 'http://schemas.microsoft.com/ws/2008/06/identity/claims/surname'
+          default: ""
+        onDemandProvisioningRoles:
+          description: Sumo Logic RBAC roles to be assigned when user accounts are provisioned.
+          type: array
+          items:
+            type: string
+          default: []
+          example: 'Analyst/Administrator'
