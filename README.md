@@ -9,11 +9,8 @@ examples:
 
 For this to generate anything, at least one api set must be correctly tagged, including:  
 - x-tf-{create/update/read/delete}: true  
-- x-tf-resourceName: FieldExtractionRule 
-- x-tf-path: v1/extractionRules/%s  
 
 on each of the respective CRUD endpoints  
 and add the following under the aformentioned resource  
 FieldExtractionRule
-  - x-tf-resource: true
   - x-tf-generated-properties: id,name,scope,parseExpression,enabled  
