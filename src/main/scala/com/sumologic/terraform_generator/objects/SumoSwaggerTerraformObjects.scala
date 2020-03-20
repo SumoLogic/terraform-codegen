@@ -16,6 +16,12 @@ object SumoSwaggerSupportedOperations {
   val crud = List(CREATE, GET, UPDATE, DELETE, EXISTS)
 }
 
+object ForbiddenGoTerms {
+  final val TYPE = "type"
+
+  val forbidden = List(TYPE)
+}
+
 // scalastyle:off
 abstract class SumoTerraformEntity extends TerraformGeneratorHelper {
   def indent = "    "
@@ -278,7 +284,6 @@ case class SumoSwaggerEndpoint(endpointName: String,
     val responseProps = getReturnTypesBasedOnRespone()
     val urlCall = getUrlCallBasedOnHttpMethod(sprintfArg)
 
-    // freakOut(s"THOMASKAO: ${this.endpointName} ${this.parameters.map(_.param.getName()).toString()}")
     val args = makeArgsListForDecl(this.parameters)
     val httpClientCall = makeTerraformHttpClientRequestString(this.httpMethod, bodyParamOpt)
     s"""
@@ -319,15 +324,22 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
 
     }.toSet
 
-    endpointsSet.filter {
+    val mainClassType = endpointsSet.filter {
       sType => sType.name.toLowerCase.contains(sumoSwaggerClassName.toLowerCase)
+    }.head
+
+    val otherTypes = mainClassType.props.filter {
+      prop => !prop.getType().props.isEmpty
     }
+
+    Set(mainClassType) ++ otherTypes.map(_.getType()).toSet
   }
 
   def getUpdateAndCreateRequestBodyType(): List[SumoSwaggerType] = {
     val endpoints = supportedEndpoints.filter { op: SumoSwaggerEndpoint =>
       op.endpointName.equalsIgnoreCase(SumoSwaggerSupportedOperations.UPDATE + sumoSwaggerClassName) ||
-        op.endpointName.equalsIgnoreCase(SumoSwaggerSupportedOperations.CREATE + sumoSwaggerClassName)
+        op.endpointName.equalsIgnoreCase(SumoSwaggerSupportedOperations.CREATE + sumoSwaggerClassName) ||
+        op.responses.map(_.respTypeName).contains(sumoSwaggerClassName)
     }
 
     val types = endpoints.flatMap {
@@ -412,7 +424,6 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
     val classesProps = classes.flatMap(_.props.filter(prop => !prop.getName().toLowerCase.contains("created") &&
       !prop.getName().toLowerCase.contains("modified") && !prop.getName().toLowerCase.contains("system") &&
       !prop.getName().toLowerCase.equals("id"))).toSet //.filter(_.getRequired()).toSet
-
 
 
     val propsObjects = classesProps.map {

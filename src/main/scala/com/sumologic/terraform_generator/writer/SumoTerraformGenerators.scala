@@ -3,10 +3,10 @@ package com.sumologic.terraform_generator.writer
 import java.io.{BufferedWriter, File, FileWriter}
 
 import com.sumologic.terraform_generator.objects.SumoSwaggerSupportedOperations.crud
-import com.sumologic.terraform_generator.utils.SumoTerraformPrinter.maybePrint
+import com.sumologic.terraform_generator.utils.SumoTerraformPrinter.{freakOut, maybePrint}
 import com.sumologic.terraform_generator.utils.SumoTerraformUtils._
-import com.sumologic.terraform_generator.objects.{SumoSwaggerEndpoint, SumoSwaggerObject, SumoSwaggerObjectArray, SumoSwaggerTemplate, SumoSwaggerType, SumoTerraformEntity}
-import com.sumologic.terraform_generator.utils.{SumoTerraformPrinter, SumoTerraformSchemaTypes}
+import com.sumologic.terraform_generator.objects.{ForbiddenGoTerms, SumoSwaggerEndpoint, SumoSwaggerObject, SumoSwaggerObjectArray, SumoSwaggerTemplate, SumoSwaggerType, SumoTerraformEntity}
+import com.sumologic.terraform_generator.utils.{SumoTerraformPrinter, SumoTerraformSchemaTypes, SumoTerraformSupportedParameterTypes}
 
 abstract class SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate) {
   def writeToFile(filePath: String): Unit = {
@@ -26,7 +26,6 @@ case class SumoTerraformClassFileGenerator(terraform: SumoSwaggerTemplate)
   extends SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate) {
   def generate(): String = {
     maybePrint(s"..............................SumoSwaggerTemplate: [${terraform.sumoSwaggerClassName}]..............................")
-    // This should be a collection of all the types that are used for the list of endpoints
     val typesUsed: Set[SumoSwaggerType] = terraform.getAllTypesUsed()
 
     val intro = s"""// ----------------------------------------------------------------------------
@@ -49,53 +48,35 @@ case class SumoTerraformClassFileGenerator(terraform: SumoSwaggerTemplate)
          |""".stripMargin
 
 
-      s"package $packageName\n\n" +
-      // TODO Figure out how to variablize imports:
-      "import (\n" +
-      "  \"encoding/json\"\n" +
-      "  \"fmt\"\n" +
-      ")\n"
-
-    val endpoints = terraform.supportedEndpoints.map {
+    val endpointsWithChangedNames = terraform.supportedEndpoints.map {
+      endpoint =>
+        val name = crud.find(endpoint.endpointName.toLowerCase.contains(_))
+        if (name.isDefined) {
+          endpoint.copy(endpointName = name.get.toLowerCase + terraform.getMainObjectClass().name.capitalize)
+        } else {
+          endpoint
+        }
+    }
+    val endpoints = endpointsWithChangedNames.map {
       case endpoint: SumoSwaggerEndpoint =>
-        endpoint.terraformify() + "\n" // + "\n//--**--**--**--**--**--**--**--**--**--**--**--**--**--\n\n"
+        val bodyParams = endpoint.parameters.filter(_.paramType == SumoTerraformSupportedParameterTypes.BodyParameter)
+        if (bodyParams.size > 1 || endpoint.responses.filterNot(_.respTypeName.toLowerCase == "default").size > 1) {
+          val paramsToExclude = bodyParams.filterNot(_.param.getName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase)
+          val filteredEndpoint = endpoint.copy(parameters = endpoint.parameters diff paramsToExclude, responses = endpoint.responses.filter(_.respTypeName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase))
+          filteredEndpoint.terraformify() + "\n"
+        } else {
+          endpoint.terraformify() + "\n"
+        }
     }.mkString("")
 
     val types = typesUsed.map {
       case stype: SumoSwaggerType =>
-        stype.terraformify() + "\n" // + "\n//--##--##--##--##--##--##--##--##--##--##--##--##--##--##\n\n"
+        stype.terraformify() + "\n"
     }.mkString("")
-
-    // TODO
-    // TODO 1. Get validators to be called and returned error automatically to replace things like:
-    /*
-      if resourceData.Id() == "" {
-    createdRole, err := client.createRole(role)
-
-
-    or
-    id := resourceData.Get("id").(string)
-    return client.deleteRole(id)
-
-
-    Also replace call sites in client.crudRole(...) to do the conversion automatically at call sites after validation
-
-     */
-
-
-    // This is useless here, there is no resourceData references in this class, either we need bodyParam to mainClass converters
-    //or we need to do the conversions on the resource or data source classes
-    // or we can ask the customer for body param type objects as terraform resourceData objects for
-    // TODO
-
-    // maybe best is for now to have Role To CreateRole converters
-    // TODO
-
 
     s"// ---------- BEGIN ${terraform.sumoSwaggerClassName} ----------\n" + intro +
       "\n// ---------- ENDPOINTS ---------- \n\n" + endpoints +
       "\n// ---------- TYPES ----------\n" + types +
-      //"\n// ---------- CONVERTERS ----------\n" + complexTypesConverters +
       "\n// ---------- END ----------\n"
   }
 }
@@ -134,7 +115,12 @@ case class SumoTerraformDataSourceFileGenerator(terraform: SumoSwaggerTemplate)
 case class SumoTerraformResourceFileGenerator(terraform: SumoSwaggerTemplate)
   extends SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate) {
   def generate(): String = {
-    val pre = """// ----------------------------------------------------------------------------
+    val specialImport = if (terraform.getResourceFuncMappings().contains("Elem:  &schema.Schema{\n            Type: schema.TypeMap,\n           }")) {
+      """"github.com/mitchellh/mapstructure""""
+    } else {
+      ""
+    }
+    val pre = s"""// ----------------------------------------------------------------------------
                 |//
                 |//     ***     AUTO GENERATED CODE    ***    AUTO GENERATED CODE     ***
                 |//
@@ -150,6 +136,7 @@ case class SumoTerraformResourceFileGenerator(terraform: SumoSwaggerTemplate)
                 |import (
                 |  "log"
                 |  "github.com/hashicorp/terraform-plugin-sdk/helper/schema"
+                |  $specialImport
                 |)
                 |""".stripMargin
 
@@ -357,7 +344,10 @@ case class SwaggerResourceFunctionGenerator(endpoint: SumoSwaggerEndpoint, mainC
 
   // TODO: This is gross, generalize if possible
   override def terraformify(): String = {
-    crud.find(_ + mainClass.name.replace("Model", "") == endpoint.endpointName) match {
+
+    crud.find {
+      op => endpoint.endpointName.toLowerCase.contains(op.toLowerCase) // || endpoint.endpointName.toLowerCase.contains("get")
+    } match {
       case Some(opName) => this.getClass.getMethod("generateResourceFunction" + opName.toUpperCase()).invoke(this).toString
       case None => ""
     }
@@ -761,10 +751,15 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
   def generateTestImportFunction(): String = {
     val propArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
       prop =>
-        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
-          s"""${prop.getName} ${SumoTerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+        val name = if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+          prop.getName + "_field"
         } else {
-          s"""${prop.getName} ${SumoTerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
+          prop.getName()
+        }
+        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
+          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+        } else {
+          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
     }.mkString(", ")
     val terraformArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
@@ -775,7 +770,14 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
           s"""${removeCamelCase(prop.getName())} = ${SumoTerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
         }
     }.mkString("\n      ")
-    val propList = resourceProps.props.filter(_.getName.toLowerCase != "id").map(_.getName()).mkString(", ")
+    val propList = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
+      prop =>
+        if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+          prop.getName + "_field"
+        } else {
+          prop.getName()
+        }
+    }.mkString(", ")
     s"""func testAccCheckSumologic${className}ConfigImported($propArgs) string {
        |	return fmt.Sprintf(`
        |resource "sumologic_$objName" "foo" {
@@ -788,10 +790,15 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
   def generateTestCreateResource(): String = {
     val propArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
       prop =>
-        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
-          s"""${prop.getName} ${SumoTerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+        val name = if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+          prop.getName + "_field"
         } else {
-          s"""${prop.getName} ${SumoTerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
+          prop.getName()
+        }
+        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
+          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+        } else {
+          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
     }.mkString(", ")
     val terraformArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
@@ -802,7 +809,14 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
           s"""${removeCamelCase(prop.getName())} = ${SumoTerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
         }
     }.mkString("\n    ")
-    val propList = resourceProps.props.filter(_.getName.toLowerCase != "id").map(_.getName()).mkString(", ")
+    val propList = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
+      prop =>
+        if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+          prop.getName + "_field"
+        } else {
+          prop.getName()
+        }
+    }.mkString(", ")
 
     s"""
        |func testAccSumologic${className}($propArgs) string {
@@ -817,10 +831,15 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
   def generateTestUpdateResource(): String = {
     val propArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
       prop =>
-        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
-          s"""${prop.getName} ${SumoTerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+        val name = if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+          prop.getName + "_field"
         } else {
-          s"""${prop.getName} ${SumoTerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
+          prop.getName()
+        }
+        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
+          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+        } else {
+          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
     }.mkString(", ")
     val terraformArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
@@ -831,7 +850,14 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
           s"""${removeCamelCase(prop.getName())} = ${SumoTerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
         }
     }.mkString("\n      ")
-    val propList = resourceProps.props.filter(_.getName.toLowerCase != "id").map(_.getName()).mkString(", ")
+    val propList = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
+      prop =>
+        if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+          prop.getName + "_field"
+        } else {
+          prop.getName()
+        }
+    }.mkString(", ")
 
     s"""
        |func testAccSumologic${className}Update($propArgs) string {
