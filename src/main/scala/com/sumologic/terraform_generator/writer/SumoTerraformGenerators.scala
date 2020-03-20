@@ -3,10 +3,9 @@ package com.sumologic.terraform_generator.writer
 import java.io.{BufferedWriter, File, FileWriter}
 
 import com.sumologic.terraform_generator.objects.SumoSwaggerSupportedOperations.crud
-import com.sumologic.terraform_generator.utils.SumoTerraformPrinter.{freakOut, maybePrint}
 import com.sumologic.terraform_generator.utils.SumoTerraformUtils._
 import com.sumologic.terraform_generator.objects.{ForbiddenGoTerms, SumoSwaggerEndpoint, SumoSwaggerObject, SumoSwaggerObjectArray, SumoSwaggerTemplate, SumoSwaggerType, SumoTerraformEntity}
-import com.sumologic.terraform_generator.utils.{SumoTerraformPrinter, SumoTerraformSchemaTypes, SumoTerraformSupportedParameterTypes}
+import com.sumologic.terraform_generator.utils.{SumoTerraformSchemaTypes, SumoTerraformSupportedParameterTypes}
 
 abstract class SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate) {
   def writeToFile(filePath: String): Unit = {
@@ -25,7 +24,6 @@ abstract class SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate) {
 case class SumoTerraformClassFileGenerator(terraform: SumoSwaggerTemplate)
   extends SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate) {
   def generate(): String = {
-    maybePrint(s"..............................SumoSwaggerTemplate: [${terraform.sumoSwaggerClassName}]..............................")
     val typesUsed: Set[SumoSwaggerType] = terraform.getAllTypesUsed()
 
     val intro = s"""// ----------------------------------------------------------------------------
@@ -211,7 +209,6 @@ case class SwaggerResourceFunctionGenerator(endpoint: SumoSwaggerEndpoint, mainC
         s"""d.Set("${removeCamelCase(name)}", $objName.${name.capitalize})""".stripMargin
     }.mkString("\n    ")
 
-    // Assuming id is of type string
     s"""
        |func resourceSumologic${className}Read(d *schema.ResourceData, meta interface{}) error {
        |	c := meta.(*Client)
@@ -261,17 +258,6 @@ case class SwaggerResourceFunctionGenerator(endpoint: SumoSwaggerEndpoint, mainC
     }.head.respTypeOpt.get.name
 
     val lowerCaseName = parameter.substring(0, 1).toLowerCase() + parameter.substring(1)
-
-    // TODO: remove this drop and reverse
-    val vars = getArgsListAsVariableAssignmentsFromDataSourceSchema(endpoint.parameters).reverse.drop(1).mkString("\n")
-    val argsList = getArgsListForFuncCall(endpoint.parameters).map {
-      param =>
-        if (param.toLowerCase.contains("id")) {
-          "resourceData.Id()"
-        } else {
-          param
-        }
-    }.mkString(", ")
 
     s"""
        |func resourceSumologic${className}Update(d *schema.ResourceData, meta interface{}) error {
