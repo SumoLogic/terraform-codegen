@@ -6,3 +6,4 @@
 *.txt
 *.markdown
 target/
+src/main/openapi/

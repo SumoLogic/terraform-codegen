@@ -103,13 +103,29 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
   }
 
   def getTaggedComponents(openAPI: OpenAPI): Map[String, Schema[_]] = {
-    openAPI.getComponents.getSchemas.asScala.toList.filter {
-      schema => schema._2.getExtensions != null
+    val componentsWithExtensions = openAPI.getComponents.getSchemas.asScala.toList.filter {
+      schema =>
+        schema._2.getExtensions != null
     }.toMap
+
+    componentsWithExtensions.map {
+      case (name, schema) =>
+        if (schema.getExtensions.asScala.contains("x-tf-resource-name")) {
+          (schema.getExtensions.asScala.get("x-tf-resource-name").get.toString, schema)
+        } else {
+          (name, schema)
+        }
+    }.toMap
+
   }
 
   def getComponent(openAPI: OpenAPI, name: String): (String, Schema[_]) = {
-    openAPI.getComponents.getSchemas.asScala.filter(_._1 == name).head
+    val component = openAPI.getComponents.getSchemas.asScala.filter(_._1 == name).head
+    if (component._2.getExtensions != null && component._2.getExtensions.asScala.contains("x-tf-resource-name")) {
+      (component._2.getExtensions.asScala.get("x-tf-resource-name").get.toString, component._2)
+    } else {
+      component
+    }
   }
 
   def getTaggedProperties(openAPI: OpenAPI, model: Schema[_]): List[(String, Schema[_])] = {
@@ -275,7 +291,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
 
   def resolvePropertyType(openApi: OpenAPI, property: Schema[_]): SumoSwaggerType = {
     if (property.get$ref() != null) {
-      val model = getTaggedComponents(openApi).get(property.get$ref()).get
+      val model = getComponent(openApi, property.get$ref().split("/").last)._2
       processModel(openApi, property.get$ref(), model)
     } else {
       SumoSwaggerType(SumoTerraformSchemaTypes.swaggerTypeToGoType(property.getType))
@@ -301,7 +317,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
   // TODO IMPORTANT TO DO LATER IS THAT WHEN REFERENCE OBJECTS ARE CALCULATED, WE SHOULD PUT THEM IN A MAP
   // TO BE USED AS A CACHE, BECAUSE THESE GET RECALCULATED WHEN RESPONSE OBJECTS ARE IDENTICAL AS IN GET/LIST
   def processResponseObjects(openApi: OpenAPI, responses: Map[String, ApiResponse]): List[SumoSwaggerResponse] = {
-    responses.map {
+    responses.flatMap {
       case (respName: String, respObj: ApiResponse) =>
         if (respObj.getContent != null && respObj.getContent.get("application/json") != null && respObj.getContent.get("application/json").getSchema != null) {
           Option(respObj.getContent.get("application/json").getSchema.get$ref()) match {
@@ -309,9 +325,23 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
               val resourceName = ref.split("/").toList.last
               if (getTaggedComponents(openApi).get(resourceName).isDefined) {
                 val swaggerType = processModel(openApi, ref, getTaggedComponents(openApi).get(resourceName).get)
-                SumoSwaggerResponse(respName, Some(swaggerType))
+                List(SumoSwaggerResponse(respName, Some(swaggerType)))
               } else {
-                SumoSwaggerResponse(respName, None)
+                val responseTypes = getTaggedComponents(openApi).filter {
+                  component =>
+                    (component._2.asInstanceOf[ComposedSchema].getAllOf != null && component._2.asInstanceOf[ComposedSchema].getAllOf.asScala.count {
+                      x => x.get$ref() != null && x.get$ref().toLowerCase.contains(resourceName.toLowerCase)
+                    } == 1)
+                }
+                if (responseTypes.size >= 1) {
+                  responseTypes.toList.map {
+                    case (name, schema) =>
+                      val swaggerType = processModel(openApi, name, schema)
+                      SumoSwaggerResponse(name, Some(swaggerType))
+                  }
+                } else {
+                  List(SumoSwaggerResponse(respName, None))
+                }
               }
             case _ =>
               freakOut(s"*** Response  => $respName WTF?????? Response Schema Type ")
@@ -319,7 +349,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
           }
         } else {
           // No response body
-          SumoSwaggerResponse(respName, None)
+          List(SumoSwaggerResponse(respName, None))
         }
     }.toList
   }
@@ -346,39 +376,38 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
         queryParam.getRequired, Some(queryParam.getSchema.getDefault.asInstanceOf[AnyRef]), queryParam.getSchema.getDescription, ""))
   }
 
-  def processBodyParameter(openApi: OpenAPI, bodyParam: Schema[_], baseType: String): SumoSwaggerParameter = {
+  def processBodyParameter(openApi: OpenAPI, bodyParam: Schema[_], baseType: String): List[SumoSwaggerParameter] = {
     // We should just use the response object for this
 
     val defName: String = bodyParam.get$ref().split("#/components/schemas/").last
     val modelOpt = Option(getComponent(openApi, defName)._2)
-    val taggedResourceName = getTaggedComponents(openApi).filter {
+    val taggedResource = getTaggedComponents(openApi).filter {
       component =>
         component._1.toLowerCase.contains(baseType.toLowerCase) || (component._2.asInstanceOf[ComposedSchema].getAllOf != null && component._2.asInstanceOf[ComposedSchema].getAllOf.asScala.count {
           x => x.get$ref() != null && x.get$ref().toLowerCase.contains(baseType.toLowerCase)
         } == 1)
-    }.head._1
-    val taggedResourceSchema = getTaggedComponents(openApi).filter {
-      component => component._1.toLowerCase.contains(baseType.toLowerCase) || (component._2.asInstanceOf[ComposedSchema].getAllOf != null && component._2.asInstanceOf[ComposedSchema].getAllOf.asScala.count {
-        x => x.get$ref() != null && x.get$ref().toLowerCase.contains(baseType.toLowerCase)
-      } == 1)
-    }.head._2
-    val modelName = if (taggedResourceName.contains("/")) {
-      taggedResourceName.split("/").last
-    } else {
-      taggedResourceName
     }
 
-    modelOpt match {
-      case Some(model) =>
-        //maybePrint(s" #### DEF ($defName)  => ${model.getProperties}")
-        val swaggerType = processModel(openApi, modelName, taggedResourceSchema)
-        //swaggerType.terraformify()
-        SumoSwaggerParameter(SumoTerraformSupportedParameterTypes.BodyParameter,
-          SumoSwaggerObjectSingle(modelName, swaggerType, true, None, taggedResourceSchema.getDescription, ""))
-      case None =>
-        freakOut("processBodyParameter " + defName)
-        throw new RuntimeException("This should not happen in processBodyParameter ")
-    }
+    taggedResource.map {
+      resource =>
+        val modelName = if (resource._1.contains("/")) {
+          resource._1.split("/").last
+        } else {
+          resource._1
+        }
+
+        modelOpt match {
+          case Some(model) =>
+            //maybePrint(s" #### DEF ($defName)  => ${model.getProperties}")
+            val swaggerType = processModel(openApi, modelName, resource._2)
+            //swaggerType.terraformify()
+            SumoSwaggerParameter(SumoTerraformSupportedParameterTypes.BodyParameter,
+              SumoSwaggerObjectSingle(modelName, swaggerType, true, None, resource._2.getDescription, ""))
+          case None =>
+            freakOut("processBodyParameter " + defName)
+            throw new RuntimeException("This should not happen in processBodyParameter ")
+        }
+    }.toList
   }
 
   def processComposedModel(openApi: OpenAPI, modelDefName: String, composedModel: ComposedSchema): SumoSwaggerType = {
@@ -400,11 +429,16 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
           }
         }
     }.toList
-    //processModel(swagger, model.getProperties.values().asScala, model).props
-    if (modelDefName.contains("Model")) {
-      SumoSwaggerType(modelDefName.replace("Model", ""), parts)
+
+    val partsWithId = if (!parts.map(_.getName().toLowerCase).contains("id")) {
+      parts ++ List(SumoSwaggerObjectSingle("id", SumoSwaggerType("string"), false, None, "", ""))
     } else {
-      SumoSwaggerType(modelDefName, parts)
+      parts
+    }
+    if (modelDefName.contains("Model")) {
+      SumoSwaggerType(modelDefName.replace("Model", ""), partsWithId)
+    } else {
+      SumoSwaggerType(modelDefName, partsWithId)
     }
   }
 
@@ -415,12 +449,12 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     } else {
       modelDefName
     }
+
     model match {
       case arrayModel: ArraySchema =>
         //freakOut("arrayModel => " + arrayModel)
         SumoSwaggerType(modelName, List[SumoSwaggerObject]())
       case composedModel: ComposedSchema =>
-        //freakOut("composedModel => " + composedModel)
         processComposedModel(openApi, modelName, composedModel)
       case _ =>
         if (model.get$ref() != null) {
@@ -433,17 +467,33 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
             processModel(openApi, modelName, getComponent(openApi, resourceName)._2)
           }
         } else if (model.get$ref() == null) {
-          val props: List[SumoSwaggerObject] = getTaggedProperties(openApi, model).map {
-            propTuple =>
-              val taggedProps = getTaggedProperties(openApi, model)
-              // processModelProperty(openApi, propTuple._1, propTuple._2, propTuple._2.getRequired.asScala.toList)
-              processModelProperty(openApi, propTuple._1, propTuple._2, taggedProps.map(_._1).intersect(getRequiredProperties(openApi, model)))
+          val props: List[SumoSwaggerObject] = if (model.getExtensions != null) {
+            getTaggedProperties(openApi, model).map {
+              propTuple =>
+                val taggedProps = getTaggedProperties(openApi, model)
+                // processModelProperty(openApi, propTuple._1, propTuple._2, propTuple._2.getRequired.asScala.toList)
+                processModelProperty(openApi, propTuple._1, propTuple._2, taggedProps.map(_._1).intersect(getRequiredProperties(openApi, model)))
+            }
+          } else {
+            if (model.getProperties != null && modelDefName.contains("/")) {
+              model.getProperties.asScala.toList.map {
+                prop => processModelProperty(openApi, prop._1, prop._2, List(prop._1).intersect(getRequiredProperties(openApi, model)))
+              }
+            } else {
+              List[SumoSwaggerObject]()
+            }
+          }
+
+          val propsWithId = if (!props.map(_.getName().toLowerCase).contains("id")) {
+            props ++ List(SumoSwaggerObjectSingle("id", SumoSwaggerType("string"), false, None, "", ""))
+          } else {
+            props
           }
           // literally only because of RoleModel
           if (modelName.contains("Model")) {
-            SumoSwaggerType(modelName.replace("Model", ""), props)
+            SumoSwaggerType(modelName.replace("Model", ""), propsWithId)
           } else {
-            SumoSwaggerType(modelName, props)
+            SumoSwaggerType(modelName, propsWithId)
           }
         } else {
           //freakOut("DONT KNOW WHAT THIS IS " + modelDefName)
@@ -459,41 +509,25 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
   def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String]): SumoSwaggerObject = {
     //maybePrint(s" #### PROP ($propName)  => ${prop.getTitle} (${prop.getType})")
 
+    val example = if (prop.getExample == null) {""} else {prop.getExample.toString}
     if (prop.isInstanceOf[ArraySchema]) {
       val arrayProp = prop.asInstanceOf[ArraySchema]
-      SumoSwaggerObjectArray(propName, resolvePropertyType(openApi, arrayProp.getItems), requiredProps.contains(arrayProp.getName), None, prop.getDescription, prop.getExample.toString)
+      SumoSwaggerObjectArray(propName, resolvePropertyType(openApi, arrayProp.getItems), requiredProps.contains(arrayProp.getName), None, prop.getDescription, example)
     } else {
       if (prop.get$ref() != null) {
-        val refModel = getTaggedComponents(openApi).get(prop.get$ref()).get
-        SumoSwaggerObjectSingle(propName, processModel(openApi, propName, refModel), requiredProps.contains(prop.getName), None, prop.getDescription, prop.getExample.toString)
+        val refModel = getComponent(openApi, prop.get$ref().split("/").last)._2
+        SumoSwaggerObjectSingle(propName, processModel(openApi, propName, refModel), requiredProps.contains(prop.getName), None, prop.getDescription, example)
       } else {
         maybePrint(s" #### PROP ($propName)  => ${prop.getTitle} (${prop.getType})")
         // TODO Get Default, will need to see what type it is
 
         if (propName.toLowerCase != "id") {
-          val example = if (prop.getExample == null) {""} else {prop.getExample.toString}
           SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, example)
         } else {
           SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, "")
         }
       }
     }
-
-    /* prop.isInstanceOf[ArraySchema] match {
-      case arrayProp: ArraySchema =>
-        maybePrint(s" #### ARRAY PROP ($propName)  => ${prop.getTitle} (${prop.getType} ${arrayProp.getItems.getType})")
-        SumoSwaggerObjectArray(propName, resolvePropertyType(openApi, arrayProp.getItems), requiredProps.contains(arrayProp.getName), None)
-      case _ =>
-        if (prop.get$ref() != null) {
-          val refModel = getTaggedComponents(openApi).get(prop.get$ref()).get
-          SumoSwaggerObjectSingle(propName, processModel(openApi, propName, refModel), requiredProps.contains(prop.getName), None)
-        } else {
-          maybePrint(s" #### PROP ($propName)  => ${prop.getTitle} (${prop.getType})")
-          // TODO Get Default, will need to see what type it is
-
-          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None)
-        }
-    } */
   }
 
   def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod, baseType: String): SumoSwaggerEndpoint = {
@@ -502,12 +536,12 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     val responses = processResponseObjects(openApi, operation.getResponses.asScala.toMap)
 
     maybePrint("OPERATION PARAMETERS: \n") // + operation.getParameters.asScala)
-    val params: List[SumoSwaggerParameter] = operation.getParameters.asScala.map { param: Parameter =>
+    val params: List[SumoSwaggerParameter] = operation.getParameters.asScala.flatMap { param: Parameter =>
       param match {
         case pathParam: PathParameter =>
-          processPathParameter(openApi, pathParam)
+          List(processPathParameter(openApi, pathParam))
         case queryParam: QueryParameter =>
-          processQueryParameter(openApi, queryParam)
+          List(processQueryParameter(openApi, queryParam))
         case _ =>
           if (param.getIn == null && param.getContent != null) {
             processBodyParameter(openApi, param.getSchema, baseType)
@@ -518,13 +552,12 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     }.toList
 
     val requestBody: List[SumoSwaggerParameter] = if (operation.getRequestBody != null) {
-      List(processBodyParameter(openApi, operation.getRequestBody.getContent.get("application/json").getSchema, baseType))
+      processBodyParameter(openApi, operation.getRequestBody.getContent.get("application/json").getSchema, baseType)
     } else {
       List.empty[SumoSwaggerParameter]
     }
 
     val allParams = params ++ requestBody
-    // freakOut(s"THOMASKAO: ${operation.getOperationId} ${params.map(_.param.getName()).toString()} ${requestBody.map(_.param.getName()).toString()}")
     SumoSwaggerEndpoint(operation.getOperationId, pathName, method.name(), allParams, responses)
   }
 
@@ -625,13 +658,13 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
         }
     }
 
-    filteredPaths.groupBy(_._3).map {
+    filteredPaths.groupBy(_._3).flatMap {
       case (tag: String, paths: Iterable[(String, PathItem, String)]) =>
         val baseTypeName = tag.replace("Management", "")
-        val endpoints = paths.map {
+        val endpoints = paths.flatMap {
           path: (String, PathItem, String) => processPath(openApi, path._2, path._1, baseTypeName)
-        }.flatten
-        val baseType = endpoints.map {
+        }
+        val baseTypes = endpoints.flatMap {
           endpoint =>
             endpoint.responses.map {
               response =>
@@ -641,8 +674,11 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
                   null
                 }
             }
-        }.flatten.toSet.filter(_ != null)
-        (SumoSwaggerTemplate(baseType.head, endpoints.toList), baseType.head.split("/").last)
+        }.toSet.filter(_ != null)
+        baseTypes.map {
+          baseType =>
+            (SumoSwaggerTemplate(baseType, endpoints.toList), baseType)
+        }
     }.toList
   }
 
