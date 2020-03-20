@@ -1,7 +1,6 @@
 package com.sumologic.terraform_generator.objects
 
 import com.sumologic.terraform_generator.objects.SumoSwaggerSupportedOperations.crud
-import com.sumologic.terraform_generator.utils.SumoTerraformPrinter.{freakOut, maybePrint}
 import com.sumologic.terraform_generator.TerraformGeneratorHelper
 import com.sumologic.terraform_generator.utils.{SumoTerraformSchemaTypes, SumoTerraformSupportedParameterTypes}
 
@@ -77,7 +76,6 @@ abstract sealed class SumoSwaggerObject(name: String,
       ""
     }
     val noCamelCaseName = removeCamelCase(name)
-    //s""""$name": {\n  Type: $schemaType,\n  $requiredTxt,\n  $specifics\n}"""
     "\"" + noCamelCaseName + "\"" + s": {\n           Type: $schemaType,\n          $requiredTxt,\n           $specifics,\n           $elementType\n         }"
   }
 }
@@ -279,13 +277,11 @@ case class SumoSwaggerEndpoint(endpointName: String,
   override def terraformify(): String = {
     import com.sumologic.terraform_generator.utils.SumoTerraformUtils._
 
-    val bodyParamOpt = this.parameters.find(_.paramType == SumoTerraformSupportedParameterTypes.BodyParameter)
     val sprintfArg = makeTerraformUrlFormatForSprintf(this.path, this.parameters).replaceFirst("/", "")
     val responseProps = getReturnTypesBasedOnRespone()
     val urlCall = getUrlCallBasedOnHttpMethod(sprintfArg)
 
     val args = makeArgsListForDecl(this.parameters)
-    val httpClientCall = makeTerraformHttpClientRequestString(this.httpMethod, bodyParamOpt)
     s"""
        |func (s *Client) ${this.endpointName.capitalize}($args) ${responseProps.declReturnType} {
        |    $urlCall
@@ -368,7 +364,6 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
         sobj.getAsTerraformSchemaType(true)
     }.mkString(",\n").concat(",")
 
-    // TODO: Find out from Frank Reno why destroy check is added and is it common practice?
     s"""func dataSourceSumologic$sumoSwaggerClassName() *schema.Resource {
        |  return &schema.Resource{
        |    $funcMappings
@@ -407,8 +402,7 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
     typesUsed.find {
       t => t.name.toUpperCase == sumoSwaggerClassName.toUpperCase() || t.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase)
     }.getOrElse {
-      freakOut("WTF??????WTF??????WTF??????WTF?????? => NO MAIN CLASS for " + sumoSwaggerClassName)
-      throw new RuntimeException("This should not happen in getMainObjectClass ")
+      throw new RuntimeException("No Main Class. This should not happen in getMainObjectClass ")
     }
   }
 
