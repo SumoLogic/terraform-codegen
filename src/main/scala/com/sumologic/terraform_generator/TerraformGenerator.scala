@@ -33,18 +33,10 @@ object TerraformGenerator extends TerraformGeneratorHelper {
     val bw = new BufferedWriter(new FileWriter(f))
     bw.write(swagger.getOpenAPI.toString)
     bw.close()
-    if (!types.isEmpty) {
-      types.foreach {
-        baseType =>
-          val terraform = SumoTerraformUtils.processClass(swagger.getOpenAPI, baseType)
-          writeFiles(terraform, baseType)
-      }
-    } else {
-      val terraforms = SumoTerraformUtils.processAllClasses(swagger.getOpenAPI)
-      terraforms.foreach {
-        case (terraform: SumoSwaggerTemplate, baseType: String) =>
-          writeFiles(terraform, baseType)
-      }
+    val terraforms = SumoTerraformUtils.processAllClasses(swagger.getOpenAPI, types)
+    terraforms.foreach {
+      case (terraform: SumoSwaggerTemplate, baseType: String) =>
+        writeFiles(terraform, baseType)
     }
   }
 

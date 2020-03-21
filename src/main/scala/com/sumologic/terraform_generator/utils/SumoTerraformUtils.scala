@@ -472,8 +472,8 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
   }
 
   def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod, baseType: String): SumoSwaggerEndpoint = {
-    val operationPath = s"#${method.toString} => $pathName"
     val responses = processResponseObjects(openApi, operation.getResponses.asScala.toMap)
+    println(s"$pathName: ${responses.toList}")
 
     val params: List[SumoSwaggerParameter] = operation.getParameters.asScala.flatMap { param: Parameter =>
       param match {
@@ -541,6 +541,8 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
             pathName.replaceAll("Model", "").toLowerCase.contains(baseType.toLowerCase + "s"))
     }
 
+
+
     val endpoints = filteredPaths.flatMap {
       case (pathName: String, path: PathItem) => processPath(openApi, path, pathName, baseType)
     }.toList
@@ -548,7 +550,8 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     SumoSwaggerTemplate(baseType, endpoints)
   }
 
-  def processAllClasses(openApi: OpenAPI): List[(SumoSwaggerTemplate, String)] = {
+  def processAllClasses(openApi: OpenAPI,
+                        types: List[String] = List.empty[String]): List[(SumoSwaggerTemplate, String)] = {
     val filteredPaths = openApi.getPaths.asScala.filter {
       case (pathName: String, path: PathItem) =>
         val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
@@ -597,7 +600,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
         }
     }
 
-    filteredPaths.groupBy(_._3).flatMap {
+    val templates = filteredPaths.groupBy(_._3).flatMap {
       case (tag: String, paths: Iterable[(String, PathItem, String)]) =>
         val baseTypeName = tag.replace("Management", "")
         val endpoints = paths.flatMap {
@@ -619,6 +622,16 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
             (SumoSwaggerTemplate(baseType, endpoints.toList), baseType)
         }
     }.toList
+
+    if (types.nonEmpty) {
+      templates.filter {
+        template => types.exists {
+          t => template._2.toLowerCase.contains(t.toLowerCase)
+        }
+      }
+    } else {
+      templates
+    }
   }
 
   def seperatorLine(title: String = ""): String = {
