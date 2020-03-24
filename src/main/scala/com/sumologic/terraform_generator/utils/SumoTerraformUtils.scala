@@ -473,7 +473,6 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
 
   def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod, baseType: String): SumoSwaggerEndpoint = {
     val responses = processResponseObjects(openApi, operation.getResponses.asScala.toMap)
-    println(s"$pathName: ${responses.toList}")
 
     val params: List[SumoSwaggerParameter] = operation.getParameters.asScala.flatMap { param: Parameter =>
       param match {
