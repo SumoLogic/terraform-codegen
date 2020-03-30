@@ -28,7 +28,11 @@ object TerraformGenerator extends TerraformGeneratorHelper {
 
     ensureDirectories()
 
-    val swagger = new OpenAPIParser().readLocation(inputFile, null, parseOpts)
+    val swagger = if (inputFile.endsWith(".yml")) {
+      new OpenAPIParser().readLocation(inputFile, null, parseOpts)
+    } else {
+      new OpenAPIParser().readContents(inputFile, null, parseOpts)
+    }
     val f = new File(targetDirectory + "openapi_schema.txt")
     val bw = new BufferedWriter(new FileWriter(f))
     bw.write(swagger.getOpenAPI.toString)
