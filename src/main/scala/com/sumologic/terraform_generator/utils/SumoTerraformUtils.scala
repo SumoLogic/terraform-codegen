@@ -98,7 +98,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     componentsWithExtensions.map {
       case (name, schema) =>
         if (schema.getExtensions.asScala.contains("x-tf-resource-name")) {
-          (schema.getExtensions.asScala.get("x-tf-resource-name").get.toString, schema)
+          (schema.getExtensions.asScala("x-tf-resource-name").toString, schema)
         } else {
           (name, schema)
         }
@@ -106,10 +106,89 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
 
   }
 
+  def isPropertyWriteOnly(openAPI: OpenAPI, property: String, modelName: String): Boolean = {
+    if (modelName.toLowerCase.contains("create")) {
+      openAPI.getComponents.getSchemas.asScala.toList.exists {
+        case (name, schema) =>
+          name.toLowerCase.endsWith(modelName.toLowerCase.stripPrefix("create")) &&
+            !schema.getProperties.asScala.contains(property)
+      }
+    } else {
+      val x = openAPI.getComponents.getSchemas.asScala.map {
+        case (name, schema) =>
+          // for each component, figure out the tag by the path that this component appears in
+          val paths = openAPI.getPaths.asScala.toList.flatMap{
+            case (pathName, path) => List(path.getGet, path.getPost, path.getPut, path.getDelete)
+          }.filter {
+            op => if (op != null) {
+              (doesOperationRequestBodyContainModel(modelName, op) || doesOperationResponseContainModel(modelName, op))
+            } else {
+              false
+            }
+          }
+          val tag = if (paths.nonEmpty) {
+            paths.map(_.getTags.asScala.head).toSet.head
+          } else {
+            ""
+          }
+
+          (name, (tag, schema))
+      }
+
+      val modelsWithTag: Map[String, (String, Schema[_])] = x.toMap
+
+      if (modelsWithTag.contains(modelName)) {
+        val tag = modelsWithTag(modelName)._1
+        val baseType = tag.replace("Management", "")
+        val groupedByTag = modelsWithTag.groupBy(_._2._1)
+        if (groupedByTag(tag).keys.toList.count {
+          model => model.toLowerCase.contains(baseType) &&
+            (model.toLowerCase.contains("create") || model.toLowerCase.contains("update"))
+        } == 2) {
+          val models = groupedByTag(tag).keys.toList.filter {
+            model => model.toLowerCase.contains(baseType) &&
+              (model.toLowerCase.contains("create") || model.toLowerCase.contains("update"))
+          }
+
+          modelsWithTag(models.filter(_.toLowerCase.contains("create")).head)._2.getProperties.containsKey(property) &&
+            !modelsWithTag(models.filter(_.toLowerCase.contains("update")).head)._2.getProperties.containsKey(property)
+        } else {
+          false
+        }
+      } else {
+        false
+      }
+    }
+  }
+
+  private def doesOperationRequestBodyContainModel(modelName: String, operation: Operation): Boolean = {
+    if(operation.getRequestBody != null && operation.getRequestBody.getContent != null && operation.getRequestBody.getContent.get("application/json") != null
+      && operation.getRequestBody.getContent.get("application/json").getSchema != null) {
+      operation.getRequestBody.getContent.get("application/json").getSchema.get$ref().contains(modelName)
+    } else {
+      false
+    }
+  }
+
+  private def doesOperationResponseContainModel(modelName: String, operation: Operation): Boolean = {
+    if(operation.getResponses != null) {
+      operation.getResponses.asScala.toList.exists {
+        response => if (response._2.getContent != null && response._2.getContent.get("application/json") != null && response._2.getContent.get("application/json").getSchema != null
+          && response._2.getContent.get("application/json").getSchema.get$ref() != null) {
+          response._2.getContent.get("application/json").getSchema.get$ref().contains(modelName)
+        } else {
+          false
+        }
+      }
+    } else {
+      false
+    }
+  }
+
   def getComponent(openAPI: OpenAPI, name: String): (String, Schema[_]) = {
     val component = openAPI.getComponents.getSchemas.asScala.filter(_._1 == name).head
     if (component._2.getExtensions != null && component._2.getExtensions.asScala.contains("x-tf-resource-name")) {
-      (component._2.getExtensions.asScala.get("x-tf-resource-name").get.toString, component._2)
+      (component._2.getExtensions.asScala("x-tf-resource-name").toString, component._2)
     } else {
       component
     }
@@ -117,7 +196,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
 
   def getTaggedProperties(openAPI: OpenAPI, model: Schema[_]): List[(String, Schema[_])] = {
     if (model.getExtensions != null) {
-      val propNames = model.getExtensions.asScala.get("x-tf-generated-properties").get.toString.split(",").toList
+      val propNames = model.getExtensions.asScala("x-tf-generated-properties").toString.split(",").toList
       val refProps = if (model.isInstanceOf[ComposedSchema]) {
         val allOfRefs = model.asInstanceOf[ComposedSchema].getAllOf.asScala.map{
           child =>
@@ -127,7 +206,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
               null
             }
         }.filter(_ != null)
-        allOfRefs.map(getComponent(openAPI, _)._2.getProperties.asScala.toList).flatten.toList
+        allOfRefs.flatMap(getComponent(openAPI, _)._2.getProperties.asScala.toList).toList
       } else {
         List.empty[(String, Schema[_])]
       }
@@ -156,7 +235,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
               null
             }
         }.filter(_ != null)
-        allOfRefs.map(getComponent(openAPI, _)._2.getRequired.asScala).flatten.toList
+        allOfRefs.flatMap(getComponent(openAPI, _)._2.getRequired.asScala).toList
       } else {
         List.empty[String]
       }
@@ -245,6 +324,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
       processModel(openApi, property.get$ref(), model)
     } else {
       SumoSwaggerType(SumoTerraformSchemaTypes.swaggerTypeToGoType(property.getType))
+
     }
   }
 
@@ -368,7 +448,7 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
             val taggedProps = getTaggedProperties(openApi, composedModel)
             taggedProps.map {
               propTuple =>
-                processModelProperty(openApi, propTuple._1, propTuple._2, taggedProps.map(_._1).intersect(getRequiredProperties(openApi, composedModel)))
+                processModelProperty(openApi, propTuple._1, propTuple._2, taggedProps.map(_._1).intersect(getRequiredProperties(openApi, composedModel)), modelDefName)
             }
           } else {
             List[SumoSwaggerObject]()
@@ -417,12 +497,12 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
               propTuple =>
                 val taggedProps = getTaggedProperties(openApi, model)
                 // processModelProperty(openApi, propTuple._1, propTuple._2, propTuple._2.getRequired.asScala.toList)
-                processModelProperty(openApi, propTuple._1, propTuple._2, taggedProps.map(_._1).intersect(getRequiredProperties(openApi, model)))
+                processModelProperty(openApi, propTuple._1, propTuple._2, taggedProps.map(_._1).intersect(getRequiredProperties(openApi, model)), modelName)
             }
           } else {
             if (model.getProperties != null && modelDefName.contains("/")) {
               model.getProperties.asScala.toList.map {
-                prop => processModelProperty(openApi, prop._1, prop._2, List(prop._1).intersect(getRequiredProperties(openApi, model)))
+                prop => processModelProperty(openApi, prop._1, prop._2, List(prop._1).intersect(getRequiredProperties(openApi, model)), modelName)
               }
             } else {
               List[SumoSwaggerObject]()
@@ -451,21 +531,21 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     }
   }
 
-  def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String]): SumoSwaggerObject = {
+  def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String], modelName: String): SumoSwaggerObject = {
 
     val example = if (prop.getExample == null) {""} else {prop.getExample.toString}
     if (prop.isInstanceOf[ArraySchema]) {
       val arrayProp = prop.asInstanceOf[ArraySchema]
-      SumoSwaggerObjectArray(propName, resolvePropertyType(openApi, arrayProp.getItems), requiredProps.contains(arrayProp.getName), None, prop.getDescription, example)
+      SumoSwaggerObjectArray(propName, resolvePropertyType(openApi, arrayProp.getItems), requiredProps.contains(arrayProp.getName), None, prop.getDescription, example, isPropertyWriteOnly(openApi, propName, modelName))
     } else {
       if (prop.get$ref() != null) {
         val refModel = getComponent(openApi, prop.get$ref().split("/").last)._2
-        SumoSwaggerObjectSingle(propName, processModel(openApi, propName, refModel), requiredProps.contains(prop.getName), None, prop.getDescription, example)
+        SumoSwaggerObjectSingle(propName, processModel(openApi, propName, refModel), requiredProps.contains(prop.getName), None, prop.getDescription, example, isPropertyWriteOnly(openApi, propName, modelName))
       } else {
         if (propName.toLowerCase != "id") {
-          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, example)
+          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, example, isPropertyWriteOnly(openApi, propName, modelName))
         } else {
-          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, "")
+          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, "", isPropertyWriteOnly(openApi, propName, modelName))
         }
       }
     }
@@ -516,37 +596,6 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
       case (method: HttpMethod, operation: Operation) =>
         processOperation(openApi, operation, pathName, method, baseType)
     }.toList
-  }
-
-  def processClass(openApi: OpenAPI, baseType: String): SumoSwaggerTemplate = {
-    val filteredPaths = openApi.getPaths.asScala.filter {
-      case (pathName: String, path: PathItem) =>
-        val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
-          path.getPost.getExtensions.asScala.filterKeys(_ == "x-tf-create")
-        } else List.empty[(String, AnyRef)]
-        val getExtensions = if (path.getGet != null && path.getGet.getExtensions != null) {
-          path.getGet.getExtensions.asScala.filterKeys(_ == "x-tf-read")
-        } else List.empty[(String, AnyRef)]
-        val putExtensions = if (path.getPut != null && path.getPut.getExtensions != null) {
-          path.getPut.getExtensions.asScala.filterKeys(_ == "x-tf-update")
-        } else List.empty[(String, AnyRef)]
-        val deleteExtensions = if (path.getDelete != null && path.getDelete.getExtensions != null) {
-          path.getDelete.getExtensions.asScala.filterKeys(_ == "x-tf-delete")
-        } else List.empty[(String, AnyRef)]
-        val vendorExtensions = postExtensions ++ getExtensions ++ putExtensions ++ deleteExtensions
-
-        (!vendorExtensions.isEmpty) &&
-          (pathName.toLowerCase.contains(baseType.toLowerCase + "s") ||
-            pathName.replaceAll("Model", "").toLowerCase.contains(baseType.toLowerCase + "s"))
-    }
-
-
-
-    val endpoints = filteredPaths.flatMap {
-      case (pathName: String, path: PathItem) => processPath(openApi, path, pathName, baseType)
-    }.toList
-
-    SumoSwaggerTemplate(baseType, endpoints)
   }
 
   def processAllClasses(openApi: OpenAPI,

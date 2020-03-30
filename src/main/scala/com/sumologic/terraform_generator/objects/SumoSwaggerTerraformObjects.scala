@@ -32,7 +32,8 @@ abstract sealed class SumoSwaggerObject(name: String,
                                         required: Boolean,
                                         defaultOpt: Option[AnyRef],
                                         description: String,
-                                        example: String) extends SumoTerraformEntity
+                                        example: String,
+                                        createOnly: Boolean = false) extends SumoTerraformEntity
   with TerraformGeneratorHelper {
   // TODO Assumption of NO collision without namespaces is probably wrong - should fix
   def getAllTypes(): List[SumoSwaggerType] = {
@@ -44,6 +45,7 @@ abstract sealed class SumoSwaggerObject(name: String,
   def getRequired(): Boolean = { required }
   def getDescription(): String = { description }
   def getExample(): String = { example }
+  def getCreateOnly(): Boolean = { createOnly }
 
   def getAsTerraformFunctionArgument(): String
   // def getAsTerraformSchemaType(forUseInDateResource: Boolean): String
@@ -85,8 +87,9 @@ case class SumoSwaggerObjectSingle(name: String,
                                    required: Boolean,
                                    defaultOpt: Option[AnyRef],
                                    description: String,
-                                   example: String) extends
-  SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example) {
+                                   example: String,
+                                   createOnly: Boolean = false) extends
+  SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, createOnly) {
   override def terraformify(): String = {
     val req = if (required && name.toLowerCase != "id") {
       ""
@@ -110,8 +113,9 @@ case class SumoSwaggerObjectArray(name: String,
                                   required: Boolean,
                                   defaultOpt: Option[AnyRef],
                                   description: String,
-                                  example: String) extends
-  SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example) {
+                                  example: String,
+                                  createOnly: Boolean = false) extends
+  SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, createOnly) {
   override def terraformify(): String = {
     val req = if (required) {
       ""
@@ -135,7 +139,7 @@ case class SumoSwaggerType(name: String, props: List[SumoSwaggerObject] = List[S
     if (props.isEmpty) {
       ""
     } else {
-      val terraProps = props.map(indent + _.terraformify())
+      val terraProps = props.map(indent + _.terraformify()).toSet
       if (name.toLowerCase == "errorresponse" || name.toLowerCase == "errordescription") {
         ""
         // s"type SwaggerErrorResponse struct {\n" + terraProps.mkString("") + "}\n"
@@ -191,6 +195,7 @@ case class SumoSwaggerEndpoint(endpointName: String,
     val respBodyTypeOpt = this.responses.filter(_.respTypeName != "default").head.respTypeOpt
     respBodyTypeOpt match {
       case Some(respType) =>
+        val writeOnlyProps = respType.props.filter(_.getCreateOnly())
         val returnHandlingPart =
           this.httpMethod.toLowerCase match {
             case "get" =>
@@ -211,8 +216,16 @@ case class SumoSwaggerEndpoint(endpointName: String,
                 |
                 |    return created${respType.name}.ID, nil""".stripMargin
             case "put" =>
+              val writeOnlyPropsString = if (writeOnlyProps.size >= 1) {
+                writeOnlyProps.map {
+                  prop => s"""${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)}.${prop.getName.capitalize} = """""
+                }.mkString("\n    ")
+              } else {
+                ""
+              }
               s"""
                 |    ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)}.ID = ""
+                |    ${writeOnlyPropsString}
                 |
                 |    _, err := s.Put(url, ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)})
                 |    return err""".stripMargin
