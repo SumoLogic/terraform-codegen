@@ -91,7 +91,7 @@ case class SumoSwaggerObjectSingle(name: String,
                                    createOnly: Boolean = false) extends
   SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, createOnly) {
   override def terraformify(): String = {
-    val req = if (required && name.toLowerCase != "id") {
+    val req = if (name.toLowerCase != "id") {
       ""
     } else {
       ",omitempty"
@@ -227,7 +227,7 @@ case class SumoSwaggerEndpoint(endpointName: String,
                 |    ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)}.ID = ""
                 |    ${writeOnlyPropsString}
                 |
-                |    _, err := s.Put(url, ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)})
+                |    _, err := s.Put(urlWithParams, ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)})
                 |    return err""".stripMargin
             case "delete" =>
               """
@@ -251,7 +251,7 @@ case class SumoSwaggerEndpoint(endpointName: String,
     }
   }
 
-  def getUrlCallBasedOnHttpMethod(url: String): String = {
+  def getUrlCallBasedOnHttpMethod(): String = {
     val taggedResource = if (this.httpMethod.toLowerCase != "delete") {
       this.responses.filter {
         response => response.respTypeName != "default" && response.respTypeName != "204"
@@ -259,10 +259,11 @@ case class SumoSwaggerEndpoint(endpointName: String,
     } else {
       ""
     }
+
     httpMethod.toLowerCase match {
       case "get" =>
         s"""
-           |  data, _, err := s.Get(fmt.Sprintf($url))
+           |  data, _, err := s.Get(urlWithParams)
            |  if err != nil {
            |		return nil, err
            |	}
@@ -272,31 +273,108 @@ case class SumoSwaggerEndpoint(endpointName: String,
            |""".stripMargin
       case "post" =>
         s"""
-           |  data, err := s.Post($url, ${taggedResource.substring(0,1).toLowerCase + taggedResource.substring(1)})
+           |  data, err := s.Post(urlWithoutParams, ${lowerCaseFirstLetter(taggedResource)})
            |  if err != nil {
            |		return "", err
            |	}
            |""".stripMargin
-      case "put" =>
-        val fixedUrl = url.replace("id", s"${taggedResource.substring(0,1).toLowerCase + taggedResource.substring(1)}.ID")
-        s"""url := fmt.Sprintf($fixedUrl)"""
       case "delete" =>
-        s"""_, err := s.Delete(fmt.Sprintf($url))"""
+        s"""_, err := s.Delete(urlWithParams)"""
       case _ =>
         ""
+    }
+  }
+
+  def getParamString(): String = {
+    val params = this.parameters
+    val taggedResource = if (this.httpMethod.toLowerCase != "delete") {
+      this.responses.filter {
+        response => response.respTypeName != "default" && response.respTypeName != "204"
+      }.head.respTypeOpt.get.name
+    } else {
+      ""
+    }
+    val pathParams = params.filter {
+      param => param.paramType == SumoTerraformSupportedParameterTypes.PathParameter
+    }
+    val queryParams = params.filter {
+      param => param.paramType == SumoTerraformSupportedParameterTypes.QueryParameter
+    }
+    if(queryParams.nonEmpty || pathParams.nonEmpty) {
+      val pathParamString = if (pathParams.nonEmpty) {
+        pathParams.map {
+          pathParam =>
+            if (pathParam.param.getName.toLowerCase == "id") {
+              if (this.httpMethod.toLowerCase == "put") {
+                s"""sprintfArgs = append(sprintfArgs, ${lowerCaseFirstLetter(taggedResource)}.ID)
+                   |paramString += "/%s"
+                   |""".stripMargin
+              } else {
+                s"""sprintfArgs = append(sprintfArgs, id)
+                   |paramString += "/%s"
+                   |""".stripMargin
+              }
+            } else {
+              s"""if val, ok := paramMap["${lowerCaseFirstLetter(pathParam.param.getName())}"]; ok {
+                 | sprintfArgs = append(sprintfArgs, val)
+                 | paramString += "/%s"
+                 | }
+                 |""".stripMargin
+            }
+        }.mkString("\n")
+      } else {
+        ""
+      }
+
+      val queryParamString = if (queryParams.nonEmpty) {
+        val queryString = queryParams.map {
+          queryParam =>
+            s"""if val, ok := paramMap["${lowerCaseFirstLetter(queryParam.param.getName())}"]; ok {
+               |queryParam := fmt.Sprintf("${lowerCaseFirstLetter(queryParam.param.getName())}=%s&", val)
+               |paramString += queryParam
+               |}
+               |""".stripMargin
+        }.mkString("\n")
+        s"""paramString += "?"
+           |
+           |${queryString}
+           |
+           |""".stripMargin
+      } else {
+        ""
+      }
+      s"""paramString := ""
+         |sprintfArgs := []interface{}{}
+         |${pathParamString}
+         |
+         |${queryParamString}
+         |
+         |""".stripMargin
+    } else {
+      ""
     }
   }
 
   override def terraformify(): String = {
     import com.sumologic.terraform_generator.utils.SumoTerraformUtils._
 
-    val sprintfArg = makeTerraformUrlFormatForSprintf(this.path, this.parameters).replaceFirst("/", "")
+    val urlWithoutParamsString = s"""urlWithoutParams := "${path.replaceFirst(s"\\/\\{id\\}", "")}"""".replaceFirst("/", "")
+    val setParamString = getParamString()
+    val urlWithParamsString = if (this.httpMethod.toLowerCase == "post") {
+      ""
+    } else {
+      """urlWithParams := fmt.Sprintf(urlWithoutParams + paramString, sprintfArgs...)"""
+    }
+    // val sprintfArg = makeTerraformUrlFormatForSprintf(this.path, this.parameters, setParamString).replaceFirst("/", "")
     val responseProps = getReturnTypesBasedOnRespone()
-    val urlCall = getUrlCallBasedOnHttpMethod(sprintfArg)
+    val urlCall = getUrlCallBasedOnHttpMethod()
 
     val args = makeArgsListForDecl(this.parameters)
     s"""
        |func (s *Client) ${this.endpointName.capitalize}($args) ${responseProps.declReturnType} {
+       |    $urlWithoutParamsString
+       |    $setParamString
+       |    $urlWithParamsString
        |    $urlCall
        |    ${responseProps.responseVarDecl}
        |    ${responseProps.unmarshal}
@@ -438,6 +516,16 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
         sumoSwaggerObject.getAsTerraformSchemaType(false)
     }.toList.toSet.mkString(",\n         ").concat(",")
 
+    // Only supporting query params for now. Assuming path parameters in CRUD endpoints will only be id. Not supporting header parameters yet.
+    val requestMaps = supportedEndpoints.filter {
+      endpoint => endpoint.parameters.map(_.paramType).contains(SumoTerraformSupportedParameterTypes.QueryParameter)
+    }.map {
+      endpoint =>
+        "\"" + s"${endpoint.httpMethod.toLowerCase}_request_map" + "\"" + s": {\n           Type: schema.TypeMap,\n          Optional: true,\n           Elem: &schema.Schema{\n            Type: schema.TypeString,\n            },\n         }"
+    }.mkString(",\n         ").concat(",")
+
+
+
     s"""func resourceSumologic${sumoSwaggerClassName.capitalize}() *schema.Resource {
        |    return &schema.Resource{
        |      $funcMappings
@@ -447,6 +535,7 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
        |
       |       Schema: map[string]*schema.Schema{
        |        $propsObjects
+       |        $requestMaps
        |    },
        |  }
        |}""".stripMargin
