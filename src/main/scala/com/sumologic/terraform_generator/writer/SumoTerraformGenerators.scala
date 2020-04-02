@@ -198,6 +198,14 @@ case class SwaggerDataSourceFunctionGenerator(mainClass: SumoSwaggerType) extend
 
 case class SwaggerResourceFunctionGenerator(endpoint: SumoSwaggerEndpoint, mainClass: SumoSwaggerType) extends SumoTerraformEntity {
 
+  val requestMap = if (endpoint.parameters.map(_.paramType).contains(SumoTerraformSupportedParameterTypes.QueryParameter)) {
+    s"""requestParams := make(map[string]string)
+       |	for k, v := range d.Get("${endpoint.httpMethod.toLowerCase}_request_map").(map[string]interface{}) {
+       |		requestParams[k] = v.(string)
+       |	}""".stripMargin
+  } else {
+    ""
+  }
   // TODO: This is gross, generalize if possible
   def generateResourceFunctionGET(): String = {
     val className = mainClass.name
@@ -209,12 +217,20 @@ case class SwaggerResourceFunctionGenerator(endpoint: SumoSwaggerEndpoint, mainC
         s"""d.Set("${removeCamelCase(name)}", $objName.${name.capitalize})""".stripMargin
     }.mkString("\n    ")
 
+    val clientCall = if (!requestMap.isEmpty) {
+      s"${objName}, err := c.Get${className}(id, requestParams)"
+    } else {
+      s"${objName}, err := c.Get${className}(id)"
+    }
+
     s"""
        |func resourceSumologic${className}Read(d *schema.ResourceData, meta interface{}) error {
        |	c := meta.(*Client)
        |
+       |  $requestMap
+       |
        |	id := d.Id()
-       |	${objName}, err := c.Get${className}(id)
+       |	$clientCall
        |
        |	if err != nil {
        |		return err
@@ -236,9 +252,18 @@ case class SwaggerResourceFunctionGenerator(endpoint: SumoSwaggerEndpoint, mainC
   def generateResourceFunctionDELETE(): String = {
     val className = mainClass.name
 
+    val clientCall = if (!requestMap.isEmpty) {
+      s"client.Delete${className}(d.Id(), requestParams)"
+    } else {
+      s"client.Delete${className}(d.Id())"
+    }
+
     s"""func resourceSumologic${className}Delete(d *schema.ResourceData, meta interface{}) error {
        |  client := meta.(*Client)
-       |  return client.Delete${className}(d.Id())
+       |
+       |  $requestMap
+       |
+       |  return $clientCall
        |}""".stripMargin
 
   }
@@ -259,13 +284,21 @@ case class SwaggerResourceFunctionGenerator(endpoint: SumoSwaggerEndpoint, mainC
 
     val lowerCaseName = parameter.substring(0, 1).toLowerCase() + parameter.substring(1)
 
+    val clientCall = if (!requestMap.isEmpty) {
+      s"err := c.Update${className}($lowerCaseName, requestParams)"
+    } else {
+      s"err := c.Update${className}($lowerCaseName)"
+    }
+
     s"""
        |func resourceSumologic${className}Update(d *schema.ResourceData, meta interface{}) error {
        |	c := meta.(*Client)
        |
+       |  $requestMap
+       |
        |	$lowerCaseName := resourceTo${className}(d)
        |
-       |	err := c.Update$className($lowerCaseName)
+       |	$clientCall
        |
        |	if err != nil {
        |		return err
@@ -291,13 +324,21 @@ case class SwaggerResourceFunctionGenerator(endpoint: SumoSwaggerEndpoint, mainC
 
     val lowerCaseName = parameter.substring(0, 1).toLowerCase() + parameter.substring(1)
 
+    val clientCall = if (!requestMap.isEmpty) {
+      s"id, err := c.Create${className}($lowerCaseName, requestParams)"
+    } else {
+      s"id, err := c.Create${className}($lowerCaseName)"
+    }
+
     s"""
        |func resourceSumologic${className}Create(d *schema.ResourceData, meta interface{}) error {
        |	c := meta.(*Client)
        |
+       |  $requestMap
+       |
        |	if d.Id() == "" {
        |		$lowerCaseName := resourceTo${className}(d)
-       |		id, err := c.Create${className}(${lowerCaseName})
+       |		$clientCall
        |
        |		if err != nil {
        |			return err

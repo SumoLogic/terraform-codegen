@@ -251,21 +251,6 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     }
   }
 
-  // TODO we need a query param version of this as well
-  def pathParamsToPrintfFormat(path: String, pathParamList: List[SumoSwaggerParameter]): (String, String) = {
-    if (pathParamList.isEmpty) {
-      (path, "")
-    } else {
-      val (firstList, restOfParamList) = pathParamList.splitAt(1)
-      val firstParam = firstList.head.param
-      val formattedPath = path.replaceFirst(s"\\{${firstParam.getName}\\}",
-        SumoTerraformSupportedPrintfTypes.toPrintfType(firstParam.getType().name))
-      val (newPath, newArgs) = pathParamsToPrintfFormat(formattedPath, restOfParamList)
-      (newPath, s", ${firstParam.getName}" + newArgs)
-    }
-  }
-
-
   def bodyParamToArgList(bodyParamOption: Option[SumoSwaggerParameter]): List[String] = {
     bodyParamOption match {
       case Some(bodyParam) =>
@@ -286,6 +271,12 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
 
   def getArgsListForDecl(params: List[SumoSwaggerParameter]): List[String] = {
     // TODO val queryParamList = params.filter(_.paramType == SumoTerraformSupportedParameterTypes.QueryParameter)
+    val requestMap = if (params.map(_.paramType).contains(SumoTerraformSupportedParameterTypes.QueryParameter)) {
+      List("paramMap map[string]string")
+    } else {
+      List.empty[String]
+    }
+
     // TODO Need to consider required params
     val pathParamList = params.filter(
       _.paramType == SumoTerraformSupportedParameterTypes.PathParameter)
@@ -295,9 +286,9 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     // paramListToArgList(pathParamList) ++ bodyParamToArgList(bodyParamOpt)
 
     if (bodyParamOpt.isDefined) {
-      bodyParamToArgList(bodyParamOpt)
+      bodyParamToArgList(bodyParamOpt) ++ requestMap
     } else {
-      paramListToArgList(pathParamList)
+      paramListToArgList(pathParamList) ++ requestMap
     }
   }
 
@@ -326,18 +317,6 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
       SumoSwaggerType(SumoTerraformSchemaTypes.swaggerTypeToGoType(property.getType))
 
     }
-  }
-
-  def makeTerraformUrlFormatForSprintf(path: String, params: List[SumoSwaggerParameter]): String = {
-    // TODO val queryParamList = params.filter(_.paramType == SumoTerraformSupportedParameterTypes.QueryParameter)
-    // TODO Need to consider required params
-
-    val pathParamList = params.filter(
-      _.paramType == SumoTerraformSupportedParameterTypes.PathParameter)
-    val (printfFormattedPath, printfArgs) = SumoTerraformUtils.pathParamsToPrintfFormat(
-      path, pathParamList)
-
-    s""""$printfFormattedPath"$printfArgs""".stripMargin
   }
 
   // TODO IMPORTANT TO DO LATER IS THAT WHEN REFERENCE OBJECTS ARE CALCULATED, WE SHOULD PUT THEM IN A MAP
@@ -532,7 +511,6 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
   }
 
   def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String], modelName: String): SumoSwaggerObject = {
-
     val example = if (prop.getExample == null) {""} else {prop.getExample.toString}
     if (prop.isInstanceOf[ArraySchema]) {
       val arrayProp = prop.asInstanceOf[ArraySchema]
@@ -782,14 +760,14 @@ object SumoTerraformUtils extends TerraformGeneratorHelper {
     val getters = objClass.props.map {
       prop: SumoSwaggerObject =>
         getTerraformResourceGetters(prop)
-    }.mkString("\n    ")
+    }.toSet.mkString("\n    ")
 
     val funcName = getTerraformResourceDataToObjectConverterFuncName(objClass)
 
     val arrayBlock = objClass.props.filter {
       prop => prop.isInstanceOf[SumoSwaggerObjectArray]
     }.map {
-      prop => s"""raw${prop.getName().capitalize} := d.Get("${prop.getName().toLowerCase}").([]interface{})
+      prop => s"""raw${prop.getName().capitalize} := d.Get("${removeCamelCase(prop.getName())}").([]interface{})
                  |	${prop.getName().toLowerCase} := make([]string, len(raw${prop.getName().capitalize} ))
                  |	for i, v := range raw${prop.getName().capitalize}  {
                  |		${prop.getName().toLowerCase}[i] = v.(string)
