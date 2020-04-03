@@ -3,13 +3,13 @@ package com.sumologic.terraform_generator
 import java.io.{BufferedWriter, File, FileWriter}
 
 import com.sumologic.terraform_generator.objects.SumoSwaggerTemplate
-import com.sumologic.terraform_generator.utils.SumoTerraformUtils
+import com.sumologic.terraform_generator.utils.OpenApiProcessor
 import com.sumologic.terraform_generator.writer.{SumoDocsGenerator, SumoTerraformClassFileGenerator, SumoTerraformResourceFileGenerator, SumoTestGenerator}
 import io.swagger.parser.OpenAPIParser
 import io.swagger.v3.parser.core.models.ParseOptions
 
 
-object TerraformGenerator extends TerraformGeneratorHelper {
+object TerraformGenerator extends StringHelper {
 
   val targetDirectory = "./target/"
   val resourcesDirectory: String = targetDirectory + "resources/"
@@ -37,7 +37,7 @@ object TerraformGenerator extends TerraformGeneratorHelper {
     val bw = new BufferedWriter(new FileWriter(f))
     bw.write(swagger.getOpenAPI.toString)
     bw.close()
-    val terraforms = SumoTerraformUtils.processAllClasses(swagger.getOpenAPI, types)
+    val terraforms = OpenApiProcessor.processAllClasses(swagger.getOpenAPI, types)
     terraforms.foreach {
       case (terraform: SumoSwaggerTemplate, baseType: String) =>
         writeFiles(terraform, baseType)
@@ -58,11 +58,6 @@ object TerraformGenerator extends TerraformGeneratorHelper {
 
     val genDocs = SumoDocsGenerator(sumoSwaggerTemplate, baseType)
     genDocs.writeToFile(resourcesDirectory + s"$terraformTypeName.html.markdown")
-    //val genDataSource = SumoTerraformDataSourceFileGenerator(sumoSwaggerTemplate)
-    //genDataSource.writeToFile(s"data_source_sumologic_${baseType}.go")
-
-    //val genProvider = SumoProviderGenerator(sumoSwaggerTemplate)
-    //genProvider.writeToFile("provider.go")
   }
 
   def ensureDirectories(): Unit = {

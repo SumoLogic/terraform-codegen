@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator
 
-trait TerraformGeneratorHelper {
+trait StringHelper {
   def removeCamelCase(propName: String): String = {
     if (propName.exists(_.isUpper)) {
       lowerCaseFirstLetter(propName).map(char => if (char.isUpper) {
