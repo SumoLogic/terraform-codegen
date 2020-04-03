@@ -1,10 +1,10 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.SumoSwaggerSupportedOperations.crud
-import com.sumologic.terraform_generator.objects.{SumoSwaggerEndpoint, SumoSwaggerObject, SumoSwaggerTemplate, SumoSwaggerType, SumoTerraformEntity, SumoTerraformSupportedParameterTypes}
+import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformSupportedParameterTypes}
 
-case class SumoTerraformResourceFileGenerator(terraform: SumoSwaggerTemplate)
-  extends SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate)
+case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
+  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate)
     with ResourceGeneratorHelper {
   def generate(): String = {
     val specialImport = if (terraform.getResourceFuncMappings().contains("Elem:  &schema.Schema{\n            Type: schema.TypeMap,\n           }")) {
@@ -35,8 +35,8 @@ case class SumoTerraformResourceFileGenerator(terraform: SumoSwaggerTemplate)
     val mappingSchema = terraform.getResourceFuncMappings()
 
     val ops: String = terraform.supportedEndpoints.map {
-      endpoint: SumoSwaggerEndpoint =>
-        val gen = SwaggerResourceFunctionGenerator(endpoint, terraform.getMainObjectClass())
+      endpoint: ScalaSwaggerEndpoint =>
+        val gen = ResourceFunctionGenerator(endpoint, terraform.getMainObjectClass())
         gen.terraformify()
     }.mkString("\n")
 
@@ -47,11 +47,11 @@ case class SumoTerraformResourceFileGenerator(terraform: SumoSwaggerTemplate)
   }
 }
 
-case class SwaggerResourceFunctionGenerator(endpoint: SumoSwaggerEndpoint, mainClass: SumoSwaggerType) extends SumoTerraformEntity {
+case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: ScalaSwaggerType) extends ScalaTerraformEntity {
   val className = mainClass.name
   val objName = lowerCaseFirstLetter(className)
 
-  val requestMap = if (endpoint.parameters.map(_.paramType).contains(SumoTerraformSupportedParameterTypes.QueryParameter)) {
+  val requestMap = if (endpoint.parameters.map(_.paramType).contains(TerraformSupportedParameterTypes.QueryParameter)) {
     s"""requestParams := make(map[string]string)
        |	for k, v := range d.Get("${endpoint.httpMethod.toLowerCase}_request_map").(map[string]interface{}) {
        |		requestParams[k] = v.(string)
@@ -62,7 +62,7 @@ case class SwaggerResourceFunctionGenerator(endpoint: SumoSwaggerEndpoint, mainC
   // TODO: This is gross, generalize if possible
   def generateResourceFunctionGET(): String = {
     val setters = mainClass.props.filter(_.getName().toLowerCase != "id").map {
-      prop: SumoSwaggerObject =>
+      prop: ScalaSwaggerObject =>
         val name = prop.getName()
         s"""d.Set("${removeCamelCase(name)}", $objName.${name.capitalize})""".stripMargin
     }.mkString("\n    ")

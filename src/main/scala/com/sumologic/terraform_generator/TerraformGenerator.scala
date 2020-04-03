@@ -2,9 +2,9 @@ package com.sumologic.terraform_generator
 
 import java.io.{BufferedWriter, File, FileWriter}
 
-import com.sumologic.terraform_generator.objects.SumoSwaggerTemplate
+import com.sumologic.terraform_generator.objects.ScalaSwaggerTemplate
 import com.sumologic.terraform_generator.utils.OpenApiProcessor
-import com.sumologic.terraform_generator.writer.{SumoDocsGenerator, SumoTerraformClassFileGenerator, SumoTerraformResourceFileGenerator, SumoTestGenerator}
+import com.sumologic.terraform_generator.writer.{TerraformDocsGenerator, SumoTerraformClassFileGenerator, TerraformResourceFileGenerator, AcceptanceTestFileGenerator}
 import io.swagger.parser.OpenAPIParser
 import io.swagger.v3.parser.core.models.ParseOptions
 
@@ -39,24 +39,24 @@ object TerraformGenerator extends StringHelper {
     bw.close()
     val terraforms = OpenApiProcessor.processAllClasses(swagger.getOpenAPI, types)
     terraforms.foreach {
-      case (terraform: SumoSwaggerTemplate, baseType: String) =>
+      case (terraform: ScalaSwaggerTemplate, baseType: String) =>
         writeFiles(terraform, baseType)
     }
   }
 
-  def writeFiles(sumoSwaggerTemplate: SumoSwaggerTemplate, baseType: String) = {
+  def writeFiles(sumoSwaggerTemplate: ScalaSwaggerTemplate, baseType: String) = {
     val genSumoClass = SumoTerraformClassFileGenerator(sumoSwaggerTemplate)
     val terraformTypeName = removeCamelCase(baseType)
 
     genSumoClass.writeToFile(resourcesDirectory + s"sumologic_$terraformTypeName.go")
 
-    val genResource = SumoTerraformResourceFileGenerator(sumoSwaggerTemplate)
+    val genResource = TerraformResourceFileGenerator(sumoSwaggerTemplate)
     genResource.writeToFile(resourcesDirectory + s"resource_sumologic_$terraformTypeName.go")
 
-    val genTest = SumoTestGenerator(sumoSwaggerTemplate, baseType)
+    val genTest = AcceptanceTestFileGenerator(sumoSwaggerTemplate, baseType)
     genTest.writeToFile(resourcesDirectory + s"resource_sumologic_${terraformTypeName}_test.go")
 
-    val genDocs = SumoDocsGenerator(sumoSwaggerTemplate, baseType)
+    val genDocs = TerraformDocsGenerator(sumoSwaggerTemplate, baseType)
     genDocs.writeToFile(resourcesDirectory + s"$terraformTypeName.html.markdown")
   }
 

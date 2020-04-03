@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.utils
 
-import com.sumologic.terraform_generator.objects.{SumoSwaggerEndpoint, SumoSwaggerObject, SumoSwaggerObjectArray, SumoSwaggerObjectSingle, SumoSwaggerParameter, SumoSwaggerResponse, SumoSwaggerTemplate, SumoSwaggerType, SumoTerraformSchemaTypes, SumoTerraformSupportedParameterTypes}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerObjectSingle, ScalaSwaggerParameter, ScalaSwaggerResponse, ScalaSwaggerTemplate, ScalaSwaggerType, TerraformSchemaTypes, TerraformSupportedParameterTypes}
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 import io.swagger.v3.oas.models.media.{ArraySchema, ComposedSchema, Schema}
 import io.swagger.v3.oas.models.parameters.{Parameter, PathParameter, QueryParameter}
@@ -11,19 +11,19 @@ import scala.collection.JavaConverters._
 
 object OpenApiProcessor extends ProcessorHelper {
 
-  def resolvePropertyType(openApi: OpenAPI, property: Schema[_]): SumoSwaggerType = {
+  def resolvePropertyType(openApi: OpenAPI, property: Schema[_]): ScalaSwaggerType = {
     if (property.get$ref() != null) {
       val model = getComponent(openApi, property.get$ref().split("/").last)._2
       processModel(openApi, property.get$ref(), model)
     } else {
-      SumoSwaggerType(SumoTerraformSchemaTypes.swaggerTypeToGoType(property.getType))
+      ScalaSwaggerType(TerraformSchemaTypes.swaggerTypeToGoType(property.getType))
 
     }
   }
 
   // TODO IMPORTANT TO DO LATER IS THAT WHEN REFERENCE OBJECTS ARE CALCULATED, WE SHOULD PUT THEM IN A MAP
   // TO BE USED AS A CACHE, BECAUSE THESE GET RECALCULATED WHEN RESPONSE OBJECTS ARE IDENTICAL AS IN GET/LIST
-  def processResponseObjects(openApi: OpenAPI, responses: Map[String, ApiResponse]): List[SumoSwaggerResponse] = {
+  def processResponseObjects(openApi: OpenAPI, responses: Map[String, ApiResponse]): List[ScalaSwaggerResponse] = {
     responses.flatMap {
       case (respName: String, respObj: ApiResponse) =>
         if (respObj.getContent != null && respObj.getContent.get("application/json") != null && respObj.getContent.get("application/json").getSchema != null) {
@@ -32,7 +32,7 @@ object OpenApiProcessor extends ProcessorHelper {
               val resourceName = ref.split("/").toList.last
               if (getTaggedComponents(openApi).get(resourceName).isDefined) {
                 val swaggerType = processModel(openApi, ref, getTaggedComponents(openApi).get(resourceName).get)
-                List(SumoSwaggerResponse(respName, Some(swaggerType)))
+                List(ScalaSwaggerResponse(respName, Some(swaggerType)))
               } else {
                 val responseTypes = getTaggedComponents(openApi).filter {
                   component =>
@@ -48,10 +48,10 @@ object OpenApiProcessor extends ProcessorHelper {
                   responseTypes.toList.map {
                     case (name, schema) =>
                       val swaggerType = processModel(openApi, name, schema)
-                      SumoSwaggerResponse(name, Some(swaggerType))
+                      ScalaSwaggerResponse(name, Some(swaggerType))
                   }
                 } else {
-                  List(SumoSwaggerResponse(respName, None))
+                  List(ScalaSwaggerResponse(respName, None))
                 }
               }
             case _ =>
@@ -59,26 +59,26 @@ object OpenApiProcessor extends ProcessorHelper {
           }
         } else {
           // No response body
-          List(SumoSwaggerResponse(respName, None))
+          List(ScalaSwaggerResponse(respName, None))
         }
     }.toList
   }
 
-  def processPathParameter(openApi: OpenAPI, pathParam: PathParameter): SumoSwaggerParameter = {
-    SumoSwaggerParameter(SumoTerraformSupportedParameterTypes.PathParameter,
-      SumoSwaggerObjectSingle(pathParam.getName,
-        SumoSwaggerType(pathParam.getSchema.getType, List[SumoSwaggerObject]()),
+  def processPathParameter(openApi: OpenAPI, pathParam: PathParameter): ScalaSwaggerParameter = {
+    ScalaSwaggerParameter(TerraformSupportedParameterTypes.PathParameter,
+      ScalaSwaggerObjectSingle(pathParam.getName,
+        ScalaSwaggerType(pathParam.getSchema.getType, List[ScalaSwaggerObject]()),
         pathParam.getRequired, Some(pathParam.getSchema.getDefault.asInstanceOf[AnyRef]), pathParam.getSchema.getDescription, ""))
   }
 
-  def processQueryParameter(openApi: OpenAPI, queryParam: QueryParameter): SumoSwaggerParameter = {
-    SumoSwaggerParameter(SumoTerraformSupportedParameterTypes.QueryParameter,
-      SumoSwaggerObjectSingle(queryParam.getName,
-        SumoSwaggerType(queryParam.getSchema.getType, List[SumoSwaggerObject]()),
+  def processQueryParameter(openApi: OpenAPI, queryParam: QueryParameter): ScalaSwaggerParameter = {
+    ScalaSwaggerParameter(TerraformSupportedParameterTypes.QueryParameter,
+      ScalaSwaggerObjectSingle(queryParam.getName,
+        ScalaSwaggerType(queryParam.getSchema.getType, List[ScalaSwaggerObject]()),
         queryParam.getRequired, Some(queryParam.getSchema.getDefault.asInstanceOf[AnyRef]), queryParam.getSchema.getDescription, ""))
   }
 
-  def processBodyParameter(openApi: OpenAPI, bodyParam: Schema[_], baseType: String): List[SumoSwaggerParameter] = {
+  def processBodyParameter(openApi: OpenAPI, bodyParam: Schema[_], baseType: String): List[ScalaSwaggerParameter] = {
     val defName: String = bodyParam.get$ref().split("#/components/schemas/").last
     val modelOpt = Option(getComponent(openApi, defName)._2)
     val taggedResource = getTaggedComponents(openApi).filter {
@@ -103,16 +103,16 @@ object OpenApiProcessor extends ProcessorHelper {
         modelOpt match {
           case Some(model) =>
             val swaggerType = processModel(openApi, modelName, resource._2)
-            SumoSwaggerParameter(SumoTerraformSupportedParameterTypes.BodyParameter,
-              SumoSwaggerObjectSingle(modelName, swaggerType, true, None, resource._2.getDescription, ""))
+            ScalaSwaggerParameter(TerraformSupportedParameterTypes.BodyParameter,
+              ScalaSwaggerObjectSingle(modelName, swaggerType, true, None, resource._2.getDescription, ""))
           case None =>
             throw new RuntimeException("This should not happen in processBodyParameter ")
         }
     }.toList
   }
 
-  def processComposedModel(openApi: OpenAPI, modelDefName: String, composedModel: ComposedSchema): SumoSwaggerType = {
-    val parts: List[SumoSwaggerObject] = composedModel.getAllOf.asScala.flatMap {
+  def processComposedModel(openApi: OpenAPI, modelDefName: String, composedModel: ComposedSchema): ScalaSwaggerType = {
+    val parts: List[ScalaSwaggerObject] = composedModel.getAllOf.asScala.flatMap {
       case model: Schema[_] =>
         if (model.get$ref() != null) {
           processModel(openApi, model.get$ref(), model).props
@@ -124,24 +124,24 @@ object OpenApiProcessor extends ProcessorHelper {
                 processModelProperty(openApi, propTuple._1, propTuple._2, taggedProps.map(_._1).intersect(getRequiredProperties(openApi, composedModel)), modelDefName)
             }
           } else {
-            List[SumoSwaggerObject]()
+            List[ScalaSwaggerObject]()
           }
         }
     }.toList
 
     val partsWithId = if (!parts.map(_.getName().toLowerCase).contains("id") || parts.flatMap(_.getAllTypes().map(_.name.toLowerCase)).contains("id")) {
-      parts ++ List(SumoSwaggerObjectSingle("id", SumoSwaggerType("string"), false, None, "", ""))
+      parts ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, "", ""))
     } else {
       parts
     }
     if (modelDefName.contains("Model")) {
-      SumoSwaggerType(modelDefName.replace("Model", ""), partsWithId.toSet.toList)
+      ScalaSwaggerType(modelDefName.replace("Model", ""), partsWithId.toSet.toList)
     } else {
-      SumoSwaggerType(modelDefName, partsWithId.toSet.toList)
+      ScalaSwaggerType(modelDefName, partsWithId.toSet.toList)
     }
   }
 
-  def processModel(openApi: OpenAPI, modelDefName: String, model: Schema[_]): SumoSwaggerType = {
+  def processModel(openApi: OpenAPI, modelDefName: String, model: Schema[_]): ScalaSwaggerType = {
     val modelName = if (modelDefName.contains("/")) {
       modelDefName.split("/").last
     } else {
@@ -150,7 +150,7 @@ object OpenApiProcessor extends ProcessorHelper {
 
     model match {
       case arrayModel: ArraySchema =>
-        SumoSwaggerType(modelName, List[SumoSwaggerObject]())
+        ScalaSwaggerType(modelName, List[ScalaSwaggerObject]())
       case composedModel: ComposedSchema =>
         processComposedModel(openApi, modelName, composedModel)
       case _ =>
@@ -163,7 +163,7 @@ object OpenApiProcessor extends ProcessorHelper {
             processModel(openApi, modelName, getComponent(openApi, resourceName)._2)
           }
         } else if (model.get$ref() == null) {
-          val props: List[SumoSwaggerObject] = if (model.getExtensions != null) {
+          val props: List[ScalaSwaggerObject] = if (model.getExtensions != null) {
             getTaggedProperties(openApi, model).map {
               propTuple =>
                 val taggedProps = getTaggedProperties(openApi, model)
@@ -175,54 +175,54 @@ object OpenApiProcessor extends ProcessorHelper {
                 prop => processModelProperty(openApi, prop._1, prop._2, List(prop._1).intersect(getRequiredProperties(openApi, model)), modelName)
               }
             } else {
-              List[SumoSwaggerObject]()
+              List[ScalaSwaggerObject]()
             }
           }
 
           val propsWithId = if (!props.map(_.getName().toLowerCase).contains("id")) {
-            props ++ List(SumoSwaggerObjectSingle("id", SumoSwaggerType("string"), false, None, "", ""))
+            props ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, "", ""))
           } else {
             props
           }
           // literally only because of RoleModel
           if (modelName.contains("Model")) {
-            SumoSwaggerType(modelName.replace("Model", ""), propsWithId.toSet.toList)
+            ScalaSwaggerType(modelName.replace("Model", ""), propsWithId.toSet.toList)
           } else {
-            SumoSwaggerType(modelName, propsWithId.toSet.toList)
+            ScalaSwaggerType(modelName, propsWithId.toSet.toList)
           }
         } else {
           if (modelName.contains("Model")) {
-            SumoSwaggerType(modelName.replace("Model", ""), List[SumoSwaggerObject]())
+            ScalaSwaggerType(modelName.replace("Model", ""), List[ScalaSwaggerObject]())
           } else {
-            SumoSwaggerType(modelName, List[SumoSwaggerObject]())
+            ScalaSwaggerType(modelName, List[ScalaSwaggerObject]())
           }
         }
     }
   }
 
-  def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String], modelName: String): SumoSwaggerObject = {
+  def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String], modelName: String): ScalaSwaggerObject = {
     val example = if (prop.getExample == null) {""} else {prop.getExample.toString}
     if (prop.isInstanceOf[ArraySchema]) {
       val arrayProp = prop.asInstanceOf[ArraySchema]
-      SumoSwaggerObjectArray(propName, resolvePropertyType(openApi, arrayProp.getItems), requiredProps.contains(arrayProp.getName), None, prop.getDescription, example, isPropertyWriteOnly(openApi, propName, modelName))
+      ScalaSwaggerObjectArray(propName, resolvePropertyType(openApi, arrayProp.getItems), requiredProps.contains(arrayProp.getName), None, prop.getDescription, example, isPropertyWriteOnly(openApi, propName, modelName))
     } else {
       if (prop.get$ref() != null) {
         val refModel = getComponent(openApi, prop.get$ref().split("/").last)._2
-        SumoSwaggerObjectSingle(propName, processModel(openApi, propName, refModel), requiredProps.contains(prop.getName), None, prop.getDescription, example, isPropertyWriteOnly(openApi, propName, modelName))
+        ScalaSwaggerObjectSingle(propName, processModel(openApi, propName, refModel), requiredProps.contains(prop.getName), None, prop.getDescription, example, isPropertyWriteOnly(openApi, propName, modelName))
       } else {
         if (propName.toLowerCase != "id") {
-          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, example, isPropertyWriteOnly(openApi, propName, modelName))
+          ScalaSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, example, isPropertyWriteOnly(openApi, propName, modelName))
         } else {
-          SumoSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, "", isPropertyWriteOnly(openApi, propName, modelName))
+          ScalaSwaggerObjectSingle(propName, resolvePropertyType(openApi, prop),requiredProps.map(_.toLowerCase).contains(propName.toLowerCase), None, prop.getDescription, "", isPropertyWriteOnly(openApi, propName, modelName))
         }
       }
     }
   }
 
-  def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod, baseType: String): SumoSwaggerEndpoint = {
+  def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod, baseType: String): ScalaSwaggerEndpoint = {
     val responses = processResponseObjects(openApi, operation.getResponses.asScala.toMap)
 
-    val params: List[SumoSwaggerParameter] = operation.getParameters.asScala.flatMap { param: Parameter =>
+    val params: List[ScalaSwaggerParameter] = operation.getParameters.asScala.flatMap { param: Parameter =>
       param match {
         case pathParam: PathParameter =>
           List(processPathParameter(openApi, pathParam))
@@ -236,18 +236,18 @@ object OpenApiProcessor extends ProcessorHelper {
       }
     }.toList
 
-    val requestBody: List[SumoSwaggerParameter] = if (operation.getRequestBody != null) {
+    val requestBody: List[ScalaSwaggerParameter] = if (operation.getRequestBody != null) {
       processBodyParameter(openApi, operation.getRequestBody.getContent.get("application/json").getSchema, baseType)
     } else {
-      List.empty[SumoSwaggerParameter]
+      List.empty[ScalaSwaggerParameter]
     }
 
     val allParams = params ++ requestBody
-    SumoSwaggerEndpoint(operation.getOperationId, pathName, method.name(), allParams, responses)
+    ScalaSwaggerEndpoint(operation.getOperationId, pathName, method.name(), allParams, responses)
   }
 
   def processPath(openApi: OpenAPI, path: PathItem, pathName: String, baseType: String):
-  List[SumoSwaggerEndpoint] = {
+  List[ScalaSwaggerEndpoint] = {
     val operationMap = Map(
       HttpMethod.GET -> path.getGet,
       HttpMethod.POST -> path.getPost,
@@ -266,7 +266,7 @@ object OpenApiProcessor extends ProcessorHelper {
   }
 
   def processAllClasses(openApi: OpenAPI,
-                        types: List[String] = List.empty[String]): List[(SumoSwaggerTemplate, String)] = {
+                        types: List[String] = List.empty[String]): List[(ScalaSwaggerTemplate, String)] = {
     val filteredPaths = openApi.getPaths.asScala.filter {
       case (pathName: String, path: PathItem) =>
         val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
@@ -334,7 +334,7 @@ object OpenApiProcessor extends ProcessorHelper {
         }.toSet.filter(_ != null)
         baseTypes.map {
           baseType =>
-            (SumoSwaggerTemplate(baseType, endpoints.toList), baseType)
+            (ScalaSwaggerTemplate(baseType, endpoints.toList), baseType)
         }
     }.toList
 

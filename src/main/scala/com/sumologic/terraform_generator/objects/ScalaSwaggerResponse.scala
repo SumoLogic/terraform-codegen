@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.objects
 
-case class SumoSwaggerResponse(respTypeName: String, respTypeOpt: Option[SumoSwaggerType]) extends SumoTerraformEntity {
+case class ScalaSwaggerResponse(respTypeName: String, respTypeOpt: Option[ScalaSwaggerType]) extends ScalaTerraformEntity {
   override def terraformify(): String = {
     if(respTypeOpt.isEmpty) {
       "empty_resp_body"

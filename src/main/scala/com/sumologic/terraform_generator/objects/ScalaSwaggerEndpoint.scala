@@ -1,11 +1,11 @@
 package com.sumologic.terraform_generator.objects
 
-case class SumoSwaggerEndpoint(endpointName: String,
-                               path: String,
-                               httpMethod: String,
-                               parameters: List[SumoSwaggerParameter],
-                               responses: List[SumoSwaggerResponse])
-  extends SumoTerraformEntity
+case class ScalaSwaggerEndpoint(endpointName: String,
+                                path: String,
+                                httpMethod: String,
+                                parameters: List[ScalaSwaggerParameter],
+                                responses: List[ScalaSwaggerResponse])
+  extends ScalaTerraformEntity
     with SumoSwaggerEndpointHelper {
 
   case class ResponseProps(declReturnType: String, httpClientReturnType: String, responseVarDecl: String, unmarshal: String)
@@ -113,10 +113,10 @@ case class SumoSwaggerEndpoint(endpointName: String,
       ""
     }
     val pathParams = params.filter {
-      param => param.paramType == SumoTerraformSupportedParameterTypes.PathParameter
+      param => param.paramType == TerraformSupportedParameterTypes.PathParameter
     }
     val queryParams = params.filter {
-      param => param.paramType == SumoTerraformSupportedParameterTypes.QueryParameter
+      param => param.paramType == TerraformSupportedParameterTypes.QueryParameter
     }
     if(queryParams.nonEmpty || pathParams.nonEmpty) {
       val pathParamString = if (pathParams.nonEmpty) {

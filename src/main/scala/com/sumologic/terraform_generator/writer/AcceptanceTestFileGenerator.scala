@@ -1,10 +1,10 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.{ForbiddenGoTerms, SumoSwaggerObjectArray, SumoSwaggerTemplate, SumoSwaggerType, SumoTerraformEntity, SumoTerraformSchemaTypes}
+import com.sumologic.terraform_generator.objects.{ForbiddenGoTerms, ScalaSwaggerObjectArray, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformSchemaTypes}
 
-case class SumoTestGenerator(terraform: SumoSwaggerTemplate, mainClass: String)
-  extends SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate) {
-  val functionGenerator = SwaggerTestFunctionGenerator(terraform, terraform.getAllTypesUsed().filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head)
+case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClass: String)
+  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
+  val functionGenerator = AcceptanceTestFunctionGenerator(terraform, terraform.getAllTypesUsed().filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head)
   def generate(): String = {
     val pre = s"""// ----------------------------------------------------------------------------
                  |//
@@ -34,7 +34,7 @@ case class SumoTestGenerator(terraform: SumoSwaggerTemplate, mainClass: String)
   }
 }
 
-case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate, mainClass: SumoSwaggerType) extends SumoTerraformEntity {
+case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, mainClass: ScalaSwaggerType) extends ScalaTerraformEntity {
   val className = mainClass.name
   val objName = className.substring(0, 1).toLowerCase() + className.substring(1)
   val resourceProps = sumoSwaggerTemplate.getAllTypesUsed().head
@@ -48,7 +48,7 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
           case "bool" =>
             s"""test${prop.getName.capitalize}, _ := strconv.ParseBool(FieldsMap["${className}Basic"]["${prop.getName()}"])"""
           case _ =>
-            if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
+            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
               s"""test${prop.getName.capitalize} := []string{"\\"" + FieldsMap["${className}Basic"]["${prop.getName()}"] + "\\""}"""
             } else {
               s"""test${prop.getName.capitalize} := FieldsMap["${className}Basic"]["${prop.getName()}"]"""
@@ -92,7 +92,7 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
           case "bool" =>
             s"""test${prop.getName.capitalize}, _ := strconv.ParseBool(FieldsMap["$className"]["${prop.getName()}"])"""
           case _ =>
-            if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
+            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
               s"""test${prop.getName.capitalize} := []string{"\\"" + FieldsMap["${className}"]["${prop.getName()}"] + "\\""}"""
             } else {
               s"""test${prop.getName.capitalize} := FieldsMap["$className"]["${prop.getName()}"]"""
@@ -113,7 +113,7 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
           case "array" =>
             s"""resource.TestCheckResourceAttr("sumologic_$objName.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(test${prop.getName.capitalize}[0], "\\"", "", 2)),"""
           case _ =>
-            if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
+            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
               s"""resource.TestCheckResourceAttr("sumologic_$objName.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(test${prop.getName.capitalize}[0], "\\"", "", 2)),"""
             } else {
               s"""resource.TestCheckResourceAttr("sumologic_$objName.test", "${removeCamelCase(prop.getName())}", test${prop.getName.capitalize}),"""
@@ -198,7 +198,7 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
           case "bool" =>
             s"""test${prop.getName.capitalize}, _ := strconv.ParseBool(FieldsMap["$className"]["${prop.getName()}"])"""
           case _ =>
-            if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
+            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
               s"""test${prop.getName.capitalize} := []string{"\\"" + FieldsMap["${className}"]["${prop.getName()}"] + "\\""}"""
             } else {
               s"""test${prop.getName.capitalize} := FieldsMap["$className"]["${prop.getName()}"]"""
@@ -213,7 +213,7 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
           case "bool" =>
             s"""testUpdated${prop.getName.capitalize}, _ := strconv.ParseBool(FieldsMap["$className"]["updated${prop.getName().capitalize}"])"""
           case _ =>
-            if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
+            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
               s"""testUpdated${prop.getName.capitalize} := []string{"\\"" + FieldsMap["${className}"]["updated${prop.getName().capitalize}"] + "\\""}"""
             } else {
               s"""testUpdated${prop.getName.capitalize} := FieldsMap["$className"]["updated${prop.getName().capitalize}"]"""
@@ -231,7 +231,7 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
           case "array" =>
             s"""resource.TestCheckResourceAttr("sumologic_$objName.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(test${prop.getName.capitalize}[0], "\\"", "", 2)),"""
           case _ =>
-            if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
+            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
               s"""resource.TestCheckResourceAttr("sumologic_$objName.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(test${prop.getName.capitalize}[0], "\\"", "", 2)),"""
             } else {
               s"""resource.TestCheckResourceAttr("sumologic_$objName.test", "${removeCamelCase(prop.getName())}", test${prop.getName.capitalize}),"""
@@ -249,7 +249,7 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
           case "array" =>
             s"""resource.TestCheckResourceAttr("sumologic_$objName.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(testUpdated${prop.getName.capitalize}[0], "\\"", "", 2)),"""
           case _ =>
-            if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
+            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
               s"""resource.TestCheckResourceAttr("sumologic_$objName.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(testUpdated${prop.getName.capitalize}[0], "\\"", "", 2)),"""
             } else {
               s"""resource.TestCheckResourceAttr("sumologic_$objName.test", "${removeCamelCase(prop.getName())}", testUpdated${prop.getName.capitalize}),"""
@@ -296,18 +296,18 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
         } else {
           prop.getName()
         }
-        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
-          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType("array")}"""
         } else {
-          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
+          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
     }.mkString(", ")
     val terraformArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
       prop =>
-        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
-          s"""${removeCamelCase(prop.getName())} = ${SumoTerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
+        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+          s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
         } else {
-          s"""${removeCamelCase(prop.getName())} = ${SumoTerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
+          s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
         }
     }.mkString("\n      ")
     val propList = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
@@ -335,18 +335,18 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
         } else {
           prop.getName()
         }
-        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
-          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType("array")}"""
         } else {
-          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
+          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
     }.mkString(", ")
     val terraformArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
       prop =>
-        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
-          s"""${removeCamelCase(prop.getName())} = ${SumoTerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
+        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+          s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
         } else {
-          s"""${removeCamelCase(prop.getName())} = ${SumoTerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
+          s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
         }
     }.mkString("\n    ")
     val propList = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
@@ -376,18 +376,18 @@ case class SwaggerTestFunctionGenerator(sumoSwaggerTemplate: SumoSwaggerTemplate
         } else {
           prop.getName()
         }
-        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
-          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType("array")}"""
         } else {
-          s"""${name} ${SumoTerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
+          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
     }.mkString(", ")
     val terraformArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
       prop =>
-        if (prop.isInstanceOf[SumoSwaggerObjectArray]) {
-          s"""${removeCamelCase(prop.getName())} = ${SumoTerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
+        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+          s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
         } else {
-          s"""${removeCamelCase(prop.getName())} = ${SumoTerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
+          s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
         }
     }.mkString("\n      ")
     val propList = resourceProps.props.filter(_.getName.toLowerCase != "id").map {

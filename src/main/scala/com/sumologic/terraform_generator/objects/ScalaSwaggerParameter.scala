@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.objects
 
-case class SumoSwaggerParameter(paramType: String, param: SumoSwaggerObject) extends SumoTerraformEntity {
+case class ScalaSwaggerParameter(paramType: String, param: ScalaSwaggerObject) extends ScalaTerraformEntity {
   override def terraformify(): String = {
     s"${param.getName()} ${param.getType().name}"
   }

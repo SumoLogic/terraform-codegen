@@ -1,7 +1,7 @@
 package com.sumologic.terraform_generator.objects
 
-case class SumoSwaggerType(name: String, props: List[SumoSwaggerObject] = List[SumoSwaggerObject]())
-  extends SumoTerraformEntity {
+case class ScalaSwaggerType(name: String, props: List[ScalaSwaggerObject] = List[ScalaSwaggerObject]())
+  extends ScalaTerraformEntity {
   override def terraformify(): String = {
     if (props.isEmpty) {
       ""
