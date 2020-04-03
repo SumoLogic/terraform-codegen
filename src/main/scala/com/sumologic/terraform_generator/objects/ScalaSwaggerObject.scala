@@ -1,19 +1,19 @@
 package com.sumologic.terraform_generator.objects
 
-abstract class SumoSwaggerObject(name: String,
-                                        objType: SumoSwaggerType,
-                                        required: Boolean,
-                                        defaultOpt: Option[AnyRef],
-                                        description: String,
-                                        example: String,
-                                        createOnly: Boolean = false) extends SumoTerraformEntity {
+abstract class ScalaSwaggerObject(name: String,
+                                  objType: ScalaSwaggerType,
+                                  required: Boolean,
+                                  defaultOpt: Option[AnyRef],
+                                  description: String,
+                                  example: String,
+                                  createOnly: Boolean = false) extends ScalaTerraformEntity {
   // TODO Assumption of NO collision without namespaces is probably wrong - should fix
-  def getAllTypes(): List[SumoSwaggerType] = {
+  def getAllTypes(): List[ScalaSwaggerType] = {
     List(objType) ++ objType.props.flatMap(_.getAllTypes())
   }
 
   def getName(): String = { name }
-  def getType(): SumoSwaggerType = { objType }
+  def getType(): ScalaSwaggerType = { objType }
   def getRequired(): Boolean = { required }
   def getDescription(): String = { description }
   def getExample(): String = { example }
@@ -22,10 +22,10 @@ abstract class SumoSwaggerObject(name: String,
   def getAsTerraformFunctionArgument(): String
 
   def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
-    val schemaType = if (this.isInstanceOf[SumoSwaggerObjectArray]) {
-      SumoTerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
+    val schemaType = if (this.isInstanceOf[ScalaSwaggerObjectArray]) {
+      TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
     } else {
-      SumoTerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)
+      TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)
     }
     val requiredTxt = if (required) { // TODO: check why Frank did it this way
       "Required: true"
@@ -41,9 +41,9 @@ abstract class SumoSwaggerObject(name: String,
       }
     }
 
-    val elementType = if (this.isInstanceOf[SumoSwaggerObjectArray]) {
+    val elementType = if (this.isInstanceOf[ScalaSwaggerObjectArray]) {
       s"""Elem:  &schema.Schema{
-         |            Type: ${SumoTerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)},
+         |            Type: ${TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)},
          |           },""".stripMargin
     } else {
       ""
@@ -53,14 +53,14 @@ abstract class SumoSwaggerObject(name: String,
   }
 }
 
-case class SumoSwaggerObjectSingle(name: String,
-                                   objType: SumoSwaggerType,
-                                   required: Boolean,
-                                   defaultOpt: Option[AnyRef],
-                                   description: String,
-                                   example: String,
-                                   createOnly: Boolean = false) extends
-  SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, createOnly) {
+case class ScalaSwaggerObjectSingle(name: String,
+                                    objType: ScalaSwaggerType,
+                                    required: Boolean,
+                                    defaultOpt: Option[AnyRef],
+                                    description: String,
+                                    example: String,
+                                    createOnly: Boolean = false) extends
+  ScalaSwaggerObject(name: String, objType: ScalaSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, createOnly) {
   override def terraformify(): String = {
     val req = if (name.toLowerCase != "id") {
       ""
@@ -79,14 +79,14 @@ case class SumoSwaggerObjectSingle(name: String,
   }
 }
 
-case class SumoSwaggerObjectArray(name: String,
-                                  objType: SumoSwaggerType,
-                                  required: Boolean,
-                                  defaultOpt: Option[AnyRef],
-                                  description: String,
-                                  example: String,
-                                  createOnly: Boolean = false) extends
-  SumoSwaggerObject(name: String, objType: SumoSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, createOnly) {
+case class ScalaSwaggerObjectArray(name: String,
+                                   objType: ScalaSwaggerType,
+                                   required: Boolean,
+                                   defaultOpt: Option[AnyRef],
+                                   description: String,
+                                   example: String,
+                                   createOnly: Boolean = false) extends
+  ScalaSwaggerObject(name: String, objType: ScalaSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, createOnly) {
   override def terraformify(): String = {
     val req = if (required) {
       ""

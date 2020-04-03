@@ -3,9 +3,9 @@ package com.sumologic.terraform_generator.writer
 import java.io.{BufferedWriter, File, FileWriter}
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.SumoSwaggerTemplate
+import com.sumologic.terraform_generator.objects.ScalaSwaggerTemplate
 
-abstract class SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate) extends StringHelper {
+abstract class TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) extends StringHelper {
   def writeToFile(filePath: String): Unit = {
     val text = generate()
     val file = new File(filePath)

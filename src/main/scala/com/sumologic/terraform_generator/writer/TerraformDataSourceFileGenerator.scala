@@ -1,9 +1,9 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.{SumoSwaggerTemplate, SumoSwaggerType, SumoTerraformEntity}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity}
 
-case class SumoTerraformDataSourceFileGenerator(terraform: SumoSwaggerTemplate)
-  extends SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate)
+case class TerraformDataSourceFileGenerator(terraform: ScalaSwaggerTemplate)
+  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate)
     with DataSourceGeneratorHelper {
   def generate(): String = {
     val pre = """// ----------------------------------------------------------------------------
@@ -27,15 +27,15 @@ case class SumoTerraformDataSourceFileGenerator(terraform: SumoSwaggerTemplate)
                 |)
                 |""".stripMargin
 
-    val dataSourceFunction = SwaggerDataSourceFunctionGenerator(terraform.getMainObjectClass())
+    val dataSourceFunction = DataSourceFunctionGenerator(terraform.getMainObjectClass())
     pre + terraform.getDataSourceFuncMappings() +
       dataSourceFunction.terraformify() +
       getTerraformObjectToResourceDataConverter(terraform.getMainObjectClass())
   }
 }
 
-case class SwaggerDataSourceFunctionGenerator(mainClass: SumoSwaggerType)
-  extends SumoTerraformEntity
+case class DataSourceFunctionGenerator(mainClass: ScalaSwaggerType)
+  extends ScalaTerraformEntity
     with DataSourceGeneratorHelper {
   def getTerraformDataResourceSetters(propName: String, objName: String): String = {
     s"""resourceData.Set("$propName", $objName.$propName)""".stripMargin

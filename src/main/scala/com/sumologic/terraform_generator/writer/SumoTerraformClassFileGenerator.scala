@@ -1,12 +1,12 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.SumoSwaggerSupportedOperations.crud
-import com.sumologic.terraform_generator.objects.{SumoSwaggerEndpoint, SumoSwaggerTemplate, SumoSwaggerType, SumoTerraformSupportedParameterTypes}
+import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerTemplate, ScalaSwaggerType, TerraformSupportedParameterTypes}
 
-case class SumoTerraformClassFileGenerator(terraform: SumoSwaggerTemplate)
-  extends SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate) {
+case class SumoTerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
+  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
   def generate(): String = {
-    val typesUsed: Set[SumoSwaggerType] = terraform.getAllTypesUsed()
+    val typesUsed: Set[ScalaSwaggerType] = terraform.getAllTypesUsed()
 
     val intro = s"""// ----------------------------------------------------------------------------
          |//
@@ -38,8 +38,8 @@ case class SumoTerraformClassFileGenerator(terraform: SumoSwaggerTemplate)
         }
     }
     val endpoints = endpointsWithChangedNames.map {
-      case endpoint: SumoSwaggerEndpoint =>
-        val bodyParams = endpoint.parameters.filter(_.paramType == SumoTerraformSupportedParameterTypes.BodyParameter)
+      case endpoint: ScalaSwaggerEndpoint =>
+        val bodyParams = endpoint.parameters.filter(_.paramType == TerraformSupportedParameterTypes.BodyParameter)
         if (bodyParams.size > 1 || endpoint.responses.filterNot(_.respTypeName.toLowerCase == "default").size > 1) {
           val paramsToExclude = bodyParams.filterNot(_.param.getName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase)
           val filteredEndpoint = endpoint.copy(parameters = endpoint.parameters diff paramsToExclude, responses = endpoint.responses.filter(_.respTypeName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase))
@@ -50,7 +50,7 @@ case class SumoTerraformClassFileGenerator(terraform: SumoSwaggerTemplate)
     }.mkString("")
 
     val types = typesUsed.map {
-      case stype: SumoSwaggerType =>
+      case stype: ScalaSwaggerType =>
         stype.terraformify() + "\n"
     }.mkString("")
 

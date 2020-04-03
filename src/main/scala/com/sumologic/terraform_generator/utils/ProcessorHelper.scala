@@ -1,7 +1,7 @@
 package com.sumologic.terraform_generator.utils
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{SumoSwaggerParameter, SumoTerraformSupportedParameterTypes}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerParameter, TerraformSupportedParameterTypes}
 import io.swagger.v3.oas.models.{OpenAPI, Operation}
 import io.swagger.v3.oas.models.media.{ComposedSchema, Schema}
 

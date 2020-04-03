@@ -1,9 +1,9 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.SumoSwaggerTemplate
+import com.sumologic.terraform_generator.objects.ScalaSwaggerTemplate
 
-case class SumoProviderGenerator(terraform: SumoSwaggerTemplate)
-  extends SumoTerraformFileGenerator(terraform: SumoSwaggerTemplate) {
+case class TerraformProviderFileGenerator(terraform: ScalaSwaggerTemplate)
+  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
   def generate(): String = {
     val pre = """// ----------------------------------------------------------------------------
                 |//

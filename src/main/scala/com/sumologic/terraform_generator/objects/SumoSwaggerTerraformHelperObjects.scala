@@ -1,11 +1,10 @@
 package com.sumologic.terraform_generator.objects
 
-object SumoSwaggerSupportedOperations {
+object TerraformSupportedOperations {
   final val CREATE = "create"
   final val GET = "get"
   final val UPDATE = "update"
   final val DELETE = "delete"
-  final val LIST = "list"
   final val EXISTS = "exists"
 
   val crud = List(CREATE, GET, UPDATE, DELETE, EXISTS)
@@ -17,7 +16,7 @@ object ForbiddenGoTerms {
   val forbidden = List(TYPE)
 }
 
-object SumoTerraformSchemaTypes {
+object TerraformSchemaTypes {
   final val TypeBool = "schema.TypeBool"
   final val TypeInt = "schema.TypeInt"
   final val TypeFloat = "schema.TypeFloat"
@@ -57,7 +56,7 @@ object SumoTerraformSchemaTypes {
   }
 }
 
-object SumoTerraformSupportedParameterTypes {
+object TerraformSupportedParameterTypes {
   final val PathParameter = "PathParameter"
   final val BodyParameter = "BodyParameter"
   final val QueryParameter = "QueryParameter"

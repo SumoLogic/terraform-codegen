@@ -1,10 +1,10 @@
 package com.sumologic.terraform_generator.objects
 
-import com.sumologic.terraform_generator.objects.SumoSwaggerSupportedOperations.crud
+import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
 
-case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
-                               supportedEndpoints: List[SumoSwaggerEndpoint]) extends SumoTerraformEntity {
-  def getAllTypesUsed(): Set[SumoSwaggerType] = {
+case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
+                                supportedEndpoints: List[ScalaSwaggerEndpoint]) extends ScalaTerraformEntity {
+  def getAllTypesUsed(): Set[ScalaSwaggerType] = {
     val responsesProps = supportedEndpoints.flatMap {
       endpoint =>
         endpoint.responses.flatMap {
@@ -41,36 +41,36 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
     Set(mainClassType) ++ otherTypes.map(_.getType()).toSet
   }
 
-  def getUpdateAndCreateRequestBodyType(): List[SumoSwaggerType] = {
-    val endpoints = supportedEndpoints.filter { op: SumoSwaggerEndpoint =>
-      op.endpointName.equalsIgnoreCase(SumoSwaggerSupportedOperations.UPDATE + sumoSwaggerClassName) ||
-        op.endpointName.equalsIgnoreCase(SumoSwaggerSupportedOperations.CREATE + sumoSwaggerClassName) ||
+  def getUpdateAndCreateRequestBodyType(): List[ScalaSwaggerType] = {
+    val endpoints = supportedEndpoints.filter { op: ScalaSwaggerEndpoint =>
+      op.endpointName.equalsIgnoreCase(TerraformSupportedOperations.UPDATE + sumoSwaggerClassName) ||
+        op.endpointName.equalsIgnoreCase(TerraformSupportedOperations.CREATE + sumoSwaggerClassName) ||
         op.responses.map(_.respTypeName).contains(sumoSwaggerClassName)
     }
 
     val types = endpoints.flatMap {
-      endpoint => endpoint.parameters.filter(_.paramType == SumoTerraformSupportedParameterTypes.BodyParameter)
+      endpoint => endpoint.parameters.filter(_.paramType == TerraformSupportedParameterTypes.BodyParameter)
         .flatMap(_.param.getAllTypes())
     }
 
     types.filter(_.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase())).toSet.toList
   }
 
-  def getAllRequestBodyTypesUsed(): Set[SumoSwaggerType] = {
+  def getAllRequestBodyTypesUsed(): Set[ScalaSwaggerType] = {
     supportedEndpoints.flatMap { endpoint =>
-      endpoint.parameters.filter(_.paramType == SumoTerraformSupportedParameterTypes.BodyParameter).
+      endpoint.parameters.filter(_.paramType == TerraformSupportedParameterTypes.BodyParameter).
         flatMap(_.param.getAllTypes())
     }.toSet
   }
 
   def getDataSourceFuncMappings(): String = {
     val funcMappings: String = getFunctionMappings(
-      List[String](SumoSwaggerSupportedOperations.GET)).mkString(",\n").concat(",")
+      List[String](TerraformSupportedOperations.GET)).mkString(",\n").concat(",")
 
     val mainClass = getMainObjectClass()
 
     val mainClassProps = mainClass.props.map {
-      case sobj: SumoSwaggerObject =>
+      case sobj: ScalaSwaggerObject =>
         sobj.getAsTerraformSchemaType(true)
     }.mkString(",\n").concat(",")
 
@@ -106,8 +106,8 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
     }
   }
 
-  def getMainObjectClass(): SumoSwaggerType = {
-    val typesUsed: Set[SumoSwaggerType] = getAllTypesUsed()
+  def getMainObjectClass(): ScalaSwaggerType = {
+    val typesUsed: Set[ScalaSwaggerType] = getAllTypesUsed()
 
     typesUsed.find {
       t => t.name.toUpperCase == sumoSwaggerClassName.toUpperCase() || t.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase)
@@ -131,13 +131,13 @@ case class SumoSwaggerTemplate(sumoSwaggerClassName: String,
 
 
     val propsObjects = classesProps.map {
-      sumoSwaggerObject: SumoSwaggerObject =>
+      sumoSwaggerObject: ScalaSwaggerObject =>
         sumoSwaggerObject.getAsTerraformSchemaType(false)
     }.toList.toSet.mkString(",\n         ").concat(",")
 
     // Only supporting query params for now. Assuming path parameters in CRUD endpoints will only be id. Not supporting header parameters yet.
     val requestMaps = supportedEndpoints.filter {
-      endpoint => endpoint.parameters.map(_.paramType).contains(SumoTerraformSupportedParameterTypes.QueryParameter)
+      endpoint => endpoint.parameters.map(_.paramType).contains(TerraformSupportedParameterTypes.QueryParameter)
     }.map {
       endpoint =>
         "\"" + s"${endpoint.httpMethod.toLowerCase}_request_map" + "\"" + s": {\n           Type: schema.TypeMap,\n          Optional: true,\n           Elem: &schema.Schema{\n            Type: schema.TypeString,\n            },\n         }"
