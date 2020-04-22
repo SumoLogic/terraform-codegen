@@ -213,7 +213,8 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   override def terraformify(): String = {
 
     crud.find {
-      op => endpoint.endpointName.toLowerCase.contains(op.toLowerCase) // || endpoint.endpointName.toLowerCase.contains("get")
+      op =>
+        endpoint.endpointName.toLowerCase.startsWith(op.toLowerCase) // || endpoint.endpointName.toLowerCase.contains("get")
     } match {
       case Some(opName) => this.getClass.getMethod("generateResourceFunction" + opName.toUpperCase()).invoke(this).toString
       case None => ""

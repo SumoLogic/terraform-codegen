@@ -4,7 +4,7 @@ import java.io.{BufferedWriter, File, FileWriter}
 
 import com.sumologic.terraform_generator.objects.ScalaSwaggerTemplate
 import com.sumologic.terraform_generator.utils.OpenApiProcessor
-import com.sumologic.terraform_generator.writer.{TerraformDocsGenerator, SumoTerraformClassFileGenerator, TerraformResourceFileGenerator, AcceptanceTestFileGenerator}
+import com.sumologic.terraform_generator.writer.{AcceptanceTestFileGenerator, ProviderFileGenerator, TerraformClassFileGenerator, TerraformDocsGenerator, TerraformResourceFileGenerator}
 import io.swagger.parser.OpenAPIParser
 import io.swagger.v3.parser.core.models.ParseOptions
 
@@ -42,10 +42,11 @@ object TerraformGenerator extends StringHelper {
       case (terraform: ScalaSwaggerTemplate, baseType: String) =>
         writeFiles(terraform, baseType)
     }
+    ProviderFileGenerator(terraforms.map(_._2)).writeToFile(resourcesDirectory + "provider.go")
   }
 
   def writeFiles(sumoSwaggerTemplate: ScalaSwaggerTemplate, baseType: String) = {
-    val genSumoClass = SumoTerraformClassFileGenerator(sumoSwaggerTemplate)
+    val genSumoClass = TerraformClassFileGenerator(sumoSwaggerTemplate)
     val terraformTypeName = removeCamelCase(baseType)
 
     genSumoClass.writeToFile(resourcesDirectory + s"sumologic_$terraformTypeName.go")

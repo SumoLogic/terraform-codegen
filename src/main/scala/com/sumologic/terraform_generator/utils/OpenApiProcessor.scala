@@ -29,7 +29,7 @@ object OpenApiProcessor extends ProcessorHelper {
         if (respObj.getContent != null && respObj.getContent.get("application/json") != null && respObj.getContent.get("application/json").getSchema != null) {
           Option(respObj.getContent.get("application/json").getSchema.get$ref()) match {
             case Some(ref) =>
-              val resourceName = ref.split("/").toList.last
+              val resourceName = ref.split("/").toList.last.replace("Model", "").replace("BaseDefinitionUpdate", "").replace("BaseResponse", "")
               if (getTaggedComponents(openApi).get(resourceName).isDefined) {
                 val swaggerType = processModel(openApi, ref, getTaggedComponents(openApi).get(resourceName).get)
                 List(ScalaSwaggerResponse(respName, Some(swaggerType)))
@@ -91,7 +91,6 @@ object OpenApiProcessor extends ProcessorHelper {
           component._1.toLowerCase.contains(baseType.toLowerCase)
         }
     }
-
     taggedResource.map {
       resource =>
         val modelName = if (resource._1.contains("/")) {
@@ -222,19 +221,23 @@ object OpenApiProcessor extends ProcessorHelper {
   def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod, baseType: String): ScalaSwaggerEndpoint = {
     val responses = processResponseObjects(openApi, operation.getResponses.asScala.toMap)
 
-    val params: List[ScalaSwaggerParameter] = operation.getParameters.asScala.flatMap { param: Parameter =>
-      param match {
-        case pathParam: PathParameter =>
-          List(processPathParameter(openApi, pathParam))
-        case queryParam: QueryParameter =>
-          List(processQueryParameter(openApi, queryParam))
-        case _ =>
-          if (param.getIn == null && param.getContent != null) {
-            processBodyParameter(openApi, param.getSchema, baseType)
-          }
-          throw new RuntimeException("This should not happen in processOperation ")
-      }
-    }.toList
+    val params: List[ScalaSwaggerParameter] = if (operation.getParameters != null) {
+      operation.getParameters.asScala.flatMap { param: Parameter =>
+        param match {
+          case pathParam: PathParameter =>
+            List(processPathParameter(openApi, pathParam))
+          case queryParam: QueryParameter =>
+            List(processQueryParameter(openApi, queryParam))
+          case _ =>
+            if (param.getIn == null && param.getContent != null) {
+              processBodyParameter(openApi, param.getSchema, baseType)
+            }
+            throw new RuntimeException("This should not happen in processOperation ")
+        }
+      }.toList
+    } else {
+      List.empty[ScalaSwaggerParameter]
+    }
 
     val requestBody: List[ScalaSwaggerParameter] = if (operation.getRequestBody != null) {
       processBodyParameter(openApi, operation.getRequestBody.getContent.get("application/json").getSchema, baseType)
@@ -288,25 +291,37 @@ object OpenApiProcessor extends ProcessorHelper {
       case (pathName: String, path: PathItem) =>
         if (path.getPost != null) {
           if (path.getPost.getTags != null) {
-            (pathName, path, path.getPost.getTags.asScala.head)
+            val displayName = openApi.getTags.asScala.filter {
+              tag => tag.getName == path.getPost.getTags.asScala.head
+            }.map(_.getExtensions.get("x-displayName")).head
+            (pathName, path, displayName)
           } else {
             (pathName, path, "noTag")
           }
         } else if (path.getGet != null) {
           if (path.getGet.getTags != null) {
-            (pathName, path, path.getGet.getTags.asScala.head)
+            val displayName = openApi.getTags.asScala.filter {
+              tag => tag.getName == path.getGet.getTags.asScala.head
+            }.map(_.getExtensions.get("x-displayName")).head
+            (pathName, path, displayName)
           } else {
             (pathName, path, "noTag")
           }
         } else if (path.getPut != null) {
           if (path.getPut.getTags != null) {
-            (pathName, path, path.getPut.getTags.asScala.head)
+            val displayName = openApi.getTags.asScala.filter {
+              tag => tag.getName == path.getPut.getTags.asScala.head
+            }.map(_.getExtensions.get("x-displayName")).head
+            (pathName, path, displayName)
           } else {
             (pathName, path, "noTag")
           }
         } else if (path.getDelete != null) {
           if (path.getDelete.getTags != null) {
-            (pathName, path, path.getDelete.getTags.asScala.head)
+            val displayName = openApi.getTags.asScala.filter {
+              tag => tag.getName == path.getDelete.getTags.asScala.head
+            }.map(_.getExtensions.get("x-displayName")).head
+            (pathName, path, displayName)
           } else {
             (pathName, path, "noTag")
           }
@@ -317,21 +332,24 @@ object OpenApiProcessor extends ProcessorHelper {
 
     val templates = filteredPaths.groupBy(_._3).flatMap {
       case (tag: String, paths: Iterable[(String, PathItem, String)]) =>
-        val baseTypeName = tag.replace("Management", "")
+        val baseTypeName = tag.toLowerCase.replace(" (beta)", "").stripSuffix("s")
         val endpoints = paths.flatMap {
           path: (String, PathItem, String) => processPath(openApi, path._2, path._1, baseTypeName)
         }
         val baseTypes = endpoints.flatMap {
           endpoint =>
-            endpoint.responses.map {
+            val responseAndParamNames = (endpoint.responses.map {
               response =>
                 if (response.respTypeOpt.isDefined) {
                   response.respTypeOpt.get.name
                 } else {
                   null
                 }
-            }
-        }.toSet.filter(_ != null)
+            } ++ endpoint.parameters.map {
+              param => param.param.getName
+            }).toSet.filter(_ != null)
+            getTaggedComponents(openApi).keys.toList.intersect(responseAndParamNames.toList)
+        }.toSet
         baseTypes.map {
           baseType =>
             (ScalaSwaggerTemplate(baseType, endpoints.toList), baseType)

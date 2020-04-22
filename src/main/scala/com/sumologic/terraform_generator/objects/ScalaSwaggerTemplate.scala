@@ -136,13 +136,19 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     }.toList.toSet.mkString(",\n         ").concat(",")
 
     // Only supporting query params for now. Assuming path parameters in CRUD endpoints will only be id. Not supporting header parameters yet.
+
     val requestMaps = supportedEndpoints.filter {
       endpoint => endpoint.parameters.map(_.paramType).contains(TerraformSupportedParameterTypes.QueryParameter)
     }.map {
       endpoint =>
         "\"" + s"${endpoint.httpMethod.toLowerCase}_request_map" + "\"" + s": {\n           Type: schema.TypeMap,\n          Optional: true,\n           Elem: &schema.Schema{\n            Type: schema.TypeString,\n            },\n         }"
-    }.mkString(",\n         ").concat(",")
+    }
 
+    val requestMapsString = if (requestMaps.nonEmpty) {
+      requestMaps.mkString(",\n         ").concat(",")
+    } else {
+      ""
+    }
 
 
     s"""func resourceSumologic${sumoSwaggerClassName.capitalize}() *schema.Resource {
@@ -154,7 +160,7 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
        |
       |       Schema: map[string]*schema.Schema{
        |        $propsObjects
-       |        $requestMaps
+       |        $requestMapsString
        |    },
        |  }
        |}""".stripMargin
