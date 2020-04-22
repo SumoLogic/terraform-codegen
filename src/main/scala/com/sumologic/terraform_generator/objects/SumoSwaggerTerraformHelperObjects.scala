@@ -38,11 +38,17 @@ object TerraformSchemaTypes {
     }
   }
 
-  def swaggerTypeToGoType(swaggerType: String): String = {
+  def swaggerTypeToGoType(swaggerType: String, format: String = null): String = {
     swaggerType match {
       case "boolean" => "bool"
       case "object" => "map[string]string"
       case "array" => "[]string"
+      case "integer" =>
+        if (format == "int32") {
+          "int32"
+        } else {
+          "int64"
+        }
       case _ => swaggerType
     }
   }
