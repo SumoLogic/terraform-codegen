@@ -32,6 +32,7 @@ abstract class ScalaSwaggerObject(name: String,
     } else {
       "Optional: true"
     }
+
     val specifics = if (forUseInDataResource) {
       "Computed: true"
     } else {
@@ -41,15 +42,31 @@ abstract class ScalaSwaggerObject(name: String,
       }
     }
 
-    val elementType = if (this.isInstanceOf[ScalaSwaggerObjectArray]) {
-      s"""Elem:  &schema.Schema{
-         |            Type: ${TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)},
-         |           },""".stripMargin
+    val validationAndDiffSuppress = if (!this.isInstanceOf[ScalaSwaggerObjectArray] && this.getType().props.nonEmpty) {
+      """ValidateFunc:     validation.StringIsJSON,
+        |				DiffSuppressFunc: suppressEquivalentJsonDiffs,""".stripMargin
     } else {
       ""
     }
+
+    val elementType = if (this.isInstanceOf[ScalaSwaggerObjectArray]) {
+      if (this.getType().props.nonEmpty) {
+        s"""Elem:  &schema.Schema{
+           |            Type: ${TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)},
+           |            ValidateFunc:     validation.StringIsJSON,
+           |				    DiffSuppressFunc: suppressEquivalentJsonDiffs,
+           |           },""".stripMargin
+      } else {
+        s"""Elem:  &schema.Schema{
+           |            Type: ${TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)},
+           |           },""".stripMargin
+      }
+    } else {
+      ""
+    }
+
     val noCamelCaseName = removeCamelCase(name)
-    "\"" + noCamelCaseName + "\"" + s": {\n           Type: $schemaType,\n          $requiredTxt,\n           $specifics,\n           $elementType\n         }"
+    "\"" + noCamelCaseName + "\"" + s": {\n           Type: $schemaType,\n          $requiredTxt,\n           $specifics,\n           $validationAndDiffSuppress\n           $elementType\n         }"
   }
 }
 

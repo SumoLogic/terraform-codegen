@@ -33,7 +33,7 @@ object TerraformSchemaTypes {
       case "bool" => TypeBool
       case "float" => TypeFloat // TODO does float exist in swagger?
       case "array" => TypeList
-      case _ => TypeMap // TODO this generalization is way too naiive
+      case _ => TypeString // TODO this generalization is way too naiive
       //TODO Date type? translates to TypeString
     }
   }
