@@ -1,14 +1,16 @@
 package com.sumologic.terraform_generator.writer
 
 import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformSupportedParameterTypes}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformSupportedParameterTypes}
 
 case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate)
     with ResourceGeneratorHelper {
   def generate(): String = {
-    val specialImport = if (terraform.getResourceFuncMappings().contains("Elem:  &schema.Schema{\n            Type: schema.TypeMap,\n           }")) {
-      """"github.com/mitchellh/mapstructure""""
+    val specialImport = if (terraform.getMainObjectClass().props.exists {
+      prop => prop.getType().props.nonEmpty
+    }) {
+      """"github.com/hashicorp/terraform-plugin-sdk/helper/validation""""
     } else {
       ""
     }
@@ -59,6 +61,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   } else {
     ""
   }
+
   // TODO: This is gross, generalize if possible
   def generateResourceFunctionGET(): String = {
     val setters = mainClass.props.filter(_.getName().toLowerCase != "id").map {

@@ -330,10 +330,10 @@ object OpenApiProcessor extends ProcessorHelper {
         }
     }
 
-    val templates = filteredPaths.groupBy(_._3).flatMap {
-      case (tag: String, paths: Iterable[(String, PathItem, String)]) =>
+    val templates = filteredPaths.toList.groupBy(_._3).flatMap {
+      case (tag: String, paths: List[(String, PathItem, String)]) =>
         val baseTypeName = tag.toLowerCase.replace(" (beta)", "").stripSuffix("s")
-        val endpoints = paths.flatMap {
+        val endpoints: List[ScalaSwaggerEndpoint] = paths.flatMap {
           path: (String, PathItem, String) => processPath(openApi, path._2, path._1, baseTypeName)
         }
         val baseTypes = endpoints.flatMap {
