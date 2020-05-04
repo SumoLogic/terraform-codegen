@@ -1,5 +1,5 @@
 # SwaggerToTerraformGenerator
-Terraform support for OpenAPI compliant APIs with some restrictions (see [What types of APIs are supported?](what-types-of-api-are-supported) section)
+Terraform support for OpenAPI compliant APIs with some restrictions (see [What types of APIs are supported?](what-types-of-apis-are-supported) section)
 
 
 ## What types of APIs are supported?
