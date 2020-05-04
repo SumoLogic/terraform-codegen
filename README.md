@@ -1,5 +1,5 @@
 # SwaggerToTerraformGenerator
-Terraform support for OpenAPI compliant APIs with some restrictions (see [What types of APIs are supported?](what-types-of-api-are-supported?))
+Terraform support for OpenAPI compliant APIs with some restrictions (see [What types of APIs are supported?](what-types-of-api-are-supported) section)
 
 
 ## What types of APIs are supported?
@@ -29,7 +29,7 @@ Examples:
   ./bin/run.sh ../sumo/external-api/src/main/openapi/schema/dev-api.yml
   ```
 
-_For this to generate anything, at least one API must be correctly tagged_. See [How to enable the Generator for your API?](#how-to-enable-the-generator-for-your-api?) for details.
+_For this to generate anything, at least one API must be correctly tagged_. See [How to enable the Generator for your API?](#how-to-enable-the-generator-for-your-api) for details.
 
 
 ## How to enable the Generator for your API?
