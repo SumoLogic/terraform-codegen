@@ -53,7 +53,12 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   val className = mainClass.name
   val objName = lowerCaseFirstLetter(className)
 
-  val requestMap = if (endpoint.parameters.map(_.paramType).contains(TerraformSupportedParameterTypes.QueryParameter)) {
+  val hasParams = endpoint.parameters.map(_.paramType).exists { param =>
+    param.contains(TerraformSupportedParameterTypes.QueryParameter) ||
+        param.contains(TerraformSupportedParameterTypes.HeaderParameter)
+  }
+
+  val requestMap = if (hasParams) {
     s"""requestParams := make(map[string]string)
        |	for k, v := range d.Get("${endpoint.httpMethod.toLowerCase}_request_map").(map[string]interface{}) {
        |		requestParams[k] = v.(string)

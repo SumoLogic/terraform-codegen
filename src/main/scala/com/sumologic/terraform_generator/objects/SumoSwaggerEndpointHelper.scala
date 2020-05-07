@@ -23,7 +23,12 @@ trait SumoSwaggerEndpointHelper extends StringHelper {
 
   def getArgsListForDecl(params: List[ScalaSwaggerParameter]): List[String] = {
     // TODO val queryParamList = params.filter(_.paramType == SumoTerraformSupportedParameterTypes.QueryParameter)
-    val requestMap = if (params.map(_.paramType).contains(TerraformSupportedParameterTypes.QueryParameter)) {
+
+    val hasParams = params.map(_.paramType).exists { paramType =>
+      paramType.equals(TerraformSupportedParameterTypes.QueryParameter) ||
+          paramType.equals(TerraformSupportedParameterTypes.HeaderParameter)
+    }
+    val requestMap = if (hasParams) {
       List("paramMap map[string]string")
     } else {
       List.empty[String]

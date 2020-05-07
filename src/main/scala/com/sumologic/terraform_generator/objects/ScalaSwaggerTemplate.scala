@@ -137,8 +137,11 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
 
     // Only supporting query params for now. Assuming path parameters in CRUD endpoints will only be id. Not supporting header parameters yet.
 
-    val requestMaps = supportedEndpoints.filter {
-      endpoint => endpoint.parameters.map(_.paramType).contains(TerraformSupportedParameterTypes.QueryParameter)
+    val requestMaps = supportedEndpoints.filter { endpoint =>
+      val paramTypes = endpoint.parameters.map(_.paramType)
+      paramTypes.exists { x =>
+        x == TerraformSupportedParameterTypes.QueryParameter || x == TerraformSupportedParameterTypes.HeaderParameter
+      }
     }.map {
       endpoint =>
         "\"" + s"${endpoint.httpMethod.toLowerCase}_request_map" + "\"" + s": {\n           Type: schema.TypeMap,\n          Optional: true,\n           Elem: &schema.Schema{\n            Type: schema.TypeString,\n            },\n         }"
