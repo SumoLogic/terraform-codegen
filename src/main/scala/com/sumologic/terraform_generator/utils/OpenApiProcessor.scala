@@ -78,36 +78,15 @@ object OpenApiProcessor extends ProcessorHelper {
         queryParam.getRequired, Some(queryParam.getSchema.getDefault.asInstanceOf[AnyRef]), queryParam.getSchema.getDescription, ""))
   }
 
-  def processBodyParameter(openApi: OpenAPI, bodyParam: Schema[_], baseType: String): List[ScalaSwaggerParameter] = {
+  def processBodyParameter(openApi: OpenAPI, bodyParam: Schema[_]): List[ScalaSwaggerParameter] = {
     val defName: String = bodyParam.get$ref().split("#/components/schemas/").last
-    val modelOpt = Option(getComponent(openApi, defName)._2)
-    val taggedResource = getTaggedComponents(openApi).filter {
-      component =>
-        if (component.isInstanceOf[ComposedSchema]) {
-          component._1.toLowerCase.contains(baseType.toLowerCase) || (component._2.asInstanceOf[ComposedSchema].getAllOf != null && component._2.asInstanceOf[ComposedSchema].getAllOf.asScala.count {
-            x => x.get$ref() != null && x.get$ref().toLowerCase.contains(baseType.toLowerCase)
-          } == 1)
-        } else {
-          component._1.toLowerCase.contains(baseType.toLowerCase)
-        }
-    }
-    taggedResource.map {
-      resource =>
-        val modelName = if (resource._1.contains("/")) {
-          resource._1.split("/").last
-        } else {
-          resource._1
-        }
+    val (modelName, model) = getComponent(openApi, defName)
 
-        modelOpt match {
-          case Some(model) =>
-            val swaggerType = processModel(openApi, modelName, resource._2)
-            ScalaSwaggerParameter(TerraformSupportedParameterTypes.BodyParameter,
-              ScalaSwaggerObjectSingle(modelName, swaggerType, true, None, resource._2.getDescription, ""))
-          case None =>
-            throw new RuntimeException("This should not happen in processBodyParameter ")
-        }
-    }.toList
+    val swaggerType = processModel(openApi, modelName, model)
+    val swaggerParameter = ScalaSwaggerParameter(TerraformSupportedParameterTypes.BodyParameter,
+      ScalaSwaggerObjectSingle(defName, swaggerType, true, None, model.getDescription, ""))
+
+    List(swaggerParameter)
   }
 
   def processComposedModel(openApi: OpenAPI, modelDefName: String, composedModel: ComposedSchema): ScalaSwaggerType = {
@@ -230,7 +209,7 @@ object OpenApiProcessor extends ProcessorHelper {
             List(processQueryParameter(openApi, queryParam))
           case _ =>
             if (param.getIn == null && param.getContent != null) {
-              processBodyParameter(openApi, param.getSchema, baseType)
+              processBodyParameter(openApi, param.getSchema)
             }
             throw new RuntimeException("This should not happen in processOperation ")
         }
@@ -240,7 +219,7 @@ object OpenApiProcessor extends ProcessorHelper {
     }
 
     val requestBody: List[ScalaSwaggerParameter] = if (operation.getRequestBody != null) {
-      processBodyParameter(openApi, operation.getRequestBody.getContent.get("application/json").getSchema, baseType)
+      processBodyParameter(openApi, operation.getRequestBody.getContent.get("application/json").getSchema)
     } else {
       List.empty[ScalaSwaggerParameter]
     }

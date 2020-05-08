@@ -105,11 +105,14 @@ trait ProcessorHelper extends StringHelper {
   }
 
   def getComponent(openAPI: OpenAPI, name: String): (String, Schema[_]) = {
-    val component = openAPI.getComponents.getSchemas.asScala.filter(_._1 == name).head
-    if (component._2.getExtensions != null && component._2.getExtensions.asScala.contains("x-tf-resource-name")) {
-      (component._2.getExtensions.asScala("x-tf-resource-name").toString, component._2)
+    val component = openAPI.getComponents.getSchemas.asScala.getOrElse(name,
+      throw new Exception(s"Unexpected error. Missing schema for $name") // throw a better exception
+    )
+
+    if (component.getExtensions != null && component.getExtensions.asScala.contains("x-tf-resource-name")) {
+      (component.getExtensions.asScala("x-tf-resource-name").toString, component)
     } else {
-      component
+      (name, component)
     }
   }
 
