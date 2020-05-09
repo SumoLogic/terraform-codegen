@@ -197,7 +197,7 @@ object OpenApiProcessor extends ProcessorHelper {
     }
   }
 
-  def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod, baseType: String): ScalaSwaggerEndpoint = {
+  def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod): ScalaSwaggerEndpoint = {
     val responses = processResponseObjects(openApi, operation.getResponses.asScala.toMap)
 
     val params: List[ScalaSwaggerParameter] = if (operation.getParameters != null) {
@@ -228,7 +228,7 @@ object OpenApiProcessor extends ProcessorHelper {
     ScalaSwaggerEndpoint(operation.getOperationId, pathName, method.name(), allParams, responses)
   }
 
-  def processPath(openApi: OpenAPI, path: PathItem, pathName: String, baseType: String):
+  def processPath(openApi: OpenAPI, path: PathItem, pathName: String):
   List[ScalaSwaggerEndpoint] = {
     val operationMap = Map(
       HttpMethod.GET -> path.getGet,
@@ -243,7 +243,7 @@ object OpenApiProcessor extends ProcessorHelper {
 
     filteredOps.map {
       case (method: HttpMethod, operation: Operation) =>
-        processOperation(openApi, operation, pathName, method, baseType)
+        processOperation(openApi, operation, pathName, method)
     }.toList
   }
 
@@ -313,7 +313,7 @@ object OpenApiProcessor extends ProcessorHelper {
       case (tag: String, paths: List[(String, PathItem, String)]) =>
         val baseTypeName = tag.toLowerCase.replace(" (beta)", "").stripSuffix("s")
         val endpoints: List[ScalaSwaggerEndpoint] = paths.flatMap {
-          path: (String, PathItem, String) => processPath(openApi, path._2, path._1, baseTypeName)
+          path: (String, PathItem, String) => processPath(openApi, path._2, path._1)
         }
         val baseTypes = endpoints.flatMap {
           endpoint =>
