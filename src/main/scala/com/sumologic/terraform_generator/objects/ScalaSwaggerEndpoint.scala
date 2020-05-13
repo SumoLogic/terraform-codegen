@@ -103,7 +103,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     }
   }
 
-  def getParamString(): String = {
+  def getParamString: String = {
     val params = this.parameters
     val taggedResource = if (this.httpMethod.toLowerCase != "delete") {
       this.responses.filter {
@@ -112,12 +112,14 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     } else {
       ""
     }
+
     val pathParams = params.filter {
       param => param.paramType == TerraformSupportedParameterTypes.PathParameter
     }
     val queryParams = params.filter {
       param => param.paramType == TerraformSupportedParameterTypes.QueryParameter
     }
+
     if(queryParams.nonEmpty || pathParams.nonEmpty) {
       val pathParamString = if (pathParams.nonEmpty) {
         pathParams.map {
@@ -161,6 +163,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
       } else {
         ""
       }
+
       s"""paramString := ""
          |sprintfArgs := []interface{}{}
          |${pathParamString}
@@ -173,27 +176,59 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     }
   }
 
-  override def terraformify(): String = {
+  def getHeaderString: String = {
+    val headerParams = this.parameters.filter {
+      param => param.paramType == TerraformSupportedParameterTypes.HeaderParameter
+    }
 
-    val urlWithoutParamsString = s"""urlWithoutParams := "${path.replaceFirst(s"\\/\\{id\\}", "")}"""".replaceFirst("/", "")
-    val setParamString = getParamString()
+    val headers = headerParams.map {
+      headerParam =>
+        s"""if val, ok := paramMap["${lowerCaseFirstLetter(headerParam.param.getName())}"]; ok {
+           |    reqHeaders["${lowerCaseFirstLetter(headerParam.param.getName())}"] = val
+           |}""".stripMargin
+    }.mkString("\n")
+
+    val reqHeadersVarName = "reqHeaders"
+    val reqHeaders = if (headers.isEmpty) {
+        ""
+      } else {
+        s"""
+          |$reqHeadersVarName := make(map[string]string)
+          |${headers}
+          |""".stripMargin
+      }
+
+    reqHeaders
+  }
+
+
+  override def terraformify(): String = {
+    val urlWithoutParamsString =
+      s"""urlWithoutParams := "${path.replaceFirst(s"\\/\\{id\\}", "")}"""".replaceFirst("/", "")
+
+    // path, query and header params
+    val setParamString = getParamString
     val urlWithParamsString = if (this.httpMethod.toLowerCase == "post") {
       ""
     } else {
       """urlWithParams := fmt.Sprintf(urlWithoutParams + paramString, sprintfArgs...)"""
     }
-    val responseProps = getReturnTypesBasedOnRespone()
+    val setRequestHeaders = getHeaderString
+
     val urlCall = getUrlCallBasedOnHttpMethod()
 
+    val response = getReturnTypesBasedOnRespone()
     val args = makeArgsListForDecl(this.parameters)
+
     s"""
-       |func (s *Client) ${this.endpointName.capitalize}($args) ${responseProps.declReturnType} {
+       |func (s *Client) ${this.endpointName.capitalize}($args) ${response.declReturnType} {
        |    $urlWithoutParamsString
        |    $setParamString
        |    $urlWithParamsString
+       |    $setRequestHeaders
        |    $urlCall
-       |    ${responseProps.responseVarDecl}
-       |    ${responseProps.unmarshal}
+       |    ${response.responseVarDecl}
+       |    ${response.unmarshal}
        |}
        |""".stripMargin
   }

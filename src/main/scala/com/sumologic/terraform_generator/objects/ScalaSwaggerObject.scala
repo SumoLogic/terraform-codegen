@@ -75,7 +75,7 @@ case class ScalaSwaggerObjectSingle(name: String,
                                     required: Boolean,
                                     defaultOpt: Option[AnyRef],
                                     description: String,
-                                    example: String,
+                                    example: String = "",
                                     createOnly: Boolean = false) extends
   ScalaSwaggerObject(name: String, objType: ScalaSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, createOnly) {
   override def terraformify(): String = {

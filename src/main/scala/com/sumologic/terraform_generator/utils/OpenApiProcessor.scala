@@ -3,7 +3,7 @@ package com.sumologic.terraform_generator.utils
 import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerObjectSingle, ScalaSwaggerParameter, ScalaSwaggerResponse, ScalaSwaggerTemplate, ScalaSwaggerType, TerraformSchemaTypes, TerraformSupportedParameterTypes}
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 import io.swagger.v3.oas.models.media.{ArraySchema, ComposedSchema, Schema}
-import io.swagger.v3.oas.models.parameters.{Parameter, PathParameter, QueryParameter}
+import io.swagger.v3.oas.models.parameters.{HeaderParameter, Parameter, PathParameter, QueryParameter}
 import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.{OpenAPI, Operation, PathItem}
 
@@ -76,6 +76,19 @@ object OpenApiProcessor extends ProcessorHelper {
       ScalaSwaggerObjectSingle(queryParam.getName,
         ScalaSwaggerType(queryParam.getSchema.getType, List[ScalaSwaggerObject]()),
         queryParam.getRequired, Some(queryParam.getSchema.getDefault.asInstanceOf[AnyRef]), queryParam.getSchema.getDescription, ""))
+  }
+
+  def processHeaderParameter(openApi: OpenAPI, headerParam: HeaderParameter): ScalaSwaggerParameter = {
+    ScalaSwaggerParameter(
+      TerraformSupportedParameterTypes.HeaderParameter,
+      ScalaSwaggerObjectSingle(
+        headerParam.getName,
+        ScalaSwaggerType(headerParam.getSchema.getType, List[ScalaSwaggerObject]()),
+        headerParam.getRequired,
+        Some(headerParam.getSchema.getDefault.asInstanceOf[AnyRef]),
+        headerParam.getSchema.getDescription
+      )
+    )
   }
 
   def processBodyParameter(openApi: OpenAPI, bodyParam: Schema[_]): List[ScalaSwaggerParameter] = {
@@ -207,6 +220,8 @@ object OpenApiProcessor extends ProcessorHelper {
             List(processPathParameter(openApi, pathParam))
           case queryParam: QueryParameter =>
             List(processQueryParameter(openApi, queryParam))
+          case headerParam: HeaderParameter =>
+            List(processHeaderParameter(openApi, headerParam))
           case _ =>
             if (param.getIn == null && param.getContent != null) {
               processBodyParameter(openApi, param.getSchema)

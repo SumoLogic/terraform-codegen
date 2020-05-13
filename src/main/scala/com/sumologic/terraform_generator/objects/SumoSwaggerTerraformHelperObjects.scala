@@ -66,4 +66,5 @@ object TerraformSupportedParameterTypes {
   final val PathParameter = "PathParameter"
   final val BodyParameter = "BodyParameter"
   final val QueryParameter = "QueryParameter"
+  final val HeaderParameter = "HeaderParameter"
 }

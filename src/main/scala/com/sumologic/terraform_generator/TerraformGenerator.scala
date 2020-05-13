@@ -45,7 +45,7 @@ object TerraformGenerator extends StringHelper {
     ProviderFileGenerator(terraforms.map(_._2)).writeToFile(resourcesDirectory + "provider.go")
   }
 
-  def writeFiles(sumoSwaggerTemplate: ScalaSwaggerTemplate, baseType: String) = {
+  def writeFiles(sumoSwaggerTemplate: ScalaSwaggerTemplate, baseType: String): Unit = {
     val genSumoClass = TerraformClassFileGenerator(sumoSwaggerTemplate)
     val terraformTypeName = removeCamelCase(baseType)
 
