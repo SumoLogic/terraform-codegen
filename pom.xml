@@ -50,6 +50,20 @@
       <version>2.0.13-OpenAPITools.org-1</version>
     </dependency>
 
+    <!-- https://mvnrepository.com/artifact/dk.brics.automaton/automaton -->
+    <dependency>
+      <groupId>dk.brics.automaton</groupId>
+      <artifactId>automaton</artifactId>
+      <version>1.11-8</version>
+    </dependency>
+
+    <!-- https://mvnrepository.com/artifact/com.github.krraghavan/xeger -->
+    <dependency>
+      <groupId>com.github.krraghavan</groupId>
+      <artifactId>xeger</artifactId>
+      <version>1.0.0-RELEASE</version>
+    </dependency>
+
   </dependencies>
 
   <build>
