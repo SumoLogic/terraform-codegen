@@ -1,7 +1,7 @@
 package com.sumologic.terraform_generator.writer
 
 import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformSupportedParameterTypes}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerParameter, ScalaSwaggerResponse, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformSupportedParameterTypes}
 
 case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate)
@@ -50,15 +50,41 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
 }
 
 case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: ScalaSwaggerType) extends ScalaTerraformEntity {
-  val className = mainClass.name
-  val objName = lowerCaseFirstLetter(className)
+  val className: String = mainClass.name
+  val objName: String = lowerCaseFirstLetter(className)
 
-  val hasParams = endpoint.parameters.map(_.paramType).exists { param =>
+  val hasParams: Boolean = endpoint.parameters.map(_.paramType).exists { param =>
     param.contains(TerraformSupportedParameterTypes.QueryParameter) ||
         param.contains(TerraformSupportedParameterTypes.HeaderParameter)
   }
 
-  val requestMap = if (hasParams) {
+  val modelInResponse: Option[ScalaSwaggerResponse] = endpoint.responses.find {
+    response =>
+      if (response.respTypeOpt.isDefined) {
+        response.respTypeOpt.get.name.toLowerCase.contains(objName.toLowerCase)
+      } else {
+        false
+      }
+  }
+  val modelInParam: Option[ScalaSwaggerParameter] = endpoint.parameters.find {
+    parameter =>
+      parameter.param.getName.toLowerCase.contains(objName.toLowerCase)
+  }
+  val parameter: String = if (modelInResponse.isDefined) {
+    modelInResponse.get.respTypeOpt.get.name
+  } else if (modelInParam.isDefined) {
+    modelInParam.get.param.getName()
+  } else {
+    if (endpoint.httpMethod.toLowerCase == "get" || endpoint.httpMethod.toLowerCase == "delete") {
+      ""
+    } else {
+      println(objName)
+      println(endpoint.toString)
+      throw new RuntimeException("No model detected.")
+    }
+  }
+
+  val requestMap: String = if (hasParams) {
     s"""requestParams := make(map[string]string)
        |	for k, v := range d.Get("${endpoint.httpMethod.toLowerCase}_request_map").(map[string]interface{}) {
        |		requestParams[k] = v.(string)
@@ -126,15 +152,6 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
 
   // TODO: This is gross, generalize if possible
   def generateResourceFunctionUPDATE(): String = {
-    val parameter = endpoint.responses.filter {
-      response =>
-        if (response.respTypeOpt.isDefined) {
-          response.respTypeOpt.get.name.toLowerCase.contains(objName.toLowerCase)
-        } else {
-          false
-        }
-    }.head.respTypeOpt.get.name
-
     val lowerCaseName = parameter.substring(0, 1).toLowerCase() + parameter.substring(1)
 
     val clientCall = if (!requestMap.isEmpty) {
@@ -163,15 +180,6 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
 
   // TODO: This is gross, generalize if possible
   def generateResourceFunctionCREATE(): String = {
-    val parameter = endpoint.responses.filter {
-      response =>
-        if (response.respTypeOpt.isDefined) {
-          response.respTypeOpt.get.name.toLowerCase.contains(objName.toLowerCase)
-        } else {
-          false
-        }
-    }.head.respTypeOpt.get.name
-
     val lowerCaseName = parameter.substring(0, 1).toLowerCase() + parameter.substring(1)
 
     val clientCall = if (!requestMap.isEmpty) {
@@ -224,7 +232,8 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
       op =>
         endpoint.endpointName.toLowerCase.startsWith(op.toLowerCase) // || endpoint.endpointName.toLowerCase.contains("get")
     } match {
-      case Some(opName) => this.getClass.getMethod("generateResourceFunction" + opName.toUpperCase()).invoke(this).toString
+      case Some(opName) =>
+        this.getClass.getMethod("generateResourceFunction" + opName.toUpperCase()).invoke(this).toString
       case None => ""
     }
   }

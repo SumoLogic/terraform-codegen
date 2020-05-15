@@ -31,7 +31,7 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     }.toSet
 
     val mainClassType = endpointsSet.filter {
-      sType => sType.name.toLowerCase.contains(sumoSwaggerClassName.toLowerCase)
+      sType => sType.name.toLowerCase.equals(sumoSwaggerClassName.toLowerCase)
     }.head
 
     val otherTypes = mainClassType.props.filter {
