@@ -16,6 +16,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           "false"
         }
       case "int64" | "int32" =>
+        //TODO: Add functionality to update ints
         if (prop.getDefault().isDefined) {
           prop.getDefault().get.toString
         } else if (prop.getExample().nonEmpty) {
@@ -26,25 +27,21 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
       case "[]string" =>
         if (prop.getDefault().isDefined) {
           val default = prop.getDefault().get.asInstanceOf[List[String]]
-          s"""[]string{${default.map {
-            item => s"""$item"""
-          }.mkString(", ")}}"""
+          s"""[]string{"${default.head.replace("\"", "\\\"")}"}"""
         } else if (prop.getExample().nonEmpty) {
           val items = prop.getExample().replace("[", "").replace("]", "").split(",")
-          s"""[]string{${items.map {
-            item => s"""$item"""
-          }.mkString(", ")}}"""
+          s"""[]string{"${items.head.replace("\"", "\\\"")}"}"""
         } else if (prop.asInstanceOf[ScalaSwaggerObjectArray].getPattern().nonEmpty) {
           val generator = new Xeger(prop.getPattern())
           val generatedString = generator.generate()
-          s"""[]string{"$generatedString"}"""
+          s"""[]string{"${generatedString.replace("\"", "\\\"")}"}"""
         } else {
           val r = new Random
           val sb = new StringBuilder
           for (i <- 1 to 10) {
             sb.append(r.nextPrintableChar)
           }
-          s"""[]string{"${sb.toString()}"}"""
+          s"""[]string{"${sb.toString().replace("\"", "\\\"")}"}"""
         }
       case "string" =>
         //NOTE: Making an assumption that there will always be at least one string field

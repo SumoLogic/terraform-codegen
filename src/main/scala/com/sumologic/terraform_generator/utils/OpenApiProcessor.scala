@@ -81,7 +81,14 @@ object OpenApiProcessor extends ProcessorHelper {
         queryParam.getRequired,
         Some(queryParam.getSchema.getDefault.asInstanceOf[AnyRef]),
         queryParam.getSchema.getDescription,
-        Option(queryParam.getExample).map(_.toString).getOrElse(""),
+        Option(queryParam.getExample).map {
+          example => queryParam.getSchema match {
+            case _: ArraySchema =>
+              example.asInstanceOf[Array[_]].mkString(", ")
+            case _ =>
+              example.toString
+          }
+        }.getOrElse(""),
         Option(queryParam.getSchema).map(_.getPattern).getOrElse("")))
   }
 
