@@ -34,7 +34,9 @@ case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClas
   }
 }
 
-case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, mainClass: ScalaSwaggerType) extends ScalaTerraformEntity {
+case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, mainClass: ScalaSwaggerType)
+  extends ScalaTerraformEntity
+    with AcceptanceTestGeneratorHelper {
   val className = mainClass.name
   val objName = lowerCaseFirstLetter(className)
   val resourceProps = sumoSwaggerTemplate.getAllTypesUsed().head
@@ -42,18 +44,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   def generateTestFunctionCreateBasic(): String = {
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        prop.getType.name match {
-          case "array" =>
-            s"""test${prop.getName.capitalize} := []string{"\"" + FieldsMap["${className}"]["${prop.getName()}"] + "\""}"""
-          case "bool" =>
-            s"""test${prop.getName.capitalize}, _ := strconv.ParseBool(FieldsMap["${className}"]["${prop.getName()}"])"""
-          case _ =>
-            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
-              s"""test${prop.getName.capitalize} := []string{"\\"" + FieldsMap["${className}"]["${prop.getName()}"] + "\\""}"""
-            } else {
-              s"""test${prop.getName.capitalize} := FieldsMap["${className}"]["${prop.getName()}"]"""
-            }
-        }
+        s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
     }.mkString("\n  ")
 
     val testNames = filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -86,18 +77,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   def generateTestFunctionCreate(): String = {
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        prop.getType.name match {
-          case "array" =>
-            s"""test${prop.getName.capitalize} := []string{"\"" + FieldsMap["${className}"]["${prop.getName()}"] + "\""}"""
-          case "bool" =>
-            s"""test${prop.getName.capitalize}, _ := strconv.ParseBool(FieldsMap["$className"]["${prop.getName()}"])"""
-          case _ =>
-            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
-              s"""test${prop.getName.capitalize} := []string{"\\"" + FieldsMap["${className}"]["${prop.getName()}"] + "\\""}"""
-            } else {
-              s"""test${prop.getName.capitalize} := FieldsMap["$className"]["${prop.getName()}"]"""
-            }
-        }
+        s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
     }.mkString("\n  ")
 
     val testNames = "(" + filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -192,33 +172,11 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   def generateTestFunctionUpdate(): String = {
     val testArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        prop.getType.name match {
-          case "array" =>
-            s"""test${prop.getName.capitalize} := []string{"\"" + FieldsMap["${className}"]["${prop.getName()}"] + "\""}"""
-          case "bool" =>
-            s"""test${prop.getName.capitalize}, _ := strconv.ParseBool(FieldsMap["$className"]["${prop.getName()}"])"""
-          case _ =>
-            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
-              s"""test${prop.getName.capitalize} := []string{"\\"" + FieldsMap["${className}"]["${prop.getName()}"] + "\\""}"""
-            } else {
-              s"""test${prop.getName.capitalize} := FieldsMap["$className"]["${prop.getName()}"]"""
-            }
-        }
+        s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
     }.mkString("\n  ")
     val testUpdateArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        prop.getType.name match {
-          case "array" =>
-            s"""testUpdated${prop.getName.capitalize} := []string{"\"" + FieldsMap["${className}"]["updated${prop.getName().capitalize}"] + "\""}"""
-          case "bool" =>
-            s"""testUpdated${prop.getName.capitalize}, _ := strconv.ParseBool(FieldsMap["$className"]["updated${prop.getName().capitalize}"])"""
-          case _ =>
-            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
-              s"""testUpdated${prop.getName.capitalize} := []string{"\\"" + FieldsMap["${className}"]["updated${prop.getName().capitalize}"] + "\\""}"""
-            } else {
-              s"""testUpdated${prop.getName.capitalize} := FieldsMap["$className"]["updated${prop.getName().capitalize}"]"""
-            }
-        }
+        s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true)}"""
     }.mkString("\n  ")
     val argList = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop => s"""test${prop.getName().capitalize}"""
