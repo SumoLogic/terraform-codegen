@@ -28,6 +28,11 @@
       <name>libs-snapshot</name>
       <url>https://sumologicusw1.jfrog.io/sumologicusw1/libs-snapshot</url>
     </repository>
+    <repository>
+      <id>scala-tools.org</id>
+      <name>Scala-Tools Maven2 Repository</name>
+      <url>http://scala-tools.org/repo-releases</url>
+    </repository>
   </repositories>
 
   <pluginRepositories>
@@ -44,6 +49,11 @@
       <id>snapshots</id>
       <name>plugins-snapshot</name>
       <url>https://sumologicusw1.jfrog.io/sumologicusw1/plugins-snapshot</url>
+    </pluginRepository>
+    <pluginRepository>
+      <id>scala-tools.org</id>
+      <name>Scala-Tools Maven2 Repository</name>
+      <url>http://scala-tools.org/repo-releases</url>
     </pluginRepository>
   </pluginRepositories>
 
