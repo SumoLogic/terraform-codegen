@@ -50,10 +50,10 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
 
     val types = endpoints.flatMap {
       endpoint => endpoint.parameters.filter(_.paramType == TerraformSupportedParameterTypes.BodyParameter)
-        .flatMap(_.param.getAllTypes())
+        .flatMap(_.param.getAllTypes()) ++ endpoint.responses.filter(_.respTypeOpt.isDefined).map(_.respTypeOpt.get)
     }
 
-    types.filter(_.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase())).toSet.toList
+    types.filter(_.name.toUpperCase.equals(sumoSwaggerClassName.toUpperCase())).toSet.toList
   }
 
   def getAllRequestBodyTypesUsed(): Set[ScalaSwaggerType] = {
@@ -128,7 +128,6 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     val classesProps = classes.flatMap(_.props.filter(prop => !prop.getName().toLowerCase.contains("created") &&
       !prop.getName().toLowerCase.contains("modified") && !prop.getName().toLowerCase.contains("system") &&
       !prop.getName().toLowerCase.equals("id"))).toSet //.filter(_.getRequired()).toSet
-
 
     val propsObjects = classesProps.map {
       sumoSwaggerObject: ScalaSwaggerObject =>
