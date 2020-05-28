@@ -73,7 +73,7 @@ trait ResourceGeneratorHelper extends StringHelper {
              |      ${lowerCasePropName} := ${capitalizedPropName}{}
              |      json.Unmarshal([]byte(s), &${lowerCasePropName})""".stripMargin
         }
-    }
+    }.mkString("\n")
 
     s"""func $funcName(d *schema.ResourceData) $className {
        |   $arrayBlock
