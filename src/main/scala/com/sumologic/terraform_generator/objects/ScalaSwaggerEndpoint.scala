@@ -201,8 +201,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     reqHeaders
   }
 
-
-  override def terraformify(): String = {
+  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
     val urlWithoutParamsString =
       s"""urlWithoutParams := "${path.replaceFirst(s"\\/\\{id\\}", "")}"""".replaceFirst("/", "")
 
@@ -218,7 +217,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     val urlCall = getUrlCallBasedOnHttpMethod()
 
     val response = getReturnTypesBasedOnRespone()
-    val args = makeArgsListForDecl(this.parameters)
+    val args = makeArgsListForDecl(this.parameters, baseTemplate.sumoSwaggerClassName)
 
     s"""
        |func (s *Client) ${this.endpointName.capitalize}($args) ${response.declReturnType} {
