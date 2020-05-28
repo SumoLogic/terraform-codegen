@@ -13,50 +13,6 @@
     <scala.version>${scala.version.major}.11</scala.version>
   </properties>
 
-  <repositories>
-    <repository>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <id>central</id>
-      <name>libs-release</name>
-      <url>https://sumologicusw1.jfrog.io/sumologicusw1/libs-release</url>
-    </repository>
-    <repository>
-      <snapshots />
-      <id>snapshots</id>
-      <name>libs-snapshot</name>
-      <url>https://sumologicusw1.jfrog.io/sumologicusw1/libs-snapshot</url>
-    </repository>
-    <repository>
-      <id>scala-tools.org</id>
-      <name>Scala-Tools Maven2 Repository</name>
-      <url>http://scala-tools.org/repo-releases</url>
-    </repository>
-  </repositories>
-
-  <pluginRepositories>
-    <pluginRepository>
-      <snapshots>
-        <enabled>false</enabled>
-      </snapshots>
-      <id>central</id>
-      <name>plugins-release</name>
-      <url>https://sumologicusw1.jfrog.io/sumologicusw1/plugins-release</url>
-    </pluginRepository>
-    <pluginRepository>
-      <snapshots />
-      <id>snapshots</id>
-      <name>plugins-snapshot</name>
-      <url>https://sumologicusw1.jfrog.io/sumologicusw1/plugins-snapshot</url>
-    </pluginRepository>
-    <pluginRepository>
-      <id>scala-tools.org</id>
-      <name>Scala-Tools Maven2 Repository</name>
-      <url>http://scala-tools.org/repo-releases</url>
-    </pluginRepository>
-  </pluginRepositories>
-
   <dependencies>
     <!-- scala -->
     <dependency>
