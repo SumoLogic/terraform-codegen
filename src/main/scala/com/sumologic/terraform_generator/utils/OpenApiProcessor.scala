@@ -245,7 +245,7 @@ object OpenApiProcessor extends ProcessorHelper {
             propName,
             resolvePropertyType(openApi, prop),
             requiredProps.map(_.toLowerCase).contains(propName.toLowerCase),
-            None,
+            Option(prop.getDefault.asInstanceOf[AnyRef]),
             prop.getDescription,
             example,
             pattern,
@@ -255,7 +255,7 @@ object OpenApiProcessor extends ProcessorHelper {
             propName,
             resolvePropertyType(openApi, prop),
             requiredProps.map(_.toLowerCase).contains(propName.toLowerCase),
-            None,
+            Option(prop.getDefault.asInstanceOf[AnyRef]),
             prop.getDescription,
             createOnly = isPropertyWriteOnly(openApi, propName, modelName))
         }
