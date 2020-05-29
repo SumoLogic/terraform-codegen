@@ -138,6 +138,7 @@ case class ProviderFunctionGenerator(taggedApis: List[String]) extends ScalaTerr
       |			"sumologic_content":                            resourceSumologicContent(),
       |			"sumologic_scheduled_view":                     resourceSumologicScheduledView(),
       |			"sumologic_partition":                          resourceSumologicPartition(),
+      |     "sumologic_connection":                         resourceSumologicConnection(),
       |     $listOfResources
       |		},""".stripMargin
   }
