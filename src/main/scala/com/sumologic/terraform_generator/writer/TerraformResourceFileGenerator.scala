@@ -39,7 +39,7 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
     val ops: String = terraform.supportedEndpoints.map {
       endpoint: ScalaSwaggerEndpoint =>
         val gen = ResourceFunctionGenerator(endpoint, terraform.getMainObjectClass())
-        gen.terraformify()
+        gen.terraformify(terraform)
     }.mkString("\n")
 
     val converters = getTerraformResourceDataToObjectConverter(terraform.getMainObjectClass(), true)
@@ -226,7 +226,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   }
 
   // TODO: This is gross, generalize if possible
-  override def terraformify(): String = {
+  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
 
     crud.find {
       op =>

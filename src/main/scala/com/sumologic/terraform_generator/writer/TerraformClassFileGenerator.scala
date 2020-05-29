@@ -43,15 +43,15 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
         if (bodyParams.size > 1 || endpoint.responses.filterNot(_.respTypeName.toLowerCase == "default").size > 1) {
           val paramsToExclude = bodyParams.filterNot(_.param.getName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase)
           val filteredEndpoint = endpoint.copy(parameters = endpoint.parameters diff paramsToExclude, responses = endpoint.responses.filter(_.respTypeName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase))
-          filteredEndpoint.terraformify() + "\n"
+          filteredEndpoint.terraformify(terraform) + "\n"
         } else {
-          endpoint.terraformify() + "\n"
+          endpoint.terraformify(terraform) + "\n"
         }
     }.mkString("")
 
     val types = typesUsed.map {
       case stype: ScalaSwaggerType =>
-        stype.terraformify() + "\n"
+        stype.terraformify(terraform) + "\n"
     }.mkString("")
 
     s"// ---------- BEGIN ${terraform.sumoSwaggerClassName} ----------\n" + intro +

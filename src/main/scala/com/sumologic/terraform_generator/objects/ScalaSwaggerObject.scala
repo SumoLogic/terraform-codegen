@@ -82,7 +82,7 @@ case class ScalaSwaggerObjectSingle(name: String,
                                     pattern: String = "",
                                     createOnly: Boolean = false) extends
   ScalaSwaggerObject(name: String, objType: ScalaSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, pattern, createOnly) {
-  override def terraformify(): String = {
+  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
     val req = if (name.toLowerCase != "id") {
       ""
     } else {
@@ -109,14 +109,14 @@ case class ScalaSwaggerObjectArray(name: String,
                                    pattern: String = "",
                                    createOnly: Boolean = false) extends
   ScalaSwaggerObject(name: String, objType: ScalaSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, pattern, createOnly) {
-  override def terraformify(): String = {
+  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
     val req = if (required) {
       ""
     } else {
       ",omitempty"
     }
 
-    s"${name.capitalize} []${objType.name} " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
+    s"${name.capitalize} ${objType.name} " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
   }
 
   def getAsTerraformFunctionArgument(): String = {
