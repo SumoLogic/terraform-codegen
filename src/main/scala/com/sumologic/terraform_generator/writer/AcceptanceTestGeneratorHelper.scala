@@ -1,5 +1,7 @@
 package com.sumologic.terraform_generator.writer
 
+import java.time.LocalDateTime
+
 import com.sumologic.terraform_generator.StringHelper
 import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerObjectArray}
 import nl.flotsam.xeger.Xeger
@@ -55,12 +57,16 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           generator.generate()
           s""""${generator.generate().replace(""""""", """\"""")}""""
         } else {
-          val r = new Random
-          val sb = new StringBuilder
-          for (i <- 1 to 10) {
-            sb.append(r.nextPrintableChar)
+          if (prop.getFormat() == "date-time") {
+            s""""${LocalDateTime.now().toString}Z""""
+          } else {
+            val r = new Random
+            val sb = new StringBuilder
+            for (i <- 1 to 10) {
+              sb.append(r.nextPrintableChar)
+            }
+            s"""${sb.toString.replace(""""""", """\"""")}"""
           }
-          s"""${sb.toString.replace(""""""", """\"""")}"""
         }
       case _ =>
         throw new RuntimeException("Trying to generate test values for an unsupported type.")
