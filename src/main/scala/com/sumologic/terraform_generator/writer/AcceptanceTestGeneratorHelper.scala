@@ -9,23 +9,34 @@ import nl.flotsam.xeger.Xeger
 import scala.util.Random
 
 trait AcceptanceTestGeneratorHelper extends StringHelper {
-  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false, isInUpdateRequest: Boolean = false): String = {
+  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false, canUpdate: Boolean = false): String = {
     prop.getType().name match {
       case "bool" =>
-        if (prop.getDefault().isDefined) {
-          prop.getDefault().get.toString
+        val testBoolValue = if (prop.getDefault().isDefined) {
+          prop.getDefault().get.asInstanceOf[Boolean]
         } else {
-          "false"
+          false
+        }
+        if (isUpdate && canUpdate) {
+          testBoolValue.toString
+        } else {
+          (!testBoolValue).toString
         }
       case "int64" | "int32" | "int" =>
         //TODO: Add functionality to update ints
-        if (prop.getExample().nonEmpty) {
+        val testIntValue = if (prop.getExample().nonEmpty) {
           prop.getExample()
         }
         else if (prop.getDefault().isDefined) {
           prop.getDefault().get.toString
         } else {
           "0"
+        }
+
+        if (isUpdate && canUpdate) {
+          (testIntValue.toLong + 1).toString
+        }else {
+          testIntValue
         }
       case "[]string" =>
         if (prop.getDefault().isDefined) {
@@ -47,12 +58,10 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           s"""[]string{"${sb.toString().replace("\"", "\\\"")}"}"""
         }
       case "string" =>
-        //NOTE: Making an assumption that there will always be at least one string field
-        val update = if (isUpdate && prop.getName.toLowerCase.contains("name")) {"Update"} else {""}
-        if (prop.getDefault().isDefined) {
-          s""""${prop.getDefault().get.toString.replace(""""""", """\"""")}$update""""
+        val testStringValue = if (prop.getDefault().isDefined) {
+          s""""${prop.getDefault().get.toString.replace(""""""", """\"""")}""""
         } else if (prop.getExample().nonEmpty) {
-          s""""${prop.getExample().toString.replace(""""""", """\"""")}$update""""
+          s""""${prop.getExample().toString.replace(""""""", """\"""")}""""
         } else if (prop.getPattern().nonEmpty) {
           val generator = new Xeger(prop.getPattern())
           generator.generate()
@@ -68,6 +77,12 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
             }
             s"""${sb.toString.replace(""""""", """\"""")}"""
           }
+        }
+
+        if (isUpdate && canUpdate) {
+          testStringValue.dropRight(1) + """Update""""
+        } else {
+          testStringValue
         }
       case _ =>
         throw new RuntimeException("Trying to generate test values for an unsupported type.")

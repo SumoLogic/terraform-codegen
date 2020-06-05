@@ -8,7 +8,8 @@ abstract class ScalaSwaggerObject(name: String,
                                   example: String = "",
                                   pattern: String = "",
                                   format: String = "",
-                                  createOnly: Boolean = false) extends ScalaTerraformEntity {
+                                  createOnly: Boolean = false,
+                                  canUpdate: Boolean = false) extends ScalaTerraformEntity {
   // TODO Assumption of NO collision without namespaces is probably wrong - should fix
   def getAllTypes(): List[ScalaSwaggerType] = {
     List(objType) ++ objType.props.flatMap(_.getAllTypes())
@@ -23,6 +24,7 @@ abstract class ScalaSwaggerObject(name: String,
   def getPattern(): String = { pattern }
   def getDefault(): Option[AnyRef] = { defaultOpt}
   def getFormat(): String = { format }
+  def getCanUpdate(): Boolean = {canUpdate}
 
   def getAsTerraformFunctionArgument(): String
 
@@ -89,8 +91,9 @@ case class ScalaSwaggerObjectSingle(name: String,
                                     example: String = "",
                                     pattern: String = "",
                                     format: String = "",
-                                    createOnly: Boolean = false) extends
-  ScalaSwaggerObject(name: String, objType: ScalaSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, pattern, format, createOnly) {
+                                    createOnly: Boolean = false,
+                                    canUpdate: Boolean = false) extends
+  ScalaSwaggerObject(name: String, objType: ScalaSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, pattern, format, createOnly, canUpdate) {
   override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
     val req = if (name.toLowerCase != "id") {
       ""
@@ -117,8 +120,9 @@ case class ScalaSwaggerObjectArray(name: String,
                                    example: String = "",
                                    pattern: String = "",
                                    format: String = "",
-                                   createOnly: Boolean = false) extends
-  ScalaSwaggerObject(name: String, objType: ScalaSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, pattern, format, createOnly) {
+                                   createOnly: Boolean = false,
+                                   canUpdate: Boolean = false) extends
+  ScalaSwaggerObject(name: String, objType: ScalaSwaggerType, required: Boolean, defaultOpt: Option[AnyRef], description, example, pattern, format, createOnly, canUpdate) {
   override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
     val req = if (required) {
       ""

@@ -228,7 +228,8 @@ object OpenApiProcessor extends ProcessorHelper {
         example,
         itemPattern,
         format,
-        isPropertyWriteOnly(openApi, propName, modelName))
+        isPropertyWriteOnly(openApi, propName, modelName),
+        canUpdateProp(openApi, propName, modelName))
     } else {
       if (prop.get$ref() != null) {
         val refModel = getComponent(openApi, prop.get$ref().split("/").last)._2
@@ -241,7 +242,8 @@ object OpenApiProcessor extends ProcessorHelper {
           example,
           pattern,
           format,
-          isPropertyWriteOnly(openApi, propName, modelName))
+          isPropertyWriteOnly(openApi, propName, modelName),
+          canUpdateProp(openApi, propName, modelName))
       } else {
         if (propName.toLowerCase != "id") {
           ScalaSwaggerObjectSingle(
@@ -253,7 +255,8 @@ object OpenApiProcessor extends ProcessorHelper {
             example,
             pattern,
             format,
-            isPropertyWriteOnly(openApi, propName, modelName))
+            isPropertyWriteOnly(openApi, propName, modelName),
+            canUpdateProp(openApi, propName, modelName))
         } else {
           ScalaSwaggerObjectSingle(
             propName,
@@ -264,7 +267,8 @@ object OpenApiProcessor extends ProcessorHelper {
             example,
             pattern,
             format,
-            createOnly = isPropertyWriteOnly(openApi, propName, modelName))
+            createOnly = isPropertyWriteOnly(openApi, propName, modelName),
+            canUpdateProp(openApi, propName, modelName))
         }
       }
     }

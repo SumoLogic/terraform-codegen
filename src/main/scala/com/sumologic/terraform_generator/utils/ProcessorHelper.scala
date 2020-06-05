@@ -1,7 +1,6 @@
 package com.sumologic.terraform_generator.utils
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerParameter, TerraformSupportedParameterTypes}
 import io.swagger.v3.oas.models.{OpenAPI, Operation}
 import io.swagger.v3.oas.models.media.{ComposedSchema, Schema}
 
@@ -23,6 +22,59 @@ trait ProcessorHelper extends StringHelper {
         }
     }.toMap
 
+  }
+
+  def canUpdateProp(openAPI: OpenAPI, property: String, modelName: String): Boolean = {
+    if (modelName.toLowerCase.contains("create")) {
+      openAPI.getComponents.getSchemas.asScala.toList.exists {
+        case (name, schema) =>
+          name.toLowerCase.endsWith("update" + modelName.toLowerCase.stripPrefix("create")) &&
+            schema.getProperties.asScala.contains(property)
+      }
+    } else {
+      val x = openAPI.getComponents.getSchemas.asScala.map {
+        case (name, schema) =>
+          // for each component, figure out the tag by the path that this component appears in
+          val paths = openAPI.getPaths.asScala.toList.flatMap{
+            case (pathName, path) => List(path.getGet, path.getPost, path.getPut, path.getDelete)
+          }.filter {
+            op => if (op != null) {
+              (doesOperationRequestBodyContainModel(modelName, op) || doesOperationResponseContainModel(modelName, op))
+            } else {
+              false
+            }
+          }
+          val tag = if (paths.nonEmpty) {
+            paths.map(_.getTags.asScala.head).toSet.head
+          } else {
+            ""
+          }
+
+          (name, (tag, schema))
+      }
+
+      val modelsWithTag: Map[String, (String, Schema[_])] = x.toMap
+
+      if (modelsWithTag.contains(modelName)) {
+        val tag = modelsWithTag(modelName)._1
+        val baseType = tag.replace("Management", "")
+        val groupedByTag = modelsWithTag.groupBy(_._2._1)
+        if (groupedByTag(tag).keys.toList.count {
+          model => model.toLowerCase.contains(baseType) &&
+            (model.toLowerCase.contains("create") || model.toLowerCase.contains("update"))
+        } == 2) {
+          val models = groupedByTag(tag).keys.toList.filter {
+            model => model.toLowerCase.contains(baseType) && model.toLowerCase.contains("update")
+          }
+
+          modelsWithTag(models.filter(_.toLowerCase.contains("update")).head)._2.getProperties.containsKey(property)
+        } else {
+          false
+        }
+      } else {
+        false
+      }
+    }
   }
 
   def isPropertyWriteOnly(openAPI: OpenAPI, property: String, modelName: String): Boolean = {
