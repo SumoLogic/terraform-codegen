@@ -42,7 +42,13 @@ abstract class ScalaSwaggerObject(name: String,
       "Computed: true"
     } else {
       defaultOpt match { // This probably won't work for composite types
-        case Some(defaultValue) => "ForceNew: false,\nDefault: " + defaultValue.toString
+        case Some(defaultValue) => if (objType.name == "string") {
+          s"""ForceNew: false,
+            |Default: "${defaultValue.toString}"""".stripMargin
+        } else {
+          s"""ForceNew: false,
+             |Default: ${defaultValue.toString}""".stripMargin
+        }
         case None => "ForceNew: false"
       }
     }
