@@ -300,7 +300,26 @@ object OpenApiProcessor extends ProcessorHelper {
     }
 
     val allParams = params ++ requestBody
-    ScalaSwaggerEndpoint(operation.getOperationId, pathName, method.name(), allParams, responses)
+    val endpointName = operation.getExtensions.asScala.keys.head match {
+      case "x-tf-create" =>
+        val firstUpperCase = operation.getOperationId.find(_.isUpper)
+        val indexOfFirstUpper = operation.getOperationId.indexOf(firstUpperCase.get)
+        s"""create${operation.getOperationId.substring(indexOfFirstUpper)}"""
+      case "x-tf-read" => ""
+        val firstUpperCase = operation.getOperationId.find(_.isUpper)
+        val indexOfFirstUpper = operation.getOperationId.indexOf(firstUpperCase.get)
+        s"""get${operation.getOperationId.substring(indexOfFirstUpper)}"""
+      case "x-tf-update" => ""
+        val firstUpperCase = operation.getOperationId.find(_.isUpper)
+        val indexOfFirstUpper = operation.getOperationId.indexOf(firstUpperCase.get)
+        s"""update${operation.getOperationId.substring(indexOfFirstUpper)}"""
+      case "x-tf-delete" => ""
+        val firstUpperCase = operation.getOperationId.find(_.isUpper)
+        val indexOfFirstUpper = operation.getOperationId.indexOf(firstUpperCase.get)
+        s"""delete${operation.getOperationId.substring(indexOfFirstUpper)}"""
+      case _ => ""
+    }
+    ScalaSwaggerEndpoint(endpointName, pathName, method.name(), allParams, responses)
   }
 
   def processPath(openApi: OpenAPI, path: PathItem, pathName: String):
