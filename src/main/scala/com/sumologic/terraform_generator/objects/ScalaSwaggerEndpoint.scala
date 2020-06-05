@@ -127,17 +127,14 @@ case class ScalaSwaggerEndpoint(endpointName: String,
             if (pathParam.param.getName.toLowerCase == "id") {
               if (this.httpMethod.toLowerCase == "put") {
                 s"""sprintfArgs = append(sprintfArgs, ${lowerCaseFirstLetter(taggedResource)}.ID)
-                   |paramString += "/%s"
                    |""".stripMargin
               } else {
                 s"""sprintfArgs = append(sprintfArgs, id)
-                   |paramString += "/%s"
                    |""".stripMargin
               }
             } else {
               s"""if val, ok := paramMap["${lowerCaseFirstLetter(pathParam.param.getName())}"]; ok {
                  | sprintfArgs = append(sprintfArgs, val)
-                 | paramString += "/%s"
                  | }
                  |""".stripMargin
             }
@@ -203,7 +200,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
 
   override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
     val urlWithoutParamsString =
-      s"""urlWithoutParams := "${path.replaceFirst(s"\\/\\{id\\}", "")}"""".replaceFirst("/", "")
+      s"""urlWithoutParams := "${path.replaceFirst(s"\\{id\\}", "%s")}"""".replaceFirst("/", "")
 
     // path, query and header params
     val setParamString = getParamString
