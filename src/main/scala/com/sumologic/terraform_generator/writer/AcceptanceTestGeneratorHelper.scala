@@ -9,7 +9,7 @@ import nl.flotsam.xeger.Xeger
 import scala.util.Random
 
 trait AcceptanceTestGeneratorHelper extends StringHelper {
-  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false): String = {
+  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false, isInUpdateRequest: Boolean = false): String = {
     prop.getType().name match {
       case "bool" =>
         if (prop.getDefault().isDefined) {
@@ -17,12 +17,13 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
         } else {
           "false"
         }
-      case "int64" | "int32" =>
+      case "int64" | "int32" | "int" =>
         //TODO: Add functionality to update ints
-        if (prop.getDefault().isDefined) {
-          prop.getDefault().get.toString
-        } else if (prop.getExample().nonEmpty) {
+        if (prop.getExample().nonEmpty) {
           prop.getExample()
+        }
+        else if (prop.getDefault().isDefined) {
+          prop.getDefault().get.toString
         } else {
           "0"
         }
@@ -47,7 +48,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
         }
       case "string" =>
         //NOTE: Making an assumption that there will always be at least one string field
-        val update = if (isUpdate) {"Update"} else {""}
+        val update = if (isUpdate && prop.getName.toLowerCase.contains("name")) {"Update"} else {""}
         if (prop.getDefault().isDefined) {
           s""""${prop.getDefault().get.toString.replace(""""""", """\"""")}$update""""
         } else if (prop.getExample().nonEmpty) {
@@ -58,7 +59,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           s""""${generator.generate().replace(""""""", """\"""")}""""
         } else {
           if (prop.getFormat() == "date-time") {
-            s""""${LocalDateTime.now().toString}Z""""
+            s""""${LocalDateTime.now().toString.dropRight(1)}Z""""
           } else {
             val r = new Random
             val sb = new StringBuilder
