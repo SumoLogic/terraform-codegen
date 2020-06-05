@@ -17,11 +17,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
         } else {
           false
         }
-        if (isUpdate && canUpdate) {
-          testBoolValue.toString
-        } else {
-          (!testBoolValue).toString
-        }
+        testBoolValue.toString
       case "int64" | "int32" | "int" =>
         //TODO: Add functionality to update ints
         val testIntValue = if (prop.getExample().nonEmpty) {
