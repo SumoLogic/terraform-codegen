@@ -43,12 +43,7 @@ object TerraformSchemaTypes {
       case "boolean" => "bool"
       case "object" => "map[string]string"
       case "array" => "[]string"
-      case "integer" =>
-        if (format == "int32") {
-          "int32"
-        } else {
-          "int64"
-        }
+      case "integer" => "int"
       case _ => swaggerType
     }
   }
@@ -57,6 +52,7 @@ object TerraformSchemaTypes {
     swaggerType match {
       case "bool" => "%t"
       case "array" => "%v"
+      case "int" => "%d"
       case _ => "\"%s\""
     }
   }
