@@ -9,7 +9,7 @@ import nl.flotsam.xeger.Xeger
 import scala.util.Random
 
 trait AcceptanceTestGeneratorHelper extends StringHelper {
-  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false, canUpdate: Boolean = false, testCase: String): String = {
+  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false, canUpdate: Boolean = false, testCase: String = ""): String = {
     prop.getType().name match {
       case "bool" =>
         val testBoolValue = if (prop.getDefault().isDefined) {
@@ -59,9 +59,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
         } else if (prop.getExample().nonEmpty) {
           s""""${prop.getExample().toString.replace(""""""", """\"""")}$testCase""""
         } else if (prop.getPattern().nonEmpty) {
-          val generator = new Xeger(prop.getPattern())
-          generator.generate()
-          s""""${generator.generate().replace(""""""", """\"""")}""""
+          generateTestValueFromPattern(prop.getPattern())
         } else {
           if (prop.getFormat() == "date-time") {
             s""""${LocalDateTime.now(ZoneOffset.UTC).toString.dropRight(1)}Z""""
@@ -76,12 +74,27 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
         }
 
         if (isUpdate && canUpdate) {
-          testStringValue.dropRight(1) + """Update""""
+          val newVal = if (prop.getPattern().nonEmpty) {
+            var generatedVal = ""
+            do {
+              generatedVal = generateTestValueFromPattern(prop.getPattern())
+            } while (generatedVal.isEmpty || generatedVal == testStringValue)
+            generatedVal
+          } else {
+            testStringValue.dropRight(1) + """Update""""
+          }
+          newVal
         } else {
           testStringValue
         }
       case _ =>
         throw new RuntimeException("Trying to generate test values for an unsupported type.")
     }
+  }
+
+  private def generateTestValueFromPattern(pattern: String): String = {
+    val generator = new Xeger(pattern)
+    generator.generate()
+    s""""${generator.generate().replace(""""""", """\"""")}""""
   }
 }

@@ -305,7 +305,12 @@ object OpenApiProcessor extends ProcessorHelper {
 
     val allParams = params ++ requestBody
     val endpointName = operation.getExtensions.asScala.head._2.toString
-    ScalaSwaggerEndpoint(endpointName, pathName, method.name(), allParams, responses)
+    val httpMethod = if (endpointName.contains("delete")) {
+      "delete"
+    } else {
+      method.name()
+    }
+    ScalaSwaggerEndpoint(endpointName, pathName, httpMethod, allParams, responses)
   }
 
   def processPath(openApi: OpenAPI, path: PathItem, pathName: String):

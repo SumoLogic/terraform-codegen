@@ -73,7 +73,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     val taggedResource = if (this.httpMethod.toLowerCase != "delete") {
       this.responses.filter {
         response => response.respTypeName != "default" && response.respTypeName != "204"
-      }.head.respTypeOpt.get.name
+      }.head.respTypeOpt.map(_.name).getOrElse("")
     } else {
       ""
     }
@@ -108,7 +108,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     val taggedResource = if (this.httpMethod.toLowerCase != "delete") {
       this.responses.filter {
         response => response.respTypeName != "default" && response.respTypeName != "204"
-      }.head.respTypeOpt.get.name
+      }.head.respTypeOpt.map(_.name).getOrElse("")
     } else {
       ""
     }

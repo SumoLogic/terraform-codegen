@@ -78,8 +78,6 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
     if (endpoint.httpMethod.toLowerCase == "get" || endpoint.httpMethod.toLowerCase == "delete") {
       ""
     } else {
-      println(objName)
-      println(endpoint.toString)
       throw new RuntimeException("No model detected.")
     }
   }
@@ -230,9 +228,6 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
 
     crud.find {
       op =>
-        if (mainClass.name.toLowerCase == "partition") {
-          println(endpoint.endpointName)
-        }
         endpoint.endpointName.toLowerCase.startsWith(op.toLowerCase) // || endpoint.endpointName.toLowerCase.contains("get")
     } match {
       case Some(opName) =>

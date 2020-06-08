@@ -2,6 +2,8 @@ package com.sumologic.terraform_generator.writer
 
 import com.sumologic.terraform_generator.objects.{ForbiddenGoTerms, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformSchemaTypes}
 
+import scala.util.Random
+
 case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClass: String)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
   val functionGenerator = AcceptanceTestFunctionGenerator(terraform, terraform.getAllTypesUsed().filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head)
@@ -42,9 +44,18 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   val resourceProps = sumoSwaggerTemplate.getAllTypesUsed().head
 
   def generateTestFunctionCreateBasic(): String = {
+    val randomSuffix = if (mainClass.name == "Partition") {
+      Random.alphanumeric.take(10).mkString("")
+    } else {
+      ""
+    }
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        s"""test${prop.getName.capitalize} := ${getTestValue(prop, testCase = "basic")}"""
+        if (prop.getName == "name") {
+          s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}"""
+        } else {
+          s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
+        }
     }.mkString("\n  ")
 
     val testNames = filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -75,9 +86,18 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   }
 
   def generateTestFunctionCreate(): String = {
+    val randomSuffix = if (mainClass.name == "Partition") {
+      Random.alphanumeric.take(10).mkString("")
+    } else {
+      ""
+    }
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        s"""test${prop.getName.capitalize} := ${getTestValue(prop, testCase = "create")}"""
+        if (prop.getName == "name") {
+          s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}"""
+        } else {
+          s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
+        }
     }.mkString("\n  ")
 
     val testNames = "(" + filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -172,13 +192,26 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   }
 
   def generateTestFunctionUpdate(): String = {
+    val randomSuffix = if (mainClass.name == "Partition") {
+      Random.alphanumeric.take(10).mkString("")
+    } else {
+      ""
+    }
     val testArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        s"""test${prop.getName.capitalize} := ${getTestValue(prop, testCase = "update")}"""
+        if (prop.getName == "name") {
+          s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}""""
+        } else {
+          s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
+        }
     }.mkString("\n  ")
     val testUpdateArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true, prop.getCanUpdate(), "update")}"""
+        if (prop.getName == "name") {
+          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true, prop.getCanUpdate()).dropRight(1)}${randomSuffix}"""
+        } else {
+          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true, prop.getCanUpdate())}"""
+        }
     }.mkString("\n  ")
     val argList = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop => s"""test${prop.getName().capitalize}"""
