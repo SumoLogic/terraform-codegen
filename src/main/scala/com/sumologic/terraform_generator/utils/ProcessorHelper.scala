@@ -5,6 +5,7 @@ import io.swagger.v3.oas.models.{OpenAPI, Operation}
 import io.swagger.v3.oas.models.media.{ComposedSchema, Schema}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
 trait ProcessorHelper extends StringHelper {
   def getTaggedComponents(openAPI: OpenAPI): Map[String, Schema[_]] = {
@@ -24,6 +25,7 @@ trait ProcessorHelper extends StringHelper {
 
   }
 
+  // Checks if this prop can be updated (i.e. if it is a field in the update call for this API)
   def canUpdateProp(openAPI: OpenAPI, property: String, modelName: String): Boolean = {
     if (modelName.toLowerCase.contains("create")) {
       openAPI.getComponents.getSchemas.asScala.toList.exists {
@@ -32,28 +34,7 @@ trait ProcessorHelper extends StringHelper {
             schema.getProperties.asScala.contains(property)
       }
     } else {
-      val x = openAPI.getComponents.getSchemas.asScala.map {
-        case (name, schema) =>
-          // for each component, figure out the tag by the path that this component appears in
-          val paths = openAPI.getPaths.asScala.toList.flatMap{
-            case (pathName, path) => List(path.getGet, path.getPost, path.getPut, path.getDelete)
-          }.filter {
-            op => if (op != null) {
-              (doesOperationRequestBodyContainModel(modelName, op) || doesOperationResponseContainModel(modelName, op))
-            } else {
-              false
-            }
-          }
-          val tag = if (paths.nonEmpty) {
-            paths.map(_.getTags.asScala.head).toSet.head
-          } else {
-            ""
-          }
-
-          (name, (tag, schema))
-      }
-
-      val modelsWithTag: Map[String, (String, Schema[_])] = x.toMap
+      val modelsWithTag: Map[String, (String, Schema[_])] =  getTagForComponent(openAPI, modelName)
 
       if (modelsWithTag.contains(modelName)) {
         val tag = modelsWithTag(modelName)._1
@@ -77,6 +58,7 @@ trait ProcessorHelper extends StringHelper {
     }
   }
 
+  // Checks if this prop can only be set in a create request and cannot be updated
   def isPropertyWriteOnly(openAPI: OpenAPI, property: String, modelName: String): Boolean = {
     if (modelName.toLowerCase.contains("create")) {
       openAPI.getComponents.getSchemas.asScala.toList.exists {
@@ -85,28 +67,7 @@ trait ProcessorHelper extends StringHelper {
             !schema.getProperties.asScala.contains(property)
       }
     } else {
-      val x = openAPI.getComponents.getSchemas.asScala.map {
-        case (name, schema) =>
-          // for each component, figure out the tag by the path that this component appears in
-          val paths = openAPI.getPaths.asScala.toList.flatMap{
-            case (pathName, path) => List(path.getGet, path.getPost, path.getPut, path.getDelete)
-          }.filter {
-            op => if (op != null) {
-              (doesOperationRequestBodyContainModel(modelName, op) || doesOperationResponseContainModel(modelName, op))
-            } else {
-              false
-            }
-          }
-          val tag = if (paths.nonEmpty) {
-            paths.map(_.getTags.asScala.head).toSet.head
-          } else {
-            ""
-          }
-
-          (name, (tag, schema))
-      }
-
-      val modelsWithTag: Map[String, (String, Schema[_])] = x.toMap
+      val modelsWithTag: Map[String, (String, Schema[_])] = getTagForComponent(openAPI, modelName)
 
       if (modelsWithTag.contains(modelName)) {
         val tag = modelsWithTag(modelName)._1
@@ -130,6 +91,29 @@ trait ProcessorHelper extends StringHelper {
         false
       }
     }
+  }
+
+  private def getTagForComponent(openAPI: OpenAPI, modelName: String): Map[String, (String, Schema[_])] = {
+    openAPI.getComponents.getSchemas.asScala.map {
+      case (name, schema) =>
+        // for each component, figure out the tag by the path that this component appears in
+        val paths = openAPI.getPaths.asScala.toList.flatMap{
+          case (pathName, path) => List(path.getGet, path.getPost, path.getPut, path.getDelete)
+        }.filter {
+          op => if (op != null) {
+            (doesOperationRequestBodyContainModel(modelName, op) || doesOperationResponseContainModel(modelName, op))
+          } else {
+            false
+          }
+        }
+        val tag = if (paths.nonEmpty) {
+          paths.map(_.getTags.asScala.head).toSet.head
+        } else {
+          ""
+        }
+
+        (name, (tag, schema))
+    }.toMap
   }
 
   private def doesOperationRequestBodyContainModel(modelName: String, operation: Operation): Boolean = {
