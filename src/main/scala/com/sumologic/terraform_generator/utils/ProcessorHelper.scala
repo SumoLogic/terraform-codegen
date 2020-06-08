@@ -34,9 +34,7 @@ trait ProcessorHelper extends StringHelper {
             schema.getProperties.asScala.contains(property)
       }
     } else {
-      val x = getTagForComponent(openAPI, modelName)
-
-      val modelsWithTag: Map[String, (String, Schema[_])] = x.toMap
+      val modelsWithTag: Map[String, (String, Schema[_])] =  getTagForComponent(openAPI, modelName)
 
       if (modelsWithTag.contains(modelName)) {
         val tag = modelsWithTag(modelName)._1
@@ -69,9 +67,7 @@ trait ProcessorHelper extends StringHelper {
             !schema.getProperties.asScala.contains(property)
       }
     } else {
-      val x = getTagForComponent(openAPI, modelName)
-
-      val modelsWithTag: Map[String, (String, Schema[_])] = x.toMap
+      val modelsWithTag: Map[String, (String, Schema[_])] = getTagForComponent(openAPI, modelName)
 
       if (modelsWithTag.contains(modelName)) {
         val tag = modelsWithTag(modelName)._1
@@ -97,7 +93,7 @@ trait ProcessorHelper extends StringHelper {
     }
   }
 
-  private def getTagForComponent(openAPI: OpenAPI, modelName: String): mutable.Map[String, (String, Schema[_])] = {
+  private def getTagForComponent(openAPI: OpenAPI, modelName: String): Map[String, (String, Schema[_])] = {
     openAPI.getComponents.getSchemas.asScala.map {
       case (name, schema) =>
         // for each component, figure out the tag by the path that this component appears in
@@ -117,7 +113,7 @@ trait ProcessorHelper extends StringHelper {
         }
 
         (name, (tag, schema))
-    }
+    }.toMap
   }
 
   private def doesOperationRequestBodyContainModel(modelName: String, operation: Operation): Boolean = {
