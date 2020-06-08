@@ -208,9 +208,9 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
     val testUpdateArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
         if (prop.getName == "name") {
-          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true, prop.getCanUpdate()).dropRight(1)}${randomSuffix}"""
+          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true)}${randomSuffix}"""
         } else {
-          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true, prop.getCanUpdate())}"""
+          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true)}"""
         }
     }.mkString("\n  ")
     val argList = filterProps(resourceProps.props, List("id", "roleids")).map {

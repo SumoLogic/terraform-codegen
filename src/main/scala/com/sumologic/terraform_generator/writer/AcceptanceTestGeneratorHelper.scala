@@ -9,7 +9,7 @@ import nl.flotsam.xeger.Xeger
 import scala.util.Random
 
 trait AcceptanceTestGeneratorHelper extends StringHelper {
-  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false, canUpdate: Boolean = false, testCase: String = ""): String = {
+  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false): String = {
     prop.getType().name match {
       case "bool" =>
         val testBoolValue = if (prop.getDefault().isDefined) {
@@ -29,7 +29,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           "0"
         }
 
-        if (isUpdate && canUpdate) {
+        if (isUpdate && !prop.getCreateOnly()) {
           (testIntValue.toLong + 1).toString
         }else {
           testIntValue
@@ -55,25 +55,25 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
         }
       case "string" =>
         val testStringValue = if (prop.getDefault().isDefined) {
-          s""""${prop.getDefault().get.toString.replace(""""""", """\"""")}$testCase""""
+          s""""${prop.getDefault().get.toString.replace(""""""", """\"""")}""""
         } else if (prop.getExample().nonEmpty) {
-          s""""${prop.getExample().toString.replace(""""""", """\"""")}$testCase""""
+          s""""${prop.getExample().toString.replace(""""""", """\"""")}""""
         } else if (prop.getPattern().nonEmpty) {
           generateTestValueFromPattern(prop.getPattern())
         } else {
           if (prop.getFormat() == "date-time") {
-            s""""${LocalDateTime.now(ZoneOffset.UTC).toString.dropRight(1)}Z""""
+            s""""${LocalDateTime.now(ZoneOffset.UTC).toString.takeWhile(_ != '.')}Z""""
           } else {
             val r = new Random
             val sb = new StringBuilder
             for (i <- 1 to 10) {
               sb.append(r.nextPrintableChar)
             }
-            s""""${sb.toString.replace(""""""", """\"""")}$testCase""""
+            s""""${sb.toString.replace(""""""", """\"""")}""""
           }
         }
 
-        if (isUpdate && canUpdate) {
+        if (isUpdate && !prop.getCreateOnly()) {
           val newVal = if (prop.getPattern().nonEmpty) {
             var generatedVal = ""
             do {
