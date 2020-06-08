@@ -90,6 +90,8 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
         prop.getType.name match {
           case "bool" =>
             s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.FormatBool(test${prop.getName.capitalize})),"""
+          case "int" =>
+            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.Itoa(test${prop.getName.capitalize})),"""
           case "array" =>
             s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(test${prop.getName.capitalize}[0], "\\"", "", 2)),"""
           case _ =>
@@ -186,6 +188,8 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
         prop.getType.name match {
           case "bool" =>
             s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.FormatBool(test${prop.getName.capitalize})),"""
+          case "int" =>
+            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.Itoa(test${prop.getName.capitalize})),"""
           case "array" =>
             s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(test${prop.getName.capitalize}[0], "\\"", "", 2)),"""
           case _ =>
@@ -204,6 +208,8 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
         prop.getType.name match {
           case "bool" =>
             s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.FormatBool(testUpdated${prop.getName.capitalize})),"""
+          case "int" =>
+            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.Itoa(testUpdated${prop.getName.capitalize})),"""
           case "array" =>
             s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(testUpdated${prop.getName.capitalize}[0], "\\"", "", 2)),"""
           case _ =>

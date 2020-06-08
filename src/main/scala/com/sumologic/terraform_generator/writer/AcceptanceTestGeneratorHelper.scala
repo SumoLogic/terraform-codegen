@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.writer
 
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, ZoneOffset}
 
 import com.sumologic.terraform_generator.StringHelper
 import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerObjectArray}
@@ -12,19 +12,27 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
   def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false): String = {
     prop.getType().name match {
       case "bool" =>
-        if (prop.getDefault().isDefined) {
-          prop.getDefault().get.toString
+        val testBoolValue = if (prop.getDefault().isDefined) {
+          prop.getDefault().get.asInstanceOf[Boolean]
         } else {
-          "false"
+          false
         }
-      case "int64" | "int32" =>
+        testBoolValue.toString
+      case "int" =>
         //TODO: Add functionality to update ints
-        if (prop.getDefault().isDefined) {
-          prop.getDefault().get.toString
-        } else if (prop.getExample().nonEmpty) {
+        val testIntValue = if (prop.getExample().nonEmpty) {
           prop.getExample()
+        }
+        else if (prop.getDefault().isDefined) {
+          prop.getDefault().get.toString
         } else {
           "0"
+        }
+
+        if (isUpdate && !prop.getCreateOnly()) {
+          (testIntValue.toLong + 1).toString
+        }else {
+          testIntValue
         }
       case "[]string" =>
         if (prop.getDefault().isDefined) {
@@ -46,19 +54,17 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           s"""[]string{"${sb.toString().replace("\"", "\\\"")}"}"""
         }
       case "string" =>
-        //NOTE: Making an assumption that there will always be at least one string field
-        val update = if (isUpdate) {"Update"} else {""}
-        if (prop.getDefault().isDefined) {
-          s""""${prop.getDefault().get.toString.replace(""""""", """\"""")}$update""""
+        val testStringValue = if (prop.getDefault().isDefined) {
+          s""""${prop.getDefault().get.toString.replace(""""""", """\"""")}""""
         } else if (prop.getExample().nonEmpty) {
-          s""""${prop.getExample().toString.replace(""""""", """\"""")}$update""""
+          s""""${prop.getExample().toString.replace(""""""", """\"""")}""""
         } else if (prop.getPattern().nonEmpty) {
           val generator = new Xeger(prop.getPattern())
           generator.generate()
           s""""${generator.generate().replace(""""""", """\"""")}""""
         } else {
           if (prop.getFormat() == "date-time") {
-            s""""${LocalDateTime.now().toString}Z""""
+            s""""${LocalDateTime.now(ZoneOffset.UTC).toString.takeWhile(_ != '.')}Z""""
           } else {
             val r = new Random
             val sb = new StringBuilder
@@ -67,6 +73,12 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
             }
             s"""${sb.toString.replace(""""""", """\"""")}"""
           }
+        }
+
+        if (isUpdate && !prop.getCreateOnly()) {
+          testStringValue.dropRight(1) + """Update""""
+        } else {
+          testStringValue
         }
       case _ =>
         throw new RuntimeException("Trying to generate test values for an unsupported type.")
