@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.utils
 
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerObjectSingle, ScalaSwaggerParameter, ScalaSwaggerResponse, ScalaSwaggerTemplate, ScalaSwaggerType, TerraformSchemaTypes, TerraformSupportedParameterTypes}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerObjectSingle, ScalaSwaggerParameter, ScalaSwaggerResponse, ScalaSwaggerTemplate, ScalaSwaggerType, TerraformPathTags, TerraformSchemaTypes, TerraformSupportedParameterTypes}
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 import io.swagger.v3.oas.models.media.{ArraySchema, ComposedSchema, Schema}
 import io.swagger.v3.oas.models.parameters.{HeaderParameter, Parameter, PathParameter, QueryParameter}
@@ -304,26 +304,26 @@ object OpenApiProcessor extends ProcessorHelper {
     }
 
     val allParams = params ++ requestBody
-    val endpointName = operation.getExtensions.asScala.keys.head match {
+    val (endpointName, methodName) = operation.getExtensions.asScala.keys.head match {
       case "x-tf-create" =>
         val firstUpperCase = operation.getOperationId.find(_.isUpper)
         val indexOfFirstUpper = operation.getOperationId.indexOf(firstUpperCase.get)
-        s"""create${operation.getOperationId.substring(indexOfFirstUpper)}"""
+        (s"""create${operation.getOperationId.substring(indexOfFirstUpper)}""", "post")
       case "x-tf-read" => ""
         val firstUpperCase = operation.getOperationId.find(_.isUpper)
         val indexOfFirstUpper = operation.getOperationId.indexOf(firstUpperCase.get)
-        s"""get${operation.getOperationId.substring(indexOfFirstUpper)}"""
+        (s"""get${operation.getOperationId.substring(indexOfFirstUpper)}""", "get")
       case "x-tf-update" => ""
         val firstUpperCase = operation.getOperationId.find(_.isUpper)
         val indexOfFirstUpper = operation.getOperationId.indexOf(firstUpperCase.get)
-        s"""update${operation.getOperationId.substring(indexOfFirstUpper)}"""
+        (s"""update${operation.getOperationId.substring(indexOfFirstUpper)}""", "put")
       case "x-tf-delete" => ""
         val firstUpperCase = operation.getOperationId.find(_.isUpper)
         val indexOfFirstUpper = operation.getOperationId.indexOf(firstUpperCase.get)
-        s"""delete${operation.getOperationId.substring(indexOfFirstUpper)}"""
-      case _ => ""
+        (s"""delete${operation.getOperationId.substring(indexOfFirstUpper)}""", "delete")
+      case _ => ("", "")
     }
-    ScalaSwaggerEndpoint(endpointName, pathName, method.name(), allParams, responses)
+    ScalaSwaggerEndpoint(endpointName, pathName, methodName, allParams, responses)
   }
 
   def processPath(openApi: OpenAPI, path: PathItem, pathName: String):
@@ -350,16 +350,16 @@ object OpenApiProcessor extends ProcessorHelper {
     val filteredPaths = openApi.getPaths.asScala.filter {
       case (pathName: String, path: PathItem) =>
         val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
-          path.getPost.getExtensions.asScala.filterKeys(_ == "x-tf-create")
+          path.getPost.getExtensions.asScala.filterKeys(TerraformPathTags.tagsList.contains(_))
         } else List.empty[(String, AnyRef)]
         val getExtensions = if (path.getGet != null && path.getGet.getExtensions != null) {
-          path.getGet.getExtensions.asScala.filterKeys(_ == "x-tf-read")
+          path.getGet.getExtensions.asScala.filterKeys(TerraformPathTags.tagsList.contains(_))
         } else List.empty[(String, AnyRef)]
         val putExtensions = if (path.getPut != null && path.getPut.getExtensions != null) {
-          path.getPut.getExtensions.asScala.filterKeys(_ == "x-tf-update")
+          path.getPut.getExtensions.asScala.filterKeys(TerraformPathTags.tagsList.contains(_))
         } else List.empty[(String, AnyRef)]
         val deleteExtensions = if (path.getDelete != null && path.getDelete.getExtensions != null) {
-          path.getDelete.getExtensions.asScala.filterKeys(_ == "x-tf-delete")
+          path.getDelete.getExtensions.asScala.filterKeys(TerraformPathTags.tagsList.contains(_))
         } else List.empty[(String, AnyRef)]
         val vendorExtensions = postExtensions ++ getExtensions ++ putExtensions ++ deleteExtensions
 
@@ -409,7 +409,6 @@ object OpenApiProcessor extends ProcessorHelper {
 
     val templates = filteredPaths.toList.groupBy(_._3).flatMap {
       case (tag: String, paths: List[(String, PathItem, String)]) =>
-        val baseTypeName = tag.toLowerCase.replace(" (beta)", "").stripSuffix("s")
         val endpoints: List[ScalaSwaggerEndpoint] = paths.flatMap {
           path: (String, PathItem, String) => processPath(openApi, path._2, path._1)
         }

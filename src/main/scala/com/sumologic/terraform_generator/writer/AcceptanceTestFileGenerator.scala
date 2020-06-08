@@ -44,7 +44,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   def generateTestFunctionCreateBasic(): String = {
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
+        s"""test${prop.getName.capitalize} := ${getTestValue(prop, testCase = "basic")}"""
     }.mkString("\n  ")
 
     val testNames = filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -77,7 +77,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   def generateTestFunctionCreate(): String = {
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
+        s"""test${prop.getName.capitalize} := ${getTestValue(prop, testCase = "create")}"""
     }.mkString("\n  ")
 
     val testNames = "(" + filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -174,11 +174,11 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   def generateTestFunctionUpdate(): String = {
     val testArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
+        s"""test${prop.getName.capitalize} := ${getTestValue(prop, testCase = "update")}"""
     }.mkString("\n  ")
     val testUpdateArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true, prop.getCanUpdate())}"""
+        s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true, prop.getCanUpdate(), "update")}"""
     }.mkString("\n  ")
     val argList = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop => s"""test${prop.getName().capitalize}"""

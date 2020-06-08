@@ -9,7 +9,7 @@ import nl.flotsam.xeger.Xeger
 import scala.util.Random
 
 trait AcceptanceTestGeneratorHelper extends StringHelper {
-  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false, canUpdate: Boolean = false): String = {
+  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false, canUpdate: Boolean = false, testCase: String): String = {
     prop.getType().name match {
       case "bool" =>
         val testBoolValue = if (prop.getDefault().isDefined) {
@@ -55,9 +55,9 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
         }
       case "string" =>
         val testStringValue = if (prop.getDefault().isDefined) {
-          s""""${prop.getDefault().get.toString.replace(""""""", """\"""")}""""
+          s""""${prop.getDefault().get.toString.replace(""""""", """\"""")}$testCase""""
         } else if (prop.getExample().nonEmpty) {
-          s""""${prop.getExample().toString.replace(""""""", """\"""")}""""
+          s""""${prop.getExample().toString.replace(""""""", """\"""")}$testCase""""
         } else if (prop.getPattern().nonEmpty) {
           val generator = new Xeger(prop.getPattern())
           generator.generate()
@@ -71,7 +71,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
             for (i <- 1 to 10) {
               sb.append(r.nextPrintableChar)
             }
-            s"""${sb.toString.replace(""""""", """\"""")}"""
+            s""""${sb.toString.replace(""""""", """\"""")}$testCase""""
           }
         }
 
