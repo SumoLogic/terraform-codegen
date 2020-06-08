@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.writer
 
-import java.time.LocalDateTime
+import java.time.{LocalDateTime, ZoneOffset}
 
 import com.sumologic.terraform_generator.StringHelper
 import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerObjectArray}
@@ -18,7 +18,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           false
         }
         testBoolValue.toString
-      case "int64" | "int32" | "int" =>
+      case "int" =>
         //TODO: Add functionality to update ints
         val testIntValue = if (prop.getExample().nonEmpty) {
           prop.getExample()
@@ -64,7 +64,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           s""""${generator.generate().replace(""""""", """\"""")}""""
         } else {
           if (prop.getFormat() == "date-time") {
-            s""""${LocalDateTime.now().toString.dropRight(1)}Z""""
+            s""""${LocalDateTime.now(ZoneOffset.UTC).toString.dropRight(1)}Z""""
           } else {
             val r = new Random
             val sb = new StringBuilder
