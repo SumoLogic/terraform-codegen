@@ -9,7 +9,7 @@ import nl.flotsam.xeger.Xeger
 import scala.util.Random
 
 trait AcceptanceTestGeneratorHelper extends StringHelper {
-  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false, canUpdate: Boolean = false): String = {
+  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false): String = {
     prop.getType().name match {
       case "bool" =>
         val testBoolValue = if (prop.getDefault().isDefined) {
@@ -29,7 +29,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           "0"
         }
 
-        if (isUpdate && canUpdate) {
+        if (isUpdate && !prop.getCreateOnly()) {
           (testIntValue.toLong + 1).toString
         }else {
           testIntValue
@@ -64,7 +64,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           s""""${generator.generate().replace(""""""", """\"""")}""""
         } else {
           if (prop.getFormat() == "date-time") {
-            s""""${LocalDateTime.now(ZoneOffset.UTC).toString.dropRight(1)}Z""""
+            s""""${LocalDateTime.now(ZoneOffset.UTC).toString.takeWhile(_ != '.')}Z""""
           } else {
             val r = new Random
             val sb = new StringBuilder
@@ -75,7 +75,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           }
         }
 
-        if (isUpdate && canUpdate) {
+        if (isUpdate && !prop.getCreateOnly()) {
           testStringValue.dropRight(1) + """Update""""
         } else {
           testStringValue

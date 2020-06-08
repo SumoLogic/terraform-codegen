@@ -5,7 +5,6 @@ import io.swagger.v3.oas.models.{OpenAPI, Operation}
 import io.swagger.v3.oas.models.media.{ComposedSchema, Schema}
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 trait ProcessorHelper extends StringHelper {
   def getTaggedComponents(openAPI: OpenAPI): Map[String, Schema[_]] = {
@@ -25,39 +24,6 @@ trait ProcessorHelper extends StringHelper {
 
   }
 
-  // Checks if this prop can be updated (i.e. if it is a field in the update call for this API)
-  def canUpdateProp(openAPI: OpenAPI, property: String, modelName: String): Boolean = {
-    if (modelName.toLowerCase.contains("create")) {
-      openAPI.getComponents.getSchemas.asScala.toList.exists {
-        case (name, schema) =>
-          name.toLowerCase.endsWith("update" + modelName.toLowerCase.stripPrefix("create")) &&
-            schema.getProperties.asScala.contains(property)
-      }
-    } else {
-      val modelsWithTag: Map[String, (String, Schema[_])] =  getTagForComponent(openAPI, modelName)
-
-      if (modelsWithTag.contains(modelName)) {
-        val tag = modelsWithTag(modelName)._1
-        val baseType = tag.replace("Management", "")
-        val groupedByTag = modelsWithTag.groupBy(_._2._1)
-        if (groupedByTag(tag).keys.toList.count {
-          model => model.toLowerCase.contains(baseType) &&
-            (model.toLowerCase.contains("create") || model.toLowerCase.contains("update"))
-        } == 2) {
-          val models = groupedByTag(tag).keys.toList.filter {
-            model => model.toLowerCase.contains(baseType) && model.toLowerCase.contains("update")
-          }
-
-          modelsWithTag(models.filter(_.toLowerCase.contains("update")).head)._2.getProperties.containsKey(property)
-        } else {
-          false
-        }
-      } else {
-        false
-      }
-    }
-  }
-
   // Checks if this prop can only be set in a create request and cannot be updated
   def isPropertyWriteOnly(openAPI: OpenAPI, property: String, modelName: String): Boolean = {
     if (modelName.toLowerCase.contains("create")) {
@@ -74,11 +40,11 @@ trait ProcessorHelper extends StringHelper {
         val baseType = tag.replace("Management", "")
         val groupedByTag = modelsWithTag.groupBy(_._2._1)
         if (groupedByTag(tag).keys.toList.count {
-          model => model.toLowerCase.contains(baseType) &&
+          model => model.toLowerCase.contains(baseType.toLowerCase) &&
             (model.toLowerCase.contains("create") || model.toLowerCase.contains("update"))
         } == 2) {
           val models = groupedByTag(tag).keys.toList.filter {
-            model => model.toLowerCase.contains(baseType) &&
+            model => model.toLowerCase.contains(baseType.toLowerCase) &&
               (model.toLowerCase.contains("create") || model.toLowerCase.contains("update"))
           }
 
@@ -101,7 +67,7 @@ trait ProcessorHelper extends StringHelper {
           case (pathName, path) => List(path.getGet, path.getPost, path.getPut, path.getDelete)
         }.filter {
           op => if (op != null) {
-            (doesOperationRequestBodyContainModel(modelName, op) || doesOperationResponseContainModel(modelName, op))
+            (doesOperationRequestBodyContainModel(name, op) || doesOperationResponseContainModel(name, op))
           } else {
             false
           }

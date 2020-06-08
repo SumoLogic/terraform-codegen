@@ -178,7 +178,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
     }.mkString("\n  ")
     val testUpdateArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true, prop.getCanUpdate())}"""
+        s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true)}"""
     }.mkString("\n  ")
     val argList = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop => s"""test${prop.getName().capitalize}"""
