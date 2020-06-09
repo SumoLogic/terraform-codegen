@@ -51,8 +51,8 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
     }
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.getName == "name") {
-          s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}"""
+        if (prop.getName == "name" && mainClass.name == "Partition") {
+          s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}""""
         } else {
           s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
         }
@@ -93,8 +93,8 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
     }
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.getName == "name") {
-          s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}"""
+        if (prop.getName == "name" && mainClass.name == "Partition") {
+          s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}""""
         } else {
           s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
         }
@@ -199,7 +199,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
     }
     val testArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.getName == "name") {
+        if (prop.getName == "name" && mainClass.name == "Partition") {
           s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}""""
         } else {
           s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
@@ -207,8 +207,8 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
     }.mkString("\n  ")
     val testUpdateArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.getName == "name") {
-          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true)}${randomSuffix}"""
+        if (prop.getName == "name" && mainClass.name == "Partition") {
+          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true).dropRight(1)}${randomSuffix}""""
         } else {
           s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true)}"""
         }
