@@ -135,13 +135,13 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   // TODO: This is gross, generalize if possible
   def generateResourceFunctionDELETE(): String = {
     val clientCall = if (!requestMap.isEmpty) {
-      s"client.Delete${className}(d.Id(), requestParams)"
+      s"c.Delete${className}(d.Id(), requestParams)"
     } else {
-      s"client.Delete${className}(d.Id())"
+      s"c.Delete${className}(d.Id())"
     }
 
     s"""func resourceSumologic${className}Delete(d *schema.ResourceData, meta interface{}) error {
-       |  client := meta.(*Client)
+       |  c := meta.(*Client)
        |
        |  $requestMap
        |
