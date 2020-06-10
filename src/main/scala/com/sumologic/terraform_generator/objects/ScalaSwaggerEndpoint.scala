@@ -78,6 +78,12 @@ case class ScalaSwaggerEndpoint(endpointName: String,
       ""
     }
 
+    val varName = if (taggedResource.isEmpty) {
+      "nil"
+    } else {
+      lowerCaseFirstLetter(taggedResource)
+    }
+
     httpMethod.toLowerCase match {
       case "get" =>
         s"""
@@ -90,12 +96,21 @@ case class ScalaSwaggerEndpoint(endpointName: String,
            |	}
            |""".stripMargin
       case "post" =>
-        s"""
-           |  data, err := s.Post(urlWithoutParams, ${lowerCaseFirstLetter(taggedResource)})
-           |  if err != nil {
-           |		return "", err
-           |	}
-           |""".stripMargin
+        if (endpointName.contains("delete")) {
+          s"""
+             |  _, err := s.Post(urlWithParams, $varName)
+             |  if err != nil {
+             |		return err
+             |	}
+             |""".stripMargin
+        } else {
+          s"""
+             |  data, err := s.Post(urlWithoutParams, $varName)
+             |  if err != nil {
+             |		return "", err
+             |	}
+             |""".stripMargin
+        }
       case "delete" =>
         s"""_, err := s.Delete(urlWithParams)"""
       case _ =>
@@ -204,7 +219,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
 
     // path, query and header params
     val setParamString = getParamString
-    val urlWithParamsString = if (this.httpMethod.toLowerCase == "post") {
+    val urlWithParamsString = if (this.httpMethod.toLowerCase == "post" && !endpointName.contains("delete")) {
       ""
     } else {
       """urlWithParams := fmt.Sprintf(urlWithoutParams + paramString, sprintfArgs...)"""

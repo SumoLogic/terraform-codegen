@@ -75,11 +75,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   } else if (modelInParam.isDefined) {
     modelInParam.get.param.getName()
   } else {
-    if (endpoint.httpMethod.toLowerCase == "get" || endpoint.httpMethod.toLowerCase == "delete") {
-      ""
-    } else {
-      throw new RuntimeException("No model detected.")
-    }
+    ""
   }
 
   val requestMap: String = if (hasParams) {
