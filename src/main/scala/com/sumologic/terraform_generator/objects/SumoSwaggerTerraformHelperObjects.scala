@@ -9,6 +9,12 @@ object TerraformPathTags {
   val tagsList = List(CREATE, READ, UPDATE, DELETE)
 }
 
+object TerraformPropertyAttributes {
+  final val UNIQUE = "unique"
+
+  val attributesList = List(UNIQUE)
+}
+
 object TerraformSupportedOperations {
   final val CREATE = "create"
   final val GET = "get"

@@ -1,8 +1,6 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.{ForbiddenGoTerms, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformSchemaTypes}
-
-import scala.util.Random
+import com.sumologic.terraform_generator.objects.{ForbiddenGoTerms, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformPropertyAttributes, TerraformSchemaTypes}
 
 case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClass: String)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
@@ -44,18 +42,8 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   val resourceProps = sumoSwaggerTemplate.getAllTypesUsed().head
 
   def generateTestFunctionCreateBasic(): String = {
-    val randomSuffix = if (mainClass.name == "Partition") {
-      Random.alphanumeric.take(10).mkString("")
-    } else {
-      ""
-    }
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
-      prop =>
-        if (prop.getName == "name" && mainClass.name == "Partition") {
-          s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}""""
-        } else {
-          s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
-        }
+      prop => s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
     }.mkString("\n  ")
 
     val testNames = filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -86,18 +74,8 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   }
 
   def generateTestFunctionCreate(): String = {
-    val randomSuffix = if (mainClass.name == "Partition") {
-      Random.alphanumeric.take(10).mkString("")
-    } else {
-      ""
-    }
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
-      prop =>
-        if (prop.getName == "name" && mainClass.name == "Partition") {
-          s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}""""
-        } else {
-          s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
-        }
+      prop => s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
     }.mkString("\n  ")
 
     val testNames = "(" + filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -192,25 +170,18 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
   }
 
   def generateTestFunctionUpdate(): String = {
-    val randomSuffix = if (mainClass.name == "Partition") {
-      Random.alphanumeric.take(10).mkString("")
-    } else {
-      ""
-    }
     val testArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
-      prop =>
-        if (prop.getName == "name" && mainClass.name == "Partition") {
-          s"""test${prop.getName.capitalize} := ${getTestValue(prop).dropRight(1)}${randomSuffix}""""
-        } else {
-          s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
-        }
+      prop => s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
     }.mkString("\n  ")
     val testUpdateArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.getName == "name" && mainClass.name == "Partition") {
-          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true).dropRight(1)}${randomSuffix}""""
+        val unique = prop.getAttribute() == TerraformPropertyAttributes.UNIQUE
+        if (unique && prop.getCreateOnly()) {
+          testArguments.split("\n").filter {
+            arg => arg.contains(s"test${prop.getName.capitalize}")
+          }.head.replace(s"test${prop.getName.capitalize}", s"testUpdated${prop.getName.capitalize}")
         } else {
-          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true)}"""
+          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, isUpdate = true)}"""
         }
     }.mkString("\n  ")
     val argList = filterProps(resourceProps.props, List("id", "roleids")).map {

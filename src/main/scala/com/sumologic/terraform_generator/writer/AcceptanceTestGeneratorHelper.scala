@@ -3,7 +3,7 @@ package com.sumologic.terraform_generator.writer
 import java.time.{LocalDateTime, ZoneOffset}
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerObjectArray}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerObjectArray, TerraformPropertyAttributes}
 import nl.flotsam.xeger.Xeger
 
 import scala.util.Random
@@ -73,6 +73,13 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           }
         }
 
+        val testStringValueWithAttribute = prop.getAttribute() match {
+          case TerraformPropertyAttributes.UNIQUE =>
+            testStringValue.dropRight(1) + Random.alphanumeric.take(10).mkString("") + "\""
+          case _ =>
+            testStringValue
+        }
+
         if (isUpdate && !prop.getCreateOnly()) {
           val newVal = if (prop.getPattern().nonEmpty) {
             var generatedVal = ""
@@ -81,11 +88,11 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
             } while (generatedVal.isEmpty || generatedVal == testStringValue)
             generatedVal
           } else {
-            testStringValue.dropRight(1) + """Update""""
+            testStringValueWithAttribute.dropRight(1) + """Update""""
           }
           newVal
         } else {
-          testStringValue
+          testStringValueWithAttribute
         }
       case _ =>
         throw new RuntimeException("Trying to generate test values for an unsupported type.")

@@ -26,11 +26,16 @@ trait ProcessorHelper extends StringHelper {
 
   // Checks if this prop can only be set in a create request and cannot be updated
   def isPropertyWriteOnly(openAPI: OpenAPI, property: String, modelName: String): Boolean = {
+    val propertyName = if (property.contains("(") && property.contains(")")) {
+      property.split("""\(""").head
+    } else {
+      property
+    }
     if (modelName.toLowerCase.contains("create")) {
       openAPI.getComponents.getSchemas.asScala.toList.exists {
         case (name, schema) =>
           name.toLowerCase.endsWith(modelName.toLowerCase.stripPrefix("create")) &&
-            !schema.getProperties.asScala.contains(property)
+            !schema.getProperties.asScala.contains(propertyName)
       }
     } else {
       val modelsWithTag: Map[String, (String, Schema[_])] = getTagForComponent(openAPI, modelName)
@@ -48,14 +53,23 @@ trait ProcessorHelper extends StringHelper {
               (model.toLowerCase.contains("create") || model.toLowerCase.contains("update"))
           }
 
-          modelsWithTag(models.filter(_.toLowerCase.contains("create")).head)._2.getProperties.containsKey(property) &&
-            !modelsWithTag(models.filter(_.toLowerCase.contains("update")).head)._2.getProperties.containsKey(property)
+          modelsWithTag(models.filter(_.toLowerCase.contains("create")).head)._2.getProperties.containsKey(propertyName) &&
+            !modelsWithTag(models.filter(_.toLowerCase.contains("update")).head)._2.getProperties.containsKey(propertyName)
         } else {
           false
         }
       } else {
         false
       }
+    }
+  }
+
+  def getNameAndAttribute(property: String): (String, String) = {
+    if (property.contains("(") && property.contains(")")) {
+      val nameAndAttribute = property.split("""\(""")
+      (nameAndAttribute.head, nameAndAttribute.last.dropRight(1))
+    } else {
+      (property, "")
     }
   }
 
@@ -141,7 +155,19 @@ trait ProcessorHelper extends StringHelper {
         model.getProperties.asScala.toList ++ refProps
       }
       allProps.filter {
-        prop => propNames.contains(prop._1)
+        prop => propNames.map {
+          propWithAttribute => if (propWithAttribute.contains("(") && propWithAttribute.contains(")")) {
+            propWithAttribute.split("""\(""").head
+          } else {
+            propWithAttribute
+          }
+        }.contains(prop._1)
+      }.map {
+        case (name, schema) => if (propNames.exists(_.contains(name))) {
+          (propNames.filter(_.contains(name)).head, schema)
+        } else {
+          (name, schema)
+        }
       }
     } else {
       List.empty[(String, Schema[_])]
