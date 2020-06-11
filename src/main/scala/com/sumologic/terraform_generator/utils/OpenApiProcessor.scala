@@ -324,8 +324,7 @@ object OpenApiProcessor extends ProcessorHelper {
     }.toList
   }
 
-  def processAllClasses(openApi: OpenAPI,
-                        types: List[String] = List.empty[String]): List[(ScalaSwaggerTemplate, String)] = {
+  def processAllClasses(openApi: OpenAPI): List[(ScalaSwaggerTemplate, String)] = {
     val filteredPaths = openApi.getPaths.asScala.filter {
       case (pathName: String, path: PathItem) =>
         val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
@@ -412,14 +411,6 @@ object OpenApiProcessor extends ProcessorHelper {
         }
     }.toList
 
-    if (types.nonEmpty) {
-      templates.filter {
-        template => types.exists {
-          t => template._2.toLowerCase.contains(t.toLowerCase)
-        }
-      }
-    } else {
-      templates
-    }
+    templates
   }
 }

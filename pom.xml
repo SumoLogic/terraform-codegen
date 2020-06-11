@@ -9,6 +9,7 @@
   <inceptionYear>2018</inceptionYear>
 
   <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <scala.version.major>2.12</scala.version.major>
     <scala.version>${scala.version.major}.11</scala.version>
   </properties>
@@ -46,6 +47,12 @@
       <groupId>com.github.krraghavan</groupId>
       <artifactId>xeger</artifactId>
       <version>1.0.0-RELEASE</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-log4j12</artifactId>
+      <version>1.7.25</version>
     </dependency>
 
     <!-- Test Dependencies -->
