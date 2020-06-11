@@ -2,7 +2,6 @@
 *.log
 *.iml
 *.idea
-*.go
 *.txt
 *.markdown
 target/
