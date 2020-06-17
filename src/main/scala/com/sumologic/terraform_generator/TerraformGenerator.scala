@@ -58,13 +58,13 @@ object TerraformGenerator
 
   def generate(openApi: OpenAPI): Unit = {
     try {
-      val templates = OpenApiProcessor.processAllClasses(openApi)
+      val templates = OpenApiProcessor.process(openApi)
       templates.foreach {
-        case (template: ScalaSwaggerTemplate, baseType: String) =>
-          writeFiles(template, baseType)
+        template =>
+          writeFiles(template, template.sumoSwaggerClassName)
       }
 
-      val provider = ProviderFileGenerator(templates.map(_._2))
+      val provider = ProviderFileGenerator(templates.map(_.sumoSwaggerClassName))
       provider.writeToFile(resourcesDirectory + "provider.go")
     } catch {
       case ex: Exception =>
