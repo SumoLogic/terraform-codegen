@@ -424,7 +424,7 @@ object OpenApiProcessor extends ProcessorHelper
         } else if (pathItem.getDelete != null) {
           Option(pathItem.getDelete.getTags).getOrElse(noTag).asScala.head
         } else {
-          throw new RuntimeException("")
+          throw new RuntimeException("Only CRUD endpoints should have terraform extensions")
         }
 
         val paths = tagToPathMap.getOrElse(tag, List.empty[OpenApiPath])
