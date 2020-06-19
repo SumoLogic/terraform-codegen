@@ -1,6 +1,8 @@
 package com.sumologic.terraform_generator.utils
 
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerObjectSingle, ScalaSwaggerParameter, ScalaSwaggerResponse, ScalaSwaggerTemplate, ScalaSwaggerType, TerraformSchemaTypes, TerraformSupportedParameterTypes}
+import java.util.Collections
+
+import com.sumologic.terraform_generator.objects._
 import io.swagger.v3.oas.models.PathItem.HttpMethod
 import io.swagger.v3.oas.models.media.{ArraySchema, ComposedSchema, Schema}
 import io.swagger.v3.oas.models.parameters.{HeaderParameter, Parameter, PathParameter, QueryParameter}
@@ -8,8 +10,13 @@ import io.swagger.v3.oas.models.responses.ApiResponse
 import io.swagger.v3.oas.models.{OpenAPI, Operation, PathItem}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable
 
-object OpenApiProcessor extends ProcessorHelper {
+
+case class OpenApiPath(name: String, item: PathItem)
+
+object OpenApiProcessor extends ProcessorHelper
+  with Logging {
 
   def resolvePropertyType(openApi: OpenAPI, property: Schema[_]): ScalaSwaggerType = {
     if (property.get$ref() != null) {
@@ -324,93 +331,106 @@ object OpenApiProcessor extends ProcessorHelper {
     }.toList
   }
 
-  def processAllClasses(openApi: OpenAPI): List[(ScalaSwaggerTemplate, String)] = {
-    val filteredPaths = openApi.getPaths.asScala.filter {
-      case (pathName: String, path: PathItem) =>
-        val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
-          path.getPost.getExtensions.asScala.filterKeys(_ == "x-tf-create")
-        } else List.empty[(String, AnyRef)]
-        val getExtensions = if (path.getGet != null && path.getGet.getExtensions != null) {
-          path.getGet.getExtensions.asScala.filterKeys(_ == "x-tf-read")
-        } else List.empty[(String, AnyRef)]
-        val putExtensions = if (path.getPut != null && path.getPut.getExtensions != null) {
-          path.getPut.getExtensions.asScala.filterKeys(_ == "x-tf-update")
-        } else List.empty[(String, AnyRef)]
-        val deleteExtensions = if (path.getDelete != null && path.getDelete.getExtensions != null) {
-          path.getDelete.getExtensions.asScala.filterKeys(_ == "x-tf-delete")
-        } else List.empty[(String, AnyRef)]
-        val vendorExtensions = postExtensions ++ getExtensions ++ putExtensions ++ deleteExtensions
+  /**
+   * For each API tagged with Terraform extensions, create an Scala representation
+   * object (ScalaSwaggerTemplate) capturing the CRUD endpoints.
+   *
+   * @param openApi - OpenAPI representation of the yaml spec.
+   * @return A list of ScalaSwaggerTemplate objects.
+   */
+  def process(openApi: OpenAPI): List[ScalaSwaggerTemplate] = {
 
-        !vendorExtensions.isEmpty
-    }.map {
-      case (pathName: String, path: PathItem) =>
-        if (path.getPost != null) {
-          if (path.getPost.getTags != null) {
-            val displayName = openApi.getTags.asScala.filter {
-              tag => tag.getName == path.getPost.getTags.asScala.head
-            }.map(_.getExtensions.get("x-displayName")).head
-            (pathName, path, displayName)
-          } else {
-            (pathName, path, "noTag")
-          }
-        } else if (path.getGet != null) {
-          if (path.getGet.getTags != null) {
-            val displayName = openApi.getTags.asScala.filter {
-              tag => tag.getName == path.getGet.getTags.asScala.head
-            }.map(_.getExtensions.get("x-displayName")).head
-            (pathName, path, displayName)
-          } else {
-            (pathName, path, "noTag")
-          }
-        } else if (path.getPut != null) {
-          if (path.getPut.getTags != null) {
-            val displayName = openApi.getTags.asScala.filter {
-              tag => tag.getName == path.getPut.getTags.asScala.head
-            }.map(_.getExtensions.get("x-displayName")).head
-            (pathName, path, displayName)
-          } else {
-            (pathName, path, "noTag")
-          }
-        } else if (path.getDelete != null) {
-          if (path.getDelete.getTags != null) {
-            val displayName = openApi.getTags.asScala.filter {
-              tag => tag.getName == path.getDelete.getTags.asScala.head
-            }.map(_.getExtensions.get("x-displayName")).head
-            (pathName, path, displayName)
-          } else {
-            (pathName, path, "noTag")
-          }
-        } else {
-          (pathName, path, "noTag")
-        }
-    }
+    val terraformPaths = filterTerraformPaths(openApi)
 
-    val templates = filteredPaths.toList.groupBy(_._3).flatMap {
-      case (tag: String, paths: List[(String, PathItem, String)]) =>
-        val baseTypeName = tag.toLowerCase.replace(" (beta)", "").stripSuffix("s")
-        val endpoints: List[ScalaSwaggerEndpoint] = paths.flatMap {
-          path: (String, PathItem, String) => processPath(openApi, path._2, path._1)
+    val tagToPathMap = groupPathsByTag(terraformPaths)
+
+    tagToPathMap.flatMap {
+      case (_: String, paths: List[OpenApiPath]) =>
+        val endpoints = paths.flatMap {
+          path => processPath(openApi, path.item, path.name)
         }
+
+        // Find resource type for an API. For most of the APIs, there will be only one resource type.
+        // However, when inheritance is involved there can be multiple resource types i.e. each derived
+        // type is a resource type.
         val baseTypes = endpoints.flatMap {
           endpoint =>
-            val responseAndParamNames = (endpoint.responses.map {
+            val responseNames = endpoint.responses.flatMap {
               response =>
-                if (response.respTypeOpt.isDefined) {
-                  response.respTypeOpt.get.name
-                } else {
-                  null
+                response.respTypeOpt match {
+                  case Some(respType) => Some(respType.name)
+                  case _ => None
                 }
-            } ++ endpoint.parameters.map {
-              param => param.param.getName
-            }).toSet.filter(_ != null)
-            getTaggedComponents(openApi).keys.toList.intersect(responseAndParamNames.toList)
-        }.toSet
+            }
+
+            val paramNames = endpoint.parameters.map {
+              param => param.param.getName()
+            }
+
+            val responseAndParamNames = (responseNames ++ paramNames).toSet
+            getTaggedComponents(openApi).keys.toSet.intersect(responseAndParamNames)
+        }
+
         baseTypes.map {
-          baseType =>
-            (ScalaSwaggerTemplate(baseType, endpoints.toList), baseType)
+          baseType => ScalaSwaggerTemplate(baseType, endpoints)
         }
     }.toList
+  }
 
-    templates
+
+  private def filterTerraformPaths(openApi: OpenAPI): Map[String, PathItem] = {
+    openApi.getPaths.asScala.filter {
+      case (_: String, path: PathItem) =>
+        val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
+          path.getPost.getExtensions.asScala.filterKeys(_ == "x-tf-create")
+        } else {
+          Map.empty[String, PathItem]
+        }
+
+        val getExtensions = if (path.getGet != null && path.getGet.getExtensions != null) {
+          path.getGet.getExtensions.asScala.filterKeys(_ == "x-tf-read")
+        } else {
+          Map.empty[String, AnyRef]
+        }
+
+        val putExtensions = if (path.getPut != null && path.getPut.getExtensions != null) {
+          path.getPut.getExtensions.asScala.filterKeys(_ == "x-tf-update")
+        } else {
+          Map.empty[String, AnyRef]
+        }
+
+        val deleteExtensions = if (path.getDelete != null && path.getDelete.getExtensions != null) {
+          path.getDelete.getExtensions.asScala.filterKeys(_ == "x-tf-delete")
+        } else {
+          Map.empty[String, AnyRef]
+        }
+
+        val vendorExtensions = postExtensions ++ getExtensions ++ putExtensions ++ deleteExtensions
+        vendorExtensions.nonEmpty
+    }.toMap
+  }
+
+  private def groupPathsByTag(paths: Map[String, PathItem]): Map[String, List[OpenApiPath]] = {
+    val tagToPathMap = mutable.Map[String, List[OpenApiPath]]()
+    paths.foreach {
+      case (path, pathItem) =>
+        val noTag = Collections.singletonList("noTag")
+        val tag = if (pathItem.getPost != null) {
+          Option(pathItem.getPost.getTags).getOrElse(noTag).asScala.head
+        } else if (pathItem.getGet != null) {
+          Option(pathItem.getGet.getTags).getOrElse(noTag).asScala.head
+        } else if (pathItem.getPut != null) {
+          Option(pathItem.getPut.getTags).getOrElse(noTag).asScala.head
+        } else if (pathItem.getDelete != null) {
+          Option(pathItem.getDelete.getTags).getOrElse(noTag).asScala.head
+        } else {
+          throw new RuntimeException("Only CRUD endpoints should have terraform extensions")
+        }
+
+        val paths = tagToPathMap.getOrElse(tag, List.empty[OpenApiPath])
+        tagToPathMap.update(tag, paths :+ OpenApiPath(path, pathItem))
+    }
+
+    tagToPathMap.toMap
   }
 }
