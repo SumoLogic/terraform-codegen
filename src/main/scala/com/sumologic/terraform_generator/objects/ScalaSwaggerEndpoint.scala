@@ -96,6 +96,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
            |	}
            |""".stripMargin
       case "post" =>
+        // This is necessary in the case that the delete endpoint doesn't use the delete HTTP method and uses the post method instead
         if (endpointName.contains("delete")) {
           s"""
              |  _, err := s.Post(urlWithParams, $varName)
