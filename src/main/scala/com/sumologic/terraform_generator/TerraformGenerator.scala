@@ -1,48 +1,75 @@
 package com.sumologic.terraform_generator
 
 import java.io.{BufferedWriter, File, FileWriter}
+import java.nio.file.{Files, Paths}
 
 import com.sumologic.terraform_generator.objects.ScalaSwaggerTemplate
-import com.sumologic.terraform_generator.utils.OpenApiProcessor
-import com.sumologic.terraform_generator.writer.{AcceptanceTestFileGenerator, ProviderFileGenerator, TerraformClassFileGenerator, TerraformDocsGenerator, TerraformResourceFileGenerator}
+import com.sumologic.terraform_generator.utils.{Logging, OpenApiProcessor}
+import com.sumologic.terraform_generator.writer._
 import io.swagger.parser.OpenAPIParser
-import io.swagger.v3.parser.core.models.ParseOptions
+import io.swagger.v3.oas.models.OpenAPI
+import io.swagger.v3.parser.core.models.{ParseOptions, SwaggerParseResult}
 
 
-object TerraformGenerator extends StringHelper {
+object TerraformGenerator
+  extends StringHelper
+    with Logging {
 
-  val targetDirectory = "./target/"
-  val resourcesDirectory: String = targetDirectory + "resources/"
+  var targetDirectory: String = "./target/"
+  lazy val resourcesDirectory: String = targetDirectory + "resources/"
 
   def main(args: Array[String]): Unit = {
-    val inputFile = args(0)
-    val types = if (args.size > 1) {
-      args.drop(1).toList
-    } else {
-      List.empty[String]
+    if (args.length < 1) {
+      println("==========================================================")
+      println("ERROR: Insufficient args")
+      println("ERROR: Usage: TerraformGenerator <yaml-file> [output-dir]")
+      println("==========================================================")
+      System.exit(1)
     }
 
-    val parseOpts = new ParseOptions()
-    parseOpts.setResolve(true)
-    parseOpts.setResolveCombinators(true)
+    val yamlFile = args.head
+    targetDirectory = if (args.length == 2) args.last else targetDirectory
+    Files.createDirectories(Paths.get(resourcesDirectory))
 
-    ensureDirectories()
+    val swaggerParseResult = readYaml(yamlFile)
+    generate(swaggerParseResult.getOpenAPI)
+  }
 
-    val swagger = if (inputFile.endsWith(".yml")) {
-      new OpenAPIParser().readLocation(inputFile, null, parseOpts)
-    } else {
-      new OpenAPIParser().readContents(inputFile, null, parseOpts)
+  def readYaml(file: String): SwaggerParseResult = {
+    val parseResult = try {
+      val parseOpts = new ParseOptions()
+      parseOpts.setResolve(true)
+      parseOpts.setResolveCombinators(true)
+
+      new OpenAPIParser().readLocation(file, null, parseOpts)
+    } catch {
+      case ex: RuntimeException =>
+        error(s"Failed to read $file", ex)
+        throw ex
     }
+
     val f = new File(targetDirectory + "openapi_schema.txt")
     val bw = new BufferedWriter(new FileWriter(f))
-    bw.write(swagger.getOpenAPI.toString)
+    bw.write(parseResult.getOpenAPI.toString)
     bw.close()
-    val terraforms = OpenApiProcessor.processAllClasses(swagger.getOpenAPI, types)
-    terraforms.foreach {
-      case (terraform: ScalaSwaggerTemplate, baseType: String) =>
-        writeFiles(terraform, baseType)
+
+    parseResult
+  }
+
+  def generate(openApi: OpenAPI): Unit = {
+    try {
+      val templates = OpenApiProcessor.process(openApi)
+      templates.foreach {
+        template =>
+          writeFiles(template, template.sumoSwaggerClassName)
+      }
+
+      val provider = ProviderFileGenerator(templates.map(_.sumoSwaggerClassName))
+      provider.writeToFile(resourcesDirectory + "provider.go")
+    } catch {
+      case ex: Exception =>
+        error(s"Unexpected error!", ex)
     }
-    ProviderFileGenerator(terraforms.map(_._2)).writeToFile(resourcesDirectory + "provider.go")
   }
 
   def writeFiles(sumoSwaggerTemplate: ScalaSwaggerTemplate, baseType: String): Unit = {
@@ -59,16 +86,5 @@ object TerraformGenerator extends StringHelper {
 
     val genDocs = TerraformDocsGenerator(sumoSwaggerTemplate, baseType)
     genDocs.writeToFile(resourcesDirectory + s"$terraformTypeName.html.markdown")
-  }
-
-  def ensureDirectories(): Unit = {
-    val directory = new File(targetDirectory)
-    if (!directory.exists) {
-      directory.mkdir
-    }
-    val resourcesDirectoryFolder = new File(resourcesDirectory)
-    if (!resourcesDirectoryFolder.exists) {
-      resourcesDirectoryFolder.mkdir
-    }
   }
 }
