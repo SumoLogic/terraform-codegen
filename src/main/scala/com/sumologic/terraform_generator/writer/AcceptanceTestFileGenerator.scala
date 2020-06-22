@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.{ForbiddenGoTerms, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformSchemaTypes}
+import com.sumologic.terraform_generator.objects.{ForbiddenGoTerms, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformPropertyAttributes, TerraformSchemaTypes}
 
 case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClass: String)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
@@ -43,8 +43,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
 
   def generateTestFunctionCreateBasic(): String = {
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
-      prop =>
-        s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
+      prop => s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
     }.mkString("\n  ")
 
     val testNames = filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -76,8 +75,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
 
   def generateTestFunctionCreate(): String = {
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
-      prop =>
-        s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
+      prop => s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
     }.mkString("\n  ")
 
     val testNames = "(" + filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -173,12 +171,18 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
 
   def generateTestFunctionUpdate(): String = {
     val testArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
-      prop =>
-        s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
+      prop => s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
     }.mkString("\n  ")
     val testUpdateArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, true)}"""
+        val unique = prop.getAttribute() == TerraformPropertyAttributes.UNIQUE
+        if (unique && prop.getCreateOnly()) {
+          testArguments.split("\n").filter {
+            arg => arg.contains(s"test${prop.getName.capitalize}")
+          }.head.replace(s"test${prop.getName.capitalize}", s"testUpdated${prop.getName.capitalize}")
+        } else {
+          s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, isUpdate = true)}"""
+        }
     }.mkString("\n  ")
     val argList = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop => s"""test${prop.getName().capitalize}"""

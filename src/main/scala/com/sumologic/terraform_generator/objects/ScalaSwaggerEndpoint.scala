@@ -73,9 +73,15 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     val taggedResource = if (this.httpMethod.toLowerCase != "delete") {
       this.responses.filter {
         response => response.respTypeName != "default" && response.respTypeName != "204"
-      }.head.respTypeOpt.get.name
+      }.head.respTypeOpt.map(_.name).getOrElse("")
     } else {
       ""
+    }
+
+    val varName = if (taggedResource.isEmpty) {
+      "nil"
+    } else {
+      lowerCaseFirstLetter(taggedResource)
     }
 
     httpMethod.toLowerCase match {
@@ -90,12 +96,22 @@ case class ScalaSwaggerEndpoint(endpointName: String,
            |	}
            |""".stripMargin
       case "post" =>
-        s"""
-           |  data, err := s.Post(urlWithoutParams, ${lowerCaseFirstLetter(taggedResource)})
-           |  if err != nil {
-           |		return "", err
-           |	}
-           |""".stripMargin
+        // This is necessary in the case that the delete endpoint doesn't use the delete HTTP method and uses the post method instead
+        if (endpointName.contains("delete")) {
+          s"""
+             |  _, err := s.Post(urlWithParams, $varName)
+             |  if err != nil {
+             |		return err
+             |	}
+             |""".stripMargin
+        } else {
+          s"""
+             |  data, err := s.Post(urlWithoutParams, $varName)
+             |  if err != nil {
+             |		return "", err
+             |	}
+             |""".stripMargin
+        }
       case "delete" =>
         s"""_, err := s.Delete(urlWithParams)"""
       case _ =>
@@ -108,7 +124,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     val taggedResource = if (this.httpMethod.toLowerCase != "delete") {
       this.responses.filter {
         response => response.respTypeName != "default" && response.respTypeName != "204"
-      }.head.respTypeOpt.get.name
+      }.head.respTypeOpt.map(_.name).getOrElse("")
     } else {
       ""
     }
@@ -204,7 +220,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
 
     // path, query and header params
     val setParamString = getParamString
-    val urlWithParamsString = if (this.httpMethod.toLowerCase == "post") {
+    val urlWithParamsString = if (this.httpMethod.toLowerCase == "post" && !endpointName.contains("delete")) {
       ""
     } else {
       """urlWithParams := fmt.Sprintf(urlWithoutParams + paramString, sprintfArgs...)"""

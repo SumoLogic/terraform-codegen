@@ -221,6 +221,10 @@ object OpenApiProcessor extends ProcessorHelper
 
   def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String], modelName: String): ScalaSwaggerObject = {
     val isWriteOnly = isPropertyWriteOnly(openApi, propName, modelName)
+    val (name, attribute) = getNameAndAttribute(propName)
+    if (attribute.nonEmpty && !TerraformPropertyAttributes.attributesList.contains(attribute)) {
+      throw new RuntimeException(s"Invalid attribute for property: $name")
+    }
     val format = if (prop.getFormat == null) {""} else {prop.getFormat}
     val example = if (prop.getExample == null) {""} else {prop.getExample.toString}
     val pattern = if (prop.getPattern == null) {""} else {prop.getPattern}
@@ -228,7 +232,7 @@ object OpenApiProcessor extends ProcessorHelper
       val arrayProp = prop.asInstanceOf[ArraySchema]
       val itemPattern = if (arrayProp.getItems.getPattern == null) {""} else {arrayProp.getItems.getPattern}
       ScalaSwaggerObjectArray(
-        propName,
+        name,
         resolvePropertyType(openApi, arrayProp),
         requiredProps.contains(arrayProp.getName),
         None,
@@ -236,12 +240,13 @@ object OpenApiProcessor extends ProcessorHelper
         example,
         itemPattern,
         format,
+        attribute,
         isWriteOnly)
     } else {
       if (prop.get$ref() != null) {
         val refModel = getComponent(openApi, prop.get$ref().split("/").last)._2
         ScalaSwaggerObjectSingle(
-          propName,
+          name,
           processModel(openApi, propName, refModel),
           requiredProps.contains(prop.getName),
           None,
@@ -249,11 +254,12 @@ object OpenApiProcessor extends ProcessorHelper
           example,
           pattern,
           format,
+          attribute,
           isWriteOnly)
       } else {
         if (propName.toLowerCase != "id") {
           ScalaSwaggerObjectSingle(
-            propName,
+            name,
             resolvePropertyType(openApi, prop),
             requiredProps.map(_.toLowerCase).contains(propName.toLowerCase),
             Option(prop.getDefault.asInstanceOf[AnyRef]),
@@ -261,10 +267,11 @@ object OpenApiProcessor extends ProcessorHelper
             example,
             pattern,
             format,
+            attribute,
             isWriteOnly)
         } else {
           ScalaSwaggerObjectSingle(
-            propName,
+            name,
             resolvePropertyType(openApi, prop),
             requiredProps.map(_.toLowerCase).contains(propName.toLowerCase),
             Option(prop.getDefault.asInstanceOf[AnyRef]),
@@ -272,6 +279,7 @@ object OpenApiProcessor extends ProcessorHelper
             example,
             pattern,
             format,
+            attribute,
             isWriteOnly)
         }
       }

@@ -3,7 +3,7 @@ package com.sumologic.terraform_generator.writer
 import java.time.{LocalDateTime, ZoneOffset}
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerObjectArray}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerObjectArray, TerraformPropertyAttributes}
 import nl.flotsam.xeger.Xeger
 
 import scala.util.Random
@@ -59,9 +59,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
         } else if (prop.getExample().nonEmpty) {
           s""""${prop.getExample().toString.replace(""""""", """\"""")}""""
         } else if (prop.getPattern().nonEmpty) {
-          val generator = new Xeger(prop.getPattern())
-          generator.generate()
-          s""""${generator.generate().replace(""""""", """\"""")}""""
+          generateTestValueFromPattern(prop.getPattern())
         } else {
           if (prop.getFormat() == "date-time") {
             s""""${LocalDateTime.now(ZoneOffset.UTC).toString.takeWhile(_ != '.')}Z""""
@@ -71,17 +69,39 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
             for (i <- 1 to 10) {
               sb.append(r.nextPrintableChar)
             }
-            s"""${sb.toString.replace(""""""", """\"""")}"""
+            s""""${sb.toString.replace(""""""", """\"""")}""""
           }
         }
 
+        val testStringValueWithAttribute = prop.getAttribute() match {
+          case TerraformPropertyAttributes.UNIQUE =>
+            testStringValue.dropRight(1) + Random.alphanumeric.take(10).mkString("") + "\""
+          case _ =>
+            testStringValue
+        }
+
         if (isUpdate && !prop.getCreateOnly()) {
-          testStringValue.dropRight(1) + """Update""""
+          val newVal = if (prop.getPattern().nonEmpty) {
+            var generatedVal = ""
+            do {
+              generatedVal = generateTestValueFromPattern(prop.getPattern())
+            } while (generatedVal.isEmpty || generatedVal == testStringValue)
+            generatedVal
+          } else {
+            testStringValueWithAttribute.dropRight(1) + """Update""""
+          }
+          newVal
         } else {
-          testStringValue
+          testStringValueWithAttribute
         }
       case _ =>
         throw new RuntimeException("Trying to generate test values for an unsupported type.")
     }
+  }
+
+  private def generateTestValueFromPattern(pattern: String): String = {
+    val generator = new Xeger(pattern)
+    generator.generate()
+    s""""${generator.generate().replace(""""""", """\"""")}""""
   }
 }

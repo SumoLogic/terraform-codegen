@@ -1,5 +1,20 @@
 package com.sumologic.terraform_generator.objects
 
+object TerraformPathTags {
+  final val Create = "x-tf-create"
+  final val Read = "x-tf-read"
+  final val Update = "x-tf-update"
+  final val Delete = "x-tf-delete"
+
+  val tagsList = List(Create, Read, Update, Delete)
+}
+
+object TerraformPropertyAttributes {
+  final val UNIQUE = "unique"
+
+  val attributesList = List(UNIQUE)
+}
+
 object TerraformSupportedOperations {
   final val CREATE = "create"
   final val GET = "get"
