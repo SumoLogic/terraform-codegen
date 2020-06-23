@@ -16,7 +16,7 @@ object TerraformGenerator
     with Logging {
 
   var targetDirectory: String = "./target/"
-  lazy val resourcesDirectory: String = targetDirectory + "resources/"
+  lazy val resourcesDirectory: String = Paths.get(targetDirectory, "resources/").toString
 
   def main(args: Array[String]): Unit = {
     if (args.length < 1) {
@@ -30,9 +30,14 @@ object TerraformGenerator
     val yamlFile = args.head
     targetDirectory = if (args.length == 2) args.last else targetDirectory
     Files.createDirectories(Paths.get(resourcesDirectory))
+    logger.info(s"Generating provider in '$resourcesDirectory' dir")
 
-    val swaggerParseResult = readYaml(yamlFile)
-    generate(swaggerParseResult.getOpenAPI)
+    try {
+      val swaggerParseResult = readYaml(yamlFile)
+      generate(swaggerParseResult.getOpenAPI)
+    } catch {
+      case _: Exception => System.exit(1)
+    }
   }
 
   def readYaml(file: String): SwaggerParseResult = {
@@ -43,13 +48,14 @@ object TerraformGenerator
 
       new OpenAPIParser().readLocation(file, null, parseOpts)
     } catch {
-      case ex: RuntimeException =>
-        error(s"Failed to read $file", ex)
+      case ex: Exception =>
+        logger.error(s"Failed to read $file", ex)
         throw ex
     }
 
     val f = new File(targetDirectory + "openapi_schema.txt")
     val bw = new BufferedWriter(new FileWriter(f))
+    assert(parseResult.getOpenAPI != null)
     bw.write(parseResult.getOpenAPI.toString)
     bw.close()
 
@@ -68,7 +74,8 @@ object TerraformGenerator
       provider.writeToFile(resourcesDirectory + "provider.go")
     } catch {
       case ex: Exception =>
-        error(s"Unexpected error!", ex)
+        logger.error("Unexpected error!", ex)
+        throw ex
     }
   }
 
