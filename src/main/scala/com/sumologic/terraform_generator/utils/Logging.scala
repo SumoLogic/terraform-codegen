@@ -12,20 +12,4 @@ trait Logging {
     }
     _logger
   }
-
-  def info(msg: String, params: Any*): Unit = {
-    logger.info(msg, params)
-  }
-
-  def error(msg: String, params: Any*): Unit = {
-    logger.error(msg, params)
-  }
-
-  def warn(msg: String, params: Any*): Unit = {
-    logger.warn(msg, params)
-  }
-
-  def debug(msg: String, params: Any*): Unit = {
-    logger.debug(msg, params)
-  }
 }

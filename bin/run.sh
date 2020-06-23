@@ -1,13 +1,12 @@
 #!/bin/bash
 
-export JAVA_PROGRAM_ARGS=`echo "$@"`
-
-if [ $# -eq 0 ]
-then
-  echo "Must supply input yaml file"
-elif [ $# -eq 1 ]
-then
-  ./mvnw -B compile exec:java -Dexec.mainClass="com.sumologic.terraform_generator.TerraformGenerator" -Dexec.args="$JAVA_PROGRAM_ARGS" -Duser.home="SwaggerToTerraformGenerator"
-else
-  ./mvnw -B compile exec:java -Dexec.mainClass="com.sumologic.terraform_generator.TerraformGenerator" -Dexec.args="$JAVA_PROGRAM_ARGS" -Duser.home="SwaggerToTerraformGenerator"
+if [ $# -eq 0 ]; then
+  echo "=========================================================="
+  echo "ERROR: Insufficient args"
+  echo "ERROR: Usage: ./bin/run.sh <yaml-file>"
+  echo "=========================================================="
+  exit 1
 fi
+
+export JAVA_PROGRAM_ARGS=`echo "$@"`
+./mvnw -B compile exec:java -Dexec.mainClass="com.sumologic.terraform_generator.TerraformGenerator" -Dexec.args="$JAVA_PROGRAM_ARGS"
