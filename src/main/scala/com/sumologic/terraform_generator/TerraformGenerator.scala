@@ -71,7 +71,7 @@ object TerraformGenerator
       }
 
       val provider = ProviderFileGenerator(templates.map(_.sumoSwaggerClassName))
-      provider.writeToFile(resourcesDirectory + "provider.go")
+      provider.writeToFile(Paths.get(resourcesDirectory, "provider.go").toString)
     } catch {
       case ex: Exception =>
         logger.error("Unexpected error!", ex)
@@ -83,15 +83,15 @@ object TerraformGenerator
     val genSumoClass = TerraformClassFileGenerator(sumoSwaggerTemplate)
     val terraformTypeName = removeCamelCase(baseType)
 
-    genSumoClass.writeToFile(resourcesDirectory + s"sumologic_$terraformTypeName.go")
+    genSumoClass.writeToFile(Paths.get(resourcesDirectory, s"sumologic_$terraformTypeName.go").toString)
 
     val genResource = TerraformResourceFileGenerator(sumoSwaggerTemplate)
-    genResource.writeToFile(resourcesDirectory + s"resource_sumologic_$terraformTypeName.go")
+    genResource.writeToFile(Paths.get(resourcesDirectory, s"resource_sumologic_$terraformTypeName.go").toString)
 
     val genTest = AcceptanceTestFileGenerator(sumoSwaggerTemplate, baseType)
-    genTest.writeToFile(resourcesDirectory + s"resource_sumologic_${terraformTypeName}_test.go")
+    genTest.writeToFile(Paths.get(resourcesDirectory, s"resource_sumologic_${terraformTypeName}_test.go").toString)
 
     val genDocs = TerraformDocsGenerator(sumoSwaggerTemplate, baseType)
-    genDocs.writeToFile(resourcesDirectory + s"$terraformTypeName.html.markdown")
+    genDocs.writeToFile(Paths.get(resourcesDirectory, s"$terraformTypeName.html.markdown").toString)
   }
 }
