@@ -132,15 +132,19 @@ object OpenApiProcessor extends ProcessorHelper
 
   def processComposedModel(openApi: OpenAPI, modelDefName: String, composedModel: ComposedSchema): ScalaSwaggerType = {
     val parts: List[ScalaSwaggerObject] = composedModel.getAllOf.asScala.flatMap {
-      case model: Schema[_] =>
+      model: Schema[_] =>
         if (model.get$ref() != null) {
           processModel(openApi, model.get$ref(), model).props
         } else {
           if (model.getProperties != null) {
             val taggedProps = getTaggedProperties(openApi, composedModel)
+
+            val taggedPropNames = taggedProps.map(_._1)
+            val requiredProps = taggedPropNames.intersect(getRequiredProperties(openApi, composedModel))
+
             taggedProps.map {
-              propTuple =>
-                processModelProperty(openApi, propTuple._1, propTuple._2, taggedProps.map(_._1).intersect(getRequiredProperties(openApi, composedModel)), modelDefName)
+              case (name, schema) =>
+                processModelProperty(openApi, name, schema, requiredProps, modelDefName)
             }
           } else {
             List[ScalaSwaggerObject]()
@@ -148,11 +152,14 @@ object OpenApiProcessor extends ProcessorHelper
         }
     }.toList
 
-    val partsWithId = if (!parts.map(_.getName().toLowerCase).contains("id") || parts.flatMap(_.getAllTypes().map(_.name.toLowerCase)).contains("id")) {
-      parts ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, ""))
-    } else {
-      parts
-    }
+    val partsWithId =
+      if (!parts.map(_.getName().toLowerCase).contains("id") ||
+          parts.flatMap(_.getAllTypes().map(_.name.toLowerCase)).contains("id")) {
+        parts ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, ""))
+      } else {
+        parts
+      }
+
     if (modelDefName.contains("Model")) {
       ScalaSwaggerType(modelDefName.replace("Model", ""), partsWithId.toSet.toList)
     } else {
@@ -160,6 +167,7 @@ object OpenApiProcessor extends ProcessorHelper
     }
   }
 
+  @scala.annotation.tailrec
   def processModel(openApi: OpenAPI, modelDefName: String, model: Schema[_]): ScalaSwaggerType = {
     val modelName = if (modelDefName.contains("/")) {
       modelDefName.split("/").last
@@ -168,95 +176,112 @@ object OpenApiProcessor extends ProcessorHelper
     }
 
     model match {
-      case arrayModel: ArraySchema =>
+      case _: ArraySchema =>
         ScalaSwaggerType(modelName, List[ScalaSwaggerObject]())
       case composedModel: ComposedSchema =>
         processComposedModel(openApi, modelName, composedModel)
       case _ =>
         if (model.get$ref() != null) {
-          val resourceName = model.get$ref().split("/").toList.last
-          if (getTaggedComponents(openApi).get(resourceName).isDefined) {
-            val resolvedRefModel = getTaggedComponents(openApi).get(resourceName).get
+          // Some models have one level on indirection. Follow the ref to find out model object.
+          val resourceName = model.get$ref().split("/").last
+          if (getTaggedComponents(openApi).contains(resourceName)) {
+            val resolvedRefModel = getTaggedComponents(openApi)(resourceName)
             processModel(openApi, modelName, resolvedRefModel)
           } else {
             processModel(openApi, modelName, getComponent(openApi, resourceName)._2)
           }
-        } else if (model.get$ref() == null) {
-          val props: List[ScalaSwaggerObject] = if (model.getExtensions != null) {
-            getTaggedProperties(openApi, model).map {
-              propTuple =>
-                val taggedProps = getTaggedProperties(openApi, model)
-                processModelProperty(openApi, propTuple._1, propTuple._2, taggedProps.map(_._1).intersect(getRequiredProperties(openApi, model)), modelName)
-            }
-          } else {
-            if (model.getProperties != null && modelDefName.contains("/")) {
-              model.getProperties.asScala.toList.map {
-                prop => processModelProperty(openApi, prop._1, prop._2, List(prop._1).intersect(getRequiredProperties(openApi, model)), modelName)
+        } else {
+          // Only consider properties mentioned in 'x-tf-generated-properties' extension if present.
+          // Otherwise, look at all properties.
+          val props: List[ScalaSwaggerObject] =
+            if (model.getExtensions != null) {
+              val taggedProps = getTaggedProperties(openApi, model)
+
+              val taggedPropNames = taggedProps.map(_._1)
+              val requiredProps = taggedPropNames.intersect(getRequiredProperties(openApi, model))
+
+              taggedProps.map {
+                case (name, schema) =>
+                  processModelProperty(openApi, name, schema, requiredProps, modelName)
               }
             } else {
-              List[ScalaSwaggerObject]()
+              if (model.getProperties != null && modelDefName.contains("/") /* why do we have this check? */ ) {
+                val props = model.getProperties.asScala
+                props.map {
+                  case (name, schema) =>
+                    val requiredProps = List(name).intersect(getRequiredProperties(openApi, model))
+                    processModelProperty(openApi, name, schema, requiredProps, modelName)
+                }.toList
+              } else {
+                List[ScalaSwaggerObject]()
+              }
             }
-          }
 
-          val propsWithId = if (!props.map(_.getName().toLowerCase).contains("id")) {
-            props ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, ""))
-          } else {
-            props
-          }
+          val propsWithId =
+            if (!props.map(_.getName().toLowerCase).contains("id")) {
+              props ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, ""))
+            } else {
+              props
+            }
+
           // literally only because of RoleModel
+          // TODO Change name of RoleModel to Role and get rid of this code
           if (modelName.contains("Model")) {
             ScalaSwaggerType(modelName.replace("Model", ""), propsWithId.toSet.toList)
           } else {
             ScalaSwaggerType(modelName, propsWithId.toSet.toList)
           }
-        } else {
-          if (modelName.contains("Model")) {
-            ScalaSwaggerType(modelName.replace("Model", ""), List[ScalaSwaggerObject]())
-          } else {
-            ScalaSwaggerType(modelName, List[ScalaSwaggerObject]())
-          }
         }
     }
   }
 
-  def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String], modelName: String): ScalaSwaggerObject = {
+  def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String],
+                           modelName: String): ScalaSwaggerObject = {
+
     val isWriteOnly = isPropertyWriteOnly(openApi, propName, modelName)
+
     val (name, attribute) = getNameAndAttribute(propName)
     if (attribute.nonEmpty && !TerraformPropertyAttributes.attributesList.contains(attribute)) {
       throw new RuntimeException(s"Invalid attribute for property: $name")
     }
-    val format = if (prop.getFormat == null) {""} else {prop.getFormat}
-    val example = if (prop.getExample == null) {""} else {prop.getExample.toString}
-    val pattern = if (prop.getPattern == null) {""} else {prop.getPattern}
-    if (prop.isInstanceOf[ArraySchema]) {
-      val arrayProp = prop.asInstanceOf[ArraySchema]
-      val itemPattern = if (arrayProp.getItems.getPattern == null) {""} else {arrayProp.getItems.getPattern}
-      ScalaSwaggerObjectArray(
-        name,
-        resolvePropertyType(openApi, arrayProp),
-        requiredProps.contains(arrayProp.getName),
-        None,
-        prop.getDescription,
-        example,
-        itemPattern,
-        format,
-        attribute,
-        isWriteOnly)
-    } else {
-      if (prop.get$ref() != null) {
-        val refModel = getComponent(openApi, prop.get$ref().split("/").last)._2
+
+    val format = Option(prop.getFormat).getOrElse("")
+    val example = Option(prop.getExample).getOrElse("").toString
+    val pattern = Option(prop.getPattern).getOrElse("")
+
+    prop match {
+      case arrayProp: ArraySchema =>
+        val itemPattern = Option(arrayProp.getItems.getPattern).getOrElse("")
+
+        ScalaSwaggerObjectArray(
+          name,
+          resolvePropertyType(openApi, arrayProp),
+          requiredProps.contains(arrayProp.getName),
+          None,
+          prop.getDescription,
+          example,
+          itemPattern,
+          format,
+          attribute,
+          isWriteOnly)
+
+      case refProp if (refProp.get$ref() != null) =>
+        val refModel = getComponent(openApi, refProp.get$ref().split("/").last)._2
         ScalaSwaggerObjectSingle(
           name,
           processModel(openApi, propName, refModel),
-          requiredProps.contains(prop.getName),
+          // TODO is propName different from refProp.getName?
+          requiredProps.contains(refProp.getName),
           None,
-          prop.getDescription,
+          refProp.getDescription,
           example,
           pattern,
           format,
           attribute,
           isWriteOnly)
-      } else {
+
+      case _ =>
+        // TODO if and else block have same code. Can be removed?
         if (propName.toLowerCase != "id") {
           ScalaSwaggerObjectSingle(
             name,
@@ -282,7 +307,6 @@ object OpenApiProcessor extends ProcessorHelper
             attribute,
             isWriteOnly)
         }
-      }
     }
   }
 
