@@ -142,56 +142,52 @@ trait ProcessorHelper
     // We only care about model that have extensions (i.e. they are part of Terraform).
     // This check should be updated to look for 'x-tf-generated-properties' instead of just checking
     // for presence of extensions.
-    if (model.getExtensions != null) {
-      val refProps = model match {
-        case schema: ComposedSchema =>
-          val allOfRefs = schema.getAllOf.asScala.map {
-            child =>
-              val ref = Option(child.get$ref()).getOrElse("")
-              ref.split('/').last
-          }.filter(_.nonEmpty)
+    if (model.getExtensions == null) {
+      return List.empty[(String, Schema[_])]
+    }
 
-          allOfRefs.flatMap {
-            refName =>
-              val (_, componentSchema) = getComponent(openAPI, refName)
-              Option(componentSchema.getProperties).getOrElse(Collections.emptyMap()).asScala
-          }
+    val refProps = model match {
+      case schema: ComposedSchema =>
+        val allOfRefs = schema.getAllOf.asScala.map {
+          child =>
+            val ref = Option(child.get$ref()).getOrElse("")
+            ref.split('/').last
+        }.filter(_.nonEmpty)
 
-        case _ =>
-          Seq.empty[(String, Schema[_])]
-      }
-
-      // FIXME: What is purpose of this code? We iterate over all component schema earlier.
-      //   Why do we need to handle last item as special case?
-      val allProps = model match {
-        case schema: ComposedSchema =>
-          schema.getAllOf.asScala.last.getProperties.asScala.toList ++ refProps
-        case _ =>
-          model.getProperties.asScala.toList ++ refProps
-      }
-
-      val propsWithAttribute = model.getExtensions.asScala(TerraformModelExtensions.Properties).toString.split(",")
-      val tfPropNames = propsWithAttribute.map { prop =>
-        if (prop.contains("(") && prop.contains(")")) {
-          prop.split("""\(""").head
-        } else {
-          prop
+        allOfRefs.flatMap {
+          refName =>
+            val (_, componentSchema) = getComponent(openAPI, refName)
+            Option(componentSchema.getProperties).getOrElse(Collections.emptyMap()).asScala
         }
+
+      case _ =>
+        Seq.empty[(String, Schema[_])]
+    }
+
+    // TODO This assumes composed models will have non-ref object at the last which isn't always true.
+    // see https://github.com/SumoLogic/terraform-codegen/pull/33#discussion_r447792537
+    val allProps = model match {
+      case schema: ComposedSchema =>
+        schema.getAllOf.asScala.last.getProperties.asScala.toList ++ refProps
+      case _ =>
+        model.getProperties.asScala.toList ++ refProps
+    }
+
+    val propsWithAttribute = model.getExtensions.asScala(TerraformModelExtensions.Properties).toString.split(",")
+    val tfPropNames = propsWithAttribute.map { prop =>
+      if (prop.contains("(") && prop.contains(")")) {
+        prop.split("""\(""").head
+      } else {
+        prop
       }
-      val tfProperties = allProps.filter { prop =>
-        tfPropNames.contains(prop._1)
-      }
-      // FIXME: What is purpose of this code? The 'if' condition will always be true.
-      tfProperties.map {
-        case (name, schema) =>
-          if (propsWithAttribute.exists(_.contains(name))) {
-            (propsWithAttribute.filter(_.contains(name)).head, schema)
-          } else {
-            (name, schema)
-          }
-      }
-    } else {
-      List.empty[(String, Schema[_])]
+    }
+
+    val tfProperties = allProps.filter { prop =>
+      tfPropNames.contains(prop._1)
+    }
+    tfProperties.map {
+      case (name, schema) =>
+        (propsWithAttribute.filter(_.contains(name)).head, schema)
     }
   }
 
@@ -199,38 +195,38 @@ trait ProcessorHelper
     // We only care about model that have extensions (i.e. they are part of Terraform).
     // This check should be updated to look for 'x-tf-generated-properties' instead of just checking
     // for presence of extensions.
-    if (model.getExtensions != null) {
-      val refRequiredProps = model match {
-        case schema: ComposedSchema =>
-          val allOfRefs = schema.getAllOf.asScala.map {
-            child =>
-              val ref = Option(child.get$ref()).getOrElse("")
-              ref.split('/').last
-          }.filter(_.nonEmpty)
-
-          allOfRefs.flatMap {
-            refName =>
-              val (_, componentSchema) = getComponent(openAPI, refName)
-              Option(componentSchema.getRequired).getOrElse(Collections.emptyList()).asScala
-          }
-
-        case _ =>
-          Seq.empty[String]
-      }
-
-       // FIXME: What is purpose of this code? We iterate over all component schema earlier.
-       //   Why do we need to handle last item as special case?
-      val modelRequiredProps = model match {
-        case schema: ComposedSchema =>
-          schema.getAllOf.asScala.last.getRequired.asScala
-        case _ =>
-          Option(model.getRequired).getOrElse(Collections.emptyList()).asScala
-      }
-
-      val allRequiredProps = refRequiredProps ++ modelRequiredProps
-      allRequiredProps
-    } else {
-      Option(model.getRequired).getOrElse(Collections.emptyList()).asScala
+    if (model.getExtensions == null) {
+      return Option(model.getRequired).getOrElse(Collections.emptyList()).asScala
     }
+
+    val refRequiredProps = model match {
+      case schema: ComposedSchema =>
+        val allOfRefs = schema.getAllOf.asScala.map {
+          child =>
+            val ref = Option(child.get$ref()).getOrElse("")
+            ref.split('/').last
+        }.filter(_.nonEmpty)
+
+        allOfRefs.flatMap {
+          refName =>
+            val (_, componentSchema) = getComponent(openAPI, refName)
+            Option(componentSchema.getRequired).getOrElse(Collections.emptyList()).asScala
+        }
+
+      case _ =>
+        Seq.empty[String]
+    }
+
+    // TODO This assumes composed models will have non-ref object at the last which isn't always true.
+    // see https://github.com/SumoLogic/terraform-codegen/pull/33#discussion_r447792537
+    val modelRequiredProps = model match {
+      case schema: ComposedSchema =>
+        schema.getAllOf.asScala.last.getRequired.asScala
+      case _ =>
+        Option(model.getRequired).getOrElse(Collections.emptyList()).asScala
+    }
+
+    val allRequiredProps = refRequiredProps ++ modelRequiredProps
+    allRequiredProps
   }
 }
