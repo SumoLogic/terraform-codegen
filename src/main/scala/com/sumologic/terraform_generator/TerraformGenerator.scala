@@ -67,6 +67,7 @@ object TerraformGenerator
       val templates = OpenApiProcessor.process(openApi)
       templates.foreach {
         template =>
+          logger.info(s"write files for resource: '${template.sumoSwaggerClassName}'")
           writeFiles(template, template.sumoSwaggerClassName)
       }
 

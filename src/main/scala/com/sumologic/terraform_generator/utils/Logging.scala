@@ -8,7 +8,7 @@ trait Logging {
 
   def logger: Logger = {
     if (_logger == null) {
-      _logger = LoggerFactory.getLogger(getClass)
+      _logger = LoggerFactory.getLogger("terraform-codegen")
     }
     _logger
   }

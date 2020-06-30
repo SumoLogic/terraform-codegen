@@ -131,6 +131,7 @@ object OpenApiProcessor extends ProcessorHelper
   }
 
   def processComposedModel(openApi: OpenAPI, modelDefName: String, composedModel: ComposedSchema): ScalaSwaggerType = {
+    logger.debug(s"processing composed model: '$modelDefName'")
     val parts: List[ScalaSwaggerObject] = composedModel.getAllOf.asScala.flatMap {
       model: Schema[_] =>
         if (model.get$ref() != null) {
@@ -169,6 +170,7 @@ object OpenApiProcessor extends ProcessorHelper
 
   @scala.annotation.tailrec
   def processModel(openApi: OpenAPI, modelDefName: String, model: Schema[_]): ScalaSwaggerType = {
+    logger.debug(s"processing model='$modelDefName'")
     val modelName = if (modelDefName.contains("/")) {
       modelDefName.split("/").last
     } else {
@@ -311,6 +313,7 @@ object OpenApiProcessor extends ProcessorHelper
   }
 
   def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod): ScalaSwaggerEndpoint = {
+    logger.debug(s"processing operation: ${operation.getOperationId}")
     val responses = processResponseObjects(openApi, operation.getResponses.asScala.toMap)
 
     val params: List[ScalaSwaggerParameter] = if (operation.getParameters != null) {
@@ -344,8 +347,8 @@ object OpenApiProcessor extends ProcessorHelper
     ScalaSwaggerEndpoint(endpointName, pathName, method.name(), allParams, responses)
   }
 
-  def processPath(openApi: OpenAPI, path: PathItem, pathName: String):
-  List[ScalaSwaggerEndpoint] = {
+  def processPath(openApi: OpenAPI, path: PathItem, pathName: String): List[ScalaSwaggerEndpoint] = {
+    logger.debug(s"processing path: $pathName")
     val operationMap = Map(
       HttpMethod.GET -> path.getGet,
       HttpMethod.POST -> path.getPost,
@@ -377,7 +380,7 @@ object OpenApiProcessor extends ProcessorHelper
     val tagToPathMap = groupPathsByTag(terraformPaths)
 
     tagToPathMap.flatMap {
-      case (_: String, paths: List[OpenApiPath]) =>
+      case (tagName: String, paths: List[OpenApiPath]) =>
         val endpoints = paths.flatMap {
           path => processPath(openApi, path.item, path.name)
         }
@@ -385,8 +388,8 @@ object OpenApiProcessor extends ProcessorHelper
         // Find resource type for an API. For most of the APIs, there will be only one resource type.
         // However, when inheritance is involved there can be multiple resource types i.e. each derived
         // type is a resource type.
-        val baseTypes = endpoints.flatMap {
-          endpoint =>
+        val baseTypes = endpoints.foldLeft(Set[String]()) {
+          (types, endpoint) =>
             val responseNames = endpoint.responses.flatMap {
               response =>
                 response.respTypeOpt match {
@@ -400,8 +403,10 @@ object OpenApiProcessor extends ProcessorHelper
             }
 
             val responseAndParamNames = (responseNames ++ paramNames).toSet
-            getTaggedComponents(openApi).keys.toSet.intersect(responseAndParamNames)
+            val taggedComponents = getTaggedComponents(openApi).keys.toSet
+            types ++ taggedComponents.intersect(responseAndParamNames)
         }
+        logger.debug(s"api: $tagName, baseTypes: $baseTypes")
 
         baseTypes.map {
           baseType => ScalaSwaggerTemplate(baseType, endpoints)
