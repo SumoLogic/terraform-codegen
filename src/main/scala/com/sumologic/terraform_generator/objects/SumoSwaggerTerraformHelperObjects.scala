@@ -9,6 +9,11 @@ object TerraformPathTags {
   val tagsList = List(Create, Read, Update, Delete)
 }
 
+object TerraformModelExtensions {
+  final val Properties = "x-tf-generated-properties"
+  final val ResourceName = "x-tf-resource-name"
+}
+
 object TerraformPropertyAttributes {
   final val UNIQUE = "unique"
 

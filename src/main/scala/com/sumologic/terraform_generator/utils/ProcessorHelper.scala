@@ -1,12 +1,18 @@
 package com.sumologic.terraform_generator.utils
 
+import java.util
+import java.util.Collections
+
 import com.sumologic.terraform_generator.StringHelper
+import com.sumologic.terraform_generator.objects.TerraformModelExtensions
 import io.swagger.v3.oas.models.{OpenAPI, Operation}
 import io.swagger.v3.oas.models.media.{ComposedSchema, Schema}
 
 import scala.collection.JavaConverters._
 
-trait ProcessorHelper extends StringHelper {
+trait ProcessorHelper
+  extends StringHelper
+    with Logging {
   def getTaggedComponents(openAPI: OpenAPI): Map[String, Schema[_]] = {
     val componentsWithExtensions = openAPI.getComponents.getSchemas.asScala.toList.filter {
       schema =>
@@ -133,71 +139,94 @@ trait ProcessorHelper extends StringHelper {
   }
 
   def getTaggedProperties(openAPI: OpenAPI, model: Schema[_]): List[(String, Schema[_])] = {
-    if (model.getExtensions != null) {
-      val propNames = model.getExtensions.asScala("x-tf-generated-properties").toString.split(",").toList
-      val refProps = if (model.isInstanceOf[ComposedSchema]) {
-        val allOfRefs = model.asInstanceOf[ComposedSchema].getAllOf.asScala.map{
-          child =>
-            if (child.get$ref() != null) {
-              child.get$ref().split("/").last
-            } else {
-              null
-            }
-        }.filter(_ != null)
-        allOfRefs.flatMap(getComponent(openAPI, _)._2.getProperties.asScala.toList).toList
-      } else {
-        List.empty[(String, Schema[_])]
-      }
+    // We only care about model that have extensions (i.e. they are part of Terraform).
+    // This check should be updated to look for 'x-tf-generated-properties' instead of just checking
+    // for presence of extensions.
+    if (model.getExtensions == null) {
+      return List.empty[(String, Schema[_])]
+    }
 
-      val allProps = if (model.isInstanceOf[ComposedSchema]) {
-        model.asInstanceOf[ComposedSchema].getAllOf.asScala.last.getProperties.asScala.toList ++ refProps
-      } else {
-        model.getProperties.asScala.toList ++ refProps
-      }
-      allProps.filter {
-        prop => propNames.map {
-          propWithAttribute => if (propWithAttribute.contains("(") && propWithAttribute.contains(")")) {
-            propWithAttribute.split("""\(""").head
-          } else {
-            propWithAttribute
-          }
-        }.contains(prop._1)
-      }.map {
-        case (name, schema) => if (propNames.exists(_.contains(name))) {
-          (propNames.filter(_.contains(name)).head, schema)
-        } else {
-          (name, schema)
+    val refProps = model match {
+      case schema: ComposedSchema =>
+        val allOfRefs = schema.getAllOf.asScala.map {
+          child =>
+            val ref = Option(child.get$ref()).getOrElse("")
+            ref.split('/').last
+        }.filter(_.nonEmpty)
+
+        allOfRefs.flatMap {
+          refName =>
+            val (_, componentSchema) = getComponent(openAPI, refName)
+            Option(componentSchema.getProperties).getOrElse(Collections.emptyMap()).asScala
         }
+
+      case _ =>
+        Seq.empty[(String, Schema[_])]
+    }
+
+    // TODO This assumes composed models will have non-ref object at the last which isn't always true.
+    // see https://github.com/SumoLogic/terraform-codegen/pull/33#discussion_r447792537
+    val allProps = model match {
+      case schema: ComposedSchema =>
+        schema.getAllOf.asScala.last.getProperties.asScala.toList ++ refProps
+      case _ =>
+        model.getProperties.asScala.toList ++ refProps
+    }
+
+    val propsWithAttribute = model.getExtensions.asScala(TerraformModelExtensions.Properties).toString.split(",")
+    val tfPropNames = propsWithAttribute.map { prop =>
+      if (prop.contains("(") && prop.contains(")")) {
+        prop.split("""\(""").head
+      } else {
+        prop
       }
-    } else {
-      List.empty[(String, Schema[_])]
+    }
+
+    val tfProperties = allProps.filter { prop =>
+      tfPropNames.contains(prop._1)
+    }
+    tfProperties.map {
+      case (name, schema) =>
+        (propsWithAttribute.filter(_.contains(name)).head, schema)
     }
   }
 
-  def getRequiredProperties(openAPI: OpenAPI, model: Schema[_]): List[String] = {
-    if (model.getExtensions != null) {
-      val refRequired = if (model.isInstanceOf[ComposedSchema]) {
-        val allOfRefs = model.asInstanceOf[ComposedSchema].getAllOf.asScala.map{
-          child =>
-            if (child.get$ref() != null) {
-              child.get$ref().split("/").last
-            } else {
-              null
-            }
-        }.filter(_ != null)
-        allOfRefs.flatMap(getComponent(openAPI, _)._2.getRequired.asScala).toList
-      } else {
-        List.empty[String]
-      }
-
-      val allRequired = if (model.isInstanceOf[ComposedSchema]) {
-        model.asInstanceOf[ComposedSchema].getAllOf.asScala.last.getRequired.asScala ++ refRequired
-      } else {
-        model.getRequired.asScala ++ refRequired
-      }
-      allRequired.toList
-    } else {
-      model.getRequired.asScala.toList
+  def getRequiredProperties(openAPI: OpenAPI, model: Schema[_]): Seq[String] = {
+    // We only care about model that have extensions (i.e. they are part of Terraform).
+    // This check should be updated to look for 'x-tf-generated-properties' instead of just checking
+    // for presence of extensions.
+    if (model.getExtensions == null) {
+      return Option(model.getRequired).getOrElse(Collections.emptyList()).asScala
     }
+
+    val refRequiredProps = model match {
+      case schema: ComposedSchema =>
+        val allOfRefs = schema.getAllOf.asScala.map {
+          child =>
+            val ref = Option(child.get$ref()).getOrElse("")
+            ref.split('/').last
+        }.filter(_.nonEmpty)
+
+        allOfRefs.flatMap {
+          refName =>
+            val (_, componentSchema) = getComponent(openAPI, refName)
+            Option(componentSchema.getRequired).getOrElse(Collections.emptyList()).asScala
+        }
+
+      case _ =>
+        Seq.empty[String]
+    }
+
+    // TODO This assumes composed models will have non-ref object at the last which isn't always true.
+    // see https://github.com/SumoLogic/terraform-codegen/pull/33#discussion_r447792537
+    val modelRequiredProps = model match {
+      case schema: ComposedSchema =>
+        schema.getAllOf.asScala.last.getRequired.asScala
+      case _ =>
+        Option(model.getRequired).getOrElse(Collections.emptyList()).asScala
+    }
+
+    val allRequiredProps = refRequiredProps ++ modelRequiredProps
+    allRequiredProps
   }
 }
