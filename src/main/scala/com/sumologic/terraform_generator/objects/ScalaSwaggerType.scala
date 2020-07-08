@@ -24,7 +24,12 @@ case class ScalaSwaggerType(name: String, props: List[ScalaSwaggerObject] = List
     }
   }
 
-  def isCompositeType(): Boolean = {
-    !props.isEmpty
+  def isCompositeType: Boolean = {
+    props.nonEmpty
+  }
+
+  override def toString = {
+    val propNames = props.map(_.getName())
+    s"ScalaSwaggerType(name=$name, props=$propNames)"
   }
 }
