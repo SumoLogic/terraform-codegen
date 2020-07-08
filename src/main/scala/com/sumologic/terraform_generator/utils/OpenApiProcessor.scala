@@ -31,44 +31,51 @@ object OpenApiProcessor extends ProcessorHelper
   // TODO IMPORTANT TO DO LATER IS THAT WHEN REFERENCE OBJECTS ARE CALCULATED, WE SHOULD PUT THEM IN A MAP
   // TO BE USED AS A CACHE, BECAUSE THESE GET RECALCULATED WHEN RESPONSE OBJECTS ARE IDENTICAL AS IN GET/LIST
   def processResponseObjects(openApi: OpenAPI, responses: Map[String, ApiResponse]): List[ScalaSwaggerResponse] = {
-    responses.flatMap {
-      case (respName: String, respObj: ApiResponse) =>
-        if (respObj.getContent != null && respObj.getContent.get("application/json") != null && respObj.getContent.get("application/json").getSchema != null) {
-          Option(respObj.getContent.get("application/json").getSchema.get$ref()) match {
-            case Some(ref) =>
-              val resourceName = ref.split("/").toList.last.replace("Model", "").replace("BaseDefinitionUpdate", "").replace("BaseResponse", "")
-              if (getTaggedComponents(openApi).get(resourceName).isDefined) {
-                val swaggerType = processModel(openApi, ref, getTaggedComponents(openApi).get(resourceName).get)
-                List(ScalaSwaggerResponse(respName, Some(swaggerType)))
-              } else {
-                val responseTypes = getTaggedComponents(openApi).filter {
-                  component =>
-                    if (component.isInstanceOf[ComposedSchema]) {
-                      (component._2.asInstanceOf[ComposedSchema].getAllOf != null && component._2.asInstanceOf[ComposedSchema].getAllOf.asScala.count {
-                        x => x.get$ref() != null && x.get$ref().toLowerCase.contains(resourceName.toLowerCase)
-                      } == 1)
-                    } else {
-                      component._1.toLowerCase.contains(resourceName.toLowerCase)
-                    }
-                }
-                if (responseTypes.size >= 1) {
-                  responseTypes.toList.map {
-                    case (name, schema) =>
-                      val swaggerType = processModel(openApi, name, schema)
-                      ScalaSwaggerResponse(name, Some(swaggerType))
-                  }
-                } else {
-                  List(ScalaSwaggerResponse(respName, None))
-                }
-              }
-            case _ =>
-              throw new RuntimeException("This should not happen in processResponseObjects ")
+    val successResponse = responses.filter {
+        // TODO create a constant for default value
+        case (respName, _) => respName != "default"
+      }
+    // Our APIs only have a default error response and a success response
+    assert(successResponse.size == 1, s"total success response=$successResponse.size")
+
+    val (responseName, apiResponse) = successResponse.head
+    val emptyResponseBody = ScalaSwaggerResponse(responseName, None)
+
+    if (apiResponse.getContent == null) {
+      return List(emptyResponseBody)
+    }
+
+    // TODO make JsonMediaType a constant
+    val JsonMediaType = "application/json"
+    val content = apiResponse.getContent.get(JsonMediaType)
+
+    if (content != null && content.getSchema != null) {
+      Option(content.getSchema.get$ref()) match {
+        case Some(ref) =>
+          val modelName = ref.split("/").last
+          // FIXME This is horrible. Fix it.
+          val resourceName = modelName.replace("Model", "").replace("BaseDefinitionUpdate", "").replace("BaseResponse", "")
+          // trying to find out all places where we need it to see how we can fix it.
+          // so far the only model I know of is 'RoleModel'.
+          if (modelName != resourceName) {
+            logger.warn(s"Fix model name for '$modelName', resourceName = '$resourceName')")
           }
-        } else {
-          // No response body
-          List(ScalaSwaggerResponse(respName, None))
-        }
-    }.toList
+
+          val taggedModels = getTaggedComponents(openApi)
+          if (taggedModels.contains(resourceName)) {
+            val swaggerType = processModel(openApi, ref, taggedModels(resourceName))
+            List(ScalaSwaggerResponse(responseName, Some(swaggerType)))
+          } else {
+            List(emptyResponseBody)
+          }
+
+        case _ =>
+          throw new RuntimeException(s"Response '$responseName' has no model object")
+      }
+    } else {
+      // No response body
+      List(emptyResponseBody)
+    }
   }
 
   def processPathParameter(openApi: OpenAPI, pathParam: PathParameter): ScalaSwaggerParameter = {
@@ -131,19 +138,14 @@ object OpenApiProcessor extends ProcessorHelper
   }
 
   def processComposedModel(openApi: OpenAPI, modelDefName: String, composedModel: ComposedSchema): ScalaSwaggerType = {
-    logger.debug(s"processing composed model: '$modelDefName'")
     val parts: List[ScalaSwaggerObject] = composedModel.getAllOf.asScala.flatMap {
       model: Schema[_] =>
         if (model.get$ref() != null) {
           processModel(openApi, model.get$ref(), model).props
         } else {
           if (model.getProperties != null) {
-            val taggedProps = getTaggedProperties(openApi, composedModel)
-
-            val taggedPropNames = taggedProps.map(_._1)
-            val requiredProps = taggedPropNames.intersect(getRequiredProperties(openApi, composedModel))
-
-            taggedProps.map {
+            val requiredProps = getRequiredProperties(openApi, model).toList
+            model.getProperties.asScala.map {
               case (name, schema) =>
                 processModelProperty(openApi, name, schema, requiredProps, modelDefName)
             }
@@ -153,31 +155,24 @@ object OpenApiProcessor extends ProcessorHelper
         }
     }.toList
 
-    val partsWithId =
-      if (!parts.map(_.getName().toLowerCase).contains("id") ||
-          parts.flatMap(_.getAllTypes().map(_.name.toLowerCase)).contains("id")) {
-        parts ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, ""))
+    val swaggerType = if (modelDefName.contains("Model")) {
+        ScalaSwaggerType(modelDefName.replace("Model", ""), parts.toSet.toList)
       } else {
-        parts
+        ScalaSwaggerType(modelDefName, parts.toSet.toList)
       }
 
-    if (modelDefName.contains("Model")) {
-      ScalaSwaggerType(modelDefName.replace("Model", ""), partsWithId.toSet.toList)
-    } else {
-      ScalaSwaggerType(modelDefName, partsWithId.toSet.toList)
-    }
+    logger.debug(s"processed composed model='$modelDefName', swaggerType=$swaggerType")
+    swaggerType
   }
 
-  @scala.annotation.tailrec
   def processModel(openApi: OpenAPI, modelDefName: String, model: Schema[_]): ScalaSwaggerType = {
-    logger.debug(s"processing model='$modelDefName'")
     val modelName = if (modelDefName.contains("/")) {
       modelDefName.split("/").last
     } else {
       modelDefName
     }
 
-    model match {
+    val swaggerType = model match {
       case _: ArraySchema =>
         ScalaSwaggerType(modelName, List[ScalaSwaggerObject]())
       case composedModel: ComposedSchema =>
@@ -196,45 +191,57 @@ object OpenApiProcessor extends ProcessorHelper
           // Only consider properties mentioned in 'x-tf-generated-properties' extension if present.
           // Otherwise, look at all properties.
           val props: List[ScalaSwaggerObject] =
-            if (model.getExtensions != null) {
-              val taggedProps = getTaggedProperties(openApi, model)
-
-              val taggedPropNames = taggedProps.map(_._1)
-              val requiredProps = taggedPropNames.intersect(getRequiredProperties(openApi, model))
-
-              taggedProps.map {
+            if (model.getProperties != null) {
+              val props = model.getProperties.asScala
+              props.map {
                 case (name, schema) =>
+                  val requiredProps = List(name).intersect(getRequiredProperties(openApi, model))
                   processModelProperty(openApi, name, schema, requiredProps, modelName)
-              }
+              }.toList
             } else {
-              if (model.getProperties != null && modelDefName.contains("/") /* why do we have this check? */ ) {
-                val props = model.getProperties.asScala
-                props.map {
-                  case (name, schema) =>
-                    val requiredProps = List(name).intersect(getRequiredProperties(openApi, model))
-                    processModelProperty(openApi, name, schema, requiredProps, modelName)
-                }.toList
-              } else {
-                List[ScalaSwaggerObject]()
-              }
-            }
-
-          val propsWithId =
-            if (!props.map(_.getName().toLowerCase).contains("id")) {
-              props ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, ""))
-            } else {
-              props
+              List[ScalaSwaggerObject]()
             }
 
           // literally only because of RoleModel
           // TODO Change name of RoleModel to Role and get rid of this code
           if (modelName.contains("Model")) {
-            ScalaSwaggerType(modelName.replace("Model", ""), propsWithId.toSet.toList)
+            ScalaSwaggerType(modelName.replace("Model", ""), props.toSet.toList)
           } else {
-            ScalaSwaggerType(modelName, propsWithId.toSet.toList)
+            ScalaSwaggerType(modelName, props.toSet.toList)
           }
         }
     }
+
+    // drop all properties except the ones specified in 'x-tf-properties' extension if present
+    val tfProperties = getTerraformProperties(model)
+    val filteredSwaggerType =
+      if (tfProperties.isEmpty) {
+        swaggerType
+      } else {
+        val filteredProps = swaggerType.props.filter { prop =>
+          tfProperties.contains(prop.getName())
+        }
+        assert(filteredProps.size == tfProperties.size,
+          s"Model '$modelName' has extraneous properties in x-tf-properties extension: $tfProperties")
+
+        // Any terraform resource will have an 'id' property. This code assumes all terraform resource
+        // model will name identifier field as 'id'. If there is no field named "id", it adds "id" as
+        // extra field.
+        // FIXME: This might break if we identifier field is called something else like "userId". In
+        //  the case, "userId" as well as "id" will be part of that resource. Not sure how it impacts
+        //  generated code. Will have to try it out and see.
+        val hasIdProperty = filteredProps.exists(obj => obj.getName() == "id")
+        if (hasIdProperty) {
+          ScalaSwaggerType(swaggerType.name, filteredProps)
+        } else {
+          val propsWithId =
+            filteredProps ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, ""))
+          ScalaSwaggerType(swaggerType.name, propsWithId)
+        }
+      }
+
+    logger.debug(s"processed model='$modelDefName', swaggerType=$swaggerType, filtered=$filteredSwaggerType")
+    filteredSwaggerType
   }
 
   def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String],

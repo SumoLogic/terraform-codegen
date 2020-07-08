@@ -1,12 +1,11 @@
 package com.sumologic.terraform_generator.utils
 
-import java.util
 import java.util.Collections
 
 import com.sumologic.terraform_generator.StringHelper
 import com.sumologic.terraform_generator.objects.TerraformModelExtensions
-import io.swagger.v3.oas.models.{OpenAPI, Operation}
 import io.swagger.v3.oas.models.media.{ComposedSchema, Schema}
+import io.swagger.v3.oas.models.{OpenAPI, Operation}
 
 import scala.collection.JavaConverters._
 
@@ -156,6 +155,8 @@ trait ProcessorHelper
 
         allOfRefs.flatMap {
           refName =>
+              // no schema found for ExtractionRuleDefinition
+              // this code assumes the schema we get here is an object rather than a composed object
             val (_, componentSchema) = getComponent(openAPI, refName)
             Option(componentSchema.getProperties).getOrElse(Collections.emptyMap()).asScala
         }
@@ -228,5 +229,23 @@ trait ProcessorHelper
 
     val allRequiredProps = refRequiredProps ++ modelRequiredProps
     allRequiredProps
+  }
+
+  def getTerraformProperties(model: Schema[_]): List[String] = {
+    val extensions = model.getExtensions
+    if (extensions == null || !extensions.asScala.contains(TerraformModelExtensions.Properties)) {
+      return List[String]()
+    }
+
+    val propsWithAttribute = extensions.asScala(TerraformModelExtensions.Properties).toString.split(",")
+    val tfProperties = propsWithAttribute.map { prop =>
+      if (prop.contains("(") && prop.contains(")")) {
+        prop.split("""\(""").head
+      } else {
+        prop
+      }
+    }
+
+    tfProperties.toList
   }
 }
