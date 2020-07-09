@@ -1,4 +1,4 @@
-# SwaggerToTerraformGenerator
+# Terraform-codegen
 Terraform support for OpenAPI compliant APIs with some restrictions (see [What types of APIs are supported?](#what-types-of-apis-are-supported) section)
 
 
@@ -7,17 +7,17 @@ Currently, we’re able to _only_ support APIs that follow the CRUD model (for e
 
 
 ## Building the Generator
-Run the following command from the root directory to build the generator. 
-```
-./mvnw clean compile
+Use `compile.sh` under `bin` directory to compile the generator code. The usage is
+```bash
+./bin/compile.sh {Path to a valid yaml file}  
 ```
 
 ## Running the Generator
 Use `run.sh` under `bin` directory to run the generator. The usage is
 ```bash
-./bin/run.sh {Path to a valid yaml file}  
+./bin/run.sh {Path to a valid yaml file} {Path to output generated files}
 ```
-In our case, the yaml file would be either `external-api/src/main/openapi/schema/dev-api.yml` or `external-api/src/main/openapi/schema/production/external-api.yml`.
+In our case, the yaml file would be either `external-api/src/main/openapi/schema/dev-api.yml` or `external-api/src/main/openapi/schema/production/external-api.yml`. If the output directory isn't specified, then the generated files will be placed in the `target/resources` directory.
 
 Examples:
 1. Run generator for public APIs (beta/GA).
@@ -35,17 +35,17 @@ _For this to generate anything, at least one API must be correctly tagged_. See 
 ## How to enable the Generator for your API?
 Your API must be have following OpenAPI vendor extensions.
 
-1. `x-tf-create` (boolean value):
-The create endpoint for this API. This tag goes in the path section of the yaml file under the operation header for an endpoint.
+1. `x-tf-create` (string value):
+The create endpoint for this API. This tag goes in the path section of the yaml file under the operation header for an endpoint. The value of that tag should be the preferred name of the endpoint (ex. createRole)
 
-2. `x-tf-read` (boolean value):
-The read endpoint for this API. This tag goes in the path section of the yaml file under the operation header for an endpoint.
+2. `x-tf-read` (string value):
+The read endpoint for this API. This tag goes in the path section of the yaml file under the operation header for an endpoint. The value of that tag should be the preferred name of the endpoint (ex. getRole)
 
-3. `x-tf-update` (boolean value):
-The update endpoint for this API. This tag goes in the path section of the yaml file under the operation header for an endpoint.
+3. `x-tf-update` (string value):
+The update endpoint for this API. This tag goes in the path section of the yaml file under the operation header for an endpoint. The value of that tag should be the preferred name of the endpoint (ex. updateRole)
 
-4. `x-tf-delete` (boolean value):
-The delete endpoint for this API. This tag goes in the path section of the yaml file under the operation header for an endpoint.
+4. `x-tf-delete` (string value):
+The delete endpoint for this API. This tag goes in the path section of the yaml file under the operation header for an endpoint. The value of that tag should be the preferred name of the endpoint (ex. deleteRole)
 
 5. `x-tf-resource-name` (string value) (OPTIONAL):
 This is the name that we want the resource to have. This is important in the case that the component name doesn’t match the name we want to show users. If not used, then the resource name will default to the component name.
