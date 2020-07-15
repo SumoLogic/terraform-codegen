@@ -37,12 +37,24 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
           endpoint
         }
     }
+
     val endpoints = endpointsWithChangedNames.map {
-      case endpoint: ScalaSwaggerEndpoint =>
-        val bodyParams = endpoint.parameters.filter(_.paramType == TerraformSupportedParameterTypes.BodyParameter)
+      endpoint: ScalaSwaggerEndpoint =>
+        val bodyParams = endpoint.parameters.filter {
+          _.paramType == TerraformSupportedParameterTypes.BodyParameter
+        }
+
         if (bodyParams.size > 1 || endpoint.responses.filterNot(_.respTypeName.toLowerCase == "default").size > 1) {
-          val paramsToExclude = bodyParams.filterNot(_.param.getName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase)
-          val filteredEndpoint = endpoint.copy(parameters = endpoint.parameters diff paramsToExclude, responses = endpoint.responses.filter(_.respTypeName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase))
+          val paramsToExclude = bodyParams.filterNot {
+            _.param.getName().toLowerCase == terraform.sumoSwaggerClassName.toLowerCase
+          }
+
+          val filteredEndpoint = endpoint.copy(
+            parameters = endpoint.parameters diff paramsToExclude,
+            responses = endpoint.responses.filter {
+              _.respTypeName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase
+            }
+          )
           filteredEndpoint.terraformify(terraform) + "\n"
         } else {
           endpoint.terraformify(terraform) + "\n"
@@ -50,8 +62,8 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
     }.mkString("")
 
     val types = typesUsed.map {
-      case stype: ScalaSwaggerType =>
-        stype.terraformify(terraform) + "\n"
+      sType: ScalaSwaggerType =>
+        sType.terraformify(terraform) + "\n"
     }.mkString("")
 
     s"// ---------- BEGIN ${terraform.sumoSwaggerClassName} ----------\n" + intro +

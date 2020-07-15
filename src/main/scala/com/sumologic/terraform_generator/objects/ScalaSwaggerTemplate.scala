@@ -4,38 +4,21 @@ import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.cr
 
 case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
                                 supportedEndpoints: List[ScalaSwaggerEndpoint]) extends ScalaTerraformEntity {
+
   def getAllTypesUsed(): Set[ScalaSwaggerType] = {
-    val responsesProps = supportedEndpoints.flatMap {
-      endpoint =>
-        endpoint.responses.flatMap {
-          response =>
-            response.respTypeOpt.map {
-              respType => respType.props.flatMap(_.getAllTypes())
-            }
-        }
-    }.flatten
-
-    val parameterProps = supportedEndpoints.flatMap {
-      endpoint =>
-        endpoint.parameters.flatMap {
-          parameter => parameter.param.getAllTypes
-        }
-    }
-
-    val endpointsSet = supportedEndpoints.flatMap { endpoint =>
-      endpoint.parameters.flatMap(_.param.getAllTypes()) ++
-        endpoint.responses.flatMap(_.respTypeOpt) ++
-      responsesProps ++
-      parameterProps
-
-    }.toSet
-
-    val mainClassType = endpointsSet.filter {
-      sType => sType.name.toLowerCase.equals(sumoSwaggerClassName.toLowerCase)
+    // FIXME: There is only one tf resource. We should add it as class member of ScalaSwaggerTemplate instead of
+    //  traversing all endpoints.
+    val swaggerResponse = supportedEndpoints.flatMap { endpoint =>
+      endpoint.responses.find { response =>
+        response.respTypeName == sumoSwaggerClassName
+      }
     }.head
+    assert(swaggerResponse.respTypeOpt.isDefined, s"ScalaSwaggerType missing for ${swaggerResponse.respTypeName}")
+
+    val mainClassType = swaggerResponse.respTypeOpt.get
 
     val otherTypes = mainClassType.props.filter {
-      prop => !prop.getType().props.isEmpty
+      prop => prop.getType().props.nonEmpty
     }
 
     Set(mainClassType) ++ otherTypes.map(_.getType()).toSet

@@ -28,8 +28,6 @@ object OpenApiProcessor extends ProcessorHelper
     }
   }
 
-  // TODO IMPORTANT TO DO LATER IS THAT WHEN REFERENCE OBJECTS ARE CALCULATED, WE SHOULD PUT THEM IN A MAP
-  // TO BE USED AS A CACHE, BECAUSE THESE GET RECALCULATED WHEN RESPONSE OBJECTS ARE IDENTICAL AS IN GET/LIST
   def processResponseObjects(openApi: OpenAPI, responses: Map[String, ApiResponse]): List[ScalaSwaggerResponse] = {
     val successResponse = responses.filter {
         // TODO create a constant for default value
@@ -53,19 +51,14 @@ object OpenApiProcessor extends ProcessorHelper
       Option(content.getSchema.get$ref()) match {
         case Some(ref) =>
           val modelName = ref.split("/").last
-          // FIXME This is horrible. Fix it.
-          val resourceName = modelName.replace("Model", "").replace("BaseDefinitionUpdate", "").replace("BaseResponse", "")
-          // trying to find out all places where we need it to see how we can fix it.
-          // so far the only model I know of is 'RoleModel'.
-          if (modelName != resourceName) {
-            logger.warn(s"Fix model name for '$modelName', resourceName = '$resourceName')")
-          }
+          val (resourceName, _) = getComponent(openApi, modelName)
 
           val taggedModels = getTaggedComponents(openApi)
           if (taggedModels.contains(resourceName)) {
             val swaggerType = processModel(openApi, ref, taggedModels(resourceName))
-            List(ScalaSwaggerResponse(responseName, Some(swaggerType)))
+            List(ScalaSwaggerResponse(resourceName, Some(swaggerType.copy(name=resourceName))))
           } else {
+            logger.warn(s"model=$modelName is not terraform resource")
             List(emptyResponseBody)
           }
 
@@ -320,7 +313,6 @@ object OpenApiProcessor extends ProcessorHelper
   }
 
   def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod): ScalaSwaggerEndpoint = {
-    logger.debug(s"processing operation: ${operation.getOperationId}")
     val responses = processResponseObjects(openApi, operation.getResponses.asScala.toMap)
 
     val params: List[ScalaSwaggerParameter] = if (operation.getParameters != null) {
@@ -351,6 +343,7 @@ object OpenApiProcessor extends ProcessorHelper
 
     val allParams = params ++ requestBody
     val endpointName = operation.getExtensions.asScala.head._2.toString
+    logger.debug(s"Operation: ${operation.getOperationId} - params=$allParams, responses=$responses")
     ScalaSwaggerEndpoint(endpointName, pathName, method.name(), allParams, responses)
   }
 
@@ -414,6 +407,7 @@ object OpenApiProcessor extends ProcessorHelper
             types ++ taggedComponents.intersect(responseAndParamNames)
         }
         logger.debug(s"api: $tagName, baseTypes: $baseTypes")
+        assert(baseTypes.nonEmpty, s"base type for api '$tagName' is empty")
 
         baseTypes.map {
           baseType => ScalaSwaggerTemplate(baseType, endpoints)

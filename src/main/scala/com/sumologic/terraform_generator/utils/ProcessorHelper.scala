@@ -78,6 +78,7 @@ trait ProcessorHelper
     }
   }
 
+  // FIXME: What is this method supposed to do? The arg `modelName` is not used.
   private def getTagForComponent(openAPI: OpenAPI, modelName: String): Map[String, (String, Schema[_])] = {
     openAPI.getComponents.getSchemas.asScala.map {
       case (name, schema) =>
