@@ -2,21 +2,6 @@
 
 set -e
 
-# setup
-if [ $# -eq 0 ]; then
-  echo "================================================================"
-  echo "ERROR: Insufficient args"
-  echo "ERROR: Usage: ./bin/test.sh <yaml-file> [clone-dir-for-provider]"
-  echo "================================================================"
-  exit 1
-fi
-
-YAML_FILE="$1"
-TF_GENERATOR_DIR="$(dirname "$0")/.."
-TF_PROVIDER_CLONE_DIR=${2:-"/tmp"}
-TF_SUMOLOGIC_PROVIDER_DIR="$TF_PROVIDER_CLONE_DIR/terraform-provider-sumologic"
-
-
 validateDependencies() {
   if ! [ -x "$(command -v terraform)" ]; then
     echo "Terraform is not installed."
@@ -54,7 +39,10 @@ validateEnv() {
 
 # generate provider files
 runGenerator() {
-  $TF_GENERATOR_DIR/bin/run.sh $YAML_FILE
+  echo "--------------------------------------------------------------------------------"
+  echo "Running generator"
+  echo "--------------------------------------------------------------------------------"
+  $TF_CODEGEN_DIR/bin/run.sh $YAML_FILE
 }
 
 # move generated files to terraform provider
@@ -66,12 +54,15 @@ cloneProvider() {
 }
 
 setupProvider() {
+  echo "--------------------------------------------------------------------------------"
+  echo "Setting up Terraform Provider"
+  echo "--------------------------------------------------------------------------------"
   rm -fr $TF_SUMOLOGIC_PROVIDER_DIR
-  mkdir -p $TF_PROVIDER_CLONE_DIR
+  mkdir -p $TF_PROVIDER_OUTPUT_DIR
   cloneProvider
-  mv -vf $TF_GENERATOR_DIR/target/resources/resource_sumologic_*.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
-  mv -vf $TF_GENERATOR_DIR/target/resources/sumologic_*.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
-  mv -vf $TF_GENERATOR_DIR/target/resources/provider.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
+  mv -vf $TF_CODEGEN_DIR/target/resources/resource_sumologic_*.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
+  mv -vf $TF_CODEGEN_DIR/target/resources/sumologic_*.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
+  mv -vf $TF_CODEGEN_DIR/target/resources/provider.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
 }
 
 installGoImport() {
@@ -86,36 +77,84 @@ fmtProvider() {
 }
 
 runAcceptanceTests() {
-  echo "------------------------------------------------------------------------"
+  echo "--------------------------------------------------------------------------------"
   echo "Running Acceptance Tests"
-  echo "------------------------------------------------------------------------"
+  echo "--------------------------------------------------------------------------------"
   cd $TF_SUMOLOGIC_PROVIDER_DIR
   make install
   make testacc
-  echo "------------------------------------------------------------------------"
 }
 
 # Runs tests for a particular resource.
 runResourceTests() {
   cd $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
-  resourceName=$1
-  echo "------------------------------------------------------------------------"
-  echo "Running Acceptance Tests for resource '$resourceName'"
-  echo "------------------------------------------------------------------------"
-  TF_ACC=1 go test -v -run TestAccSumologic${TF_RESOURCE_NAME}_basic
-  TF_ACC=1 go test -v -run TestAcc${TF_RESOURCE_NAME}_create
-  TF_ACC=1 go test -v -run TestAcc${TF_RESOURCE_NAME}_update
-  echo "------------------------------------------------------------------------"
+  echo "--------------------------------------------------------------------------------"
+  echo "Running Acceptance Tests for resource '$TF_RESOURCE_NAME'"
+  echo "--------------------------------------------------------------------------------"
+  TF_ACC=1 go test -v -run "TestAcc(Sumologic)?${TF_RESOURCE_NAME}.*"
 }
+
+
+
+# setup
+
+test=""
+yaml=""
+cloneDir="/tmp"
+
+usage() {
+  echo "
+    Generates Sumo Logic Terraform provider.
+
+    If output directory is not specified (-d option), the provider will be generated
+    in '/tmp' directory.
+
+    Use '-t' option to run acceptance tests. Set env var 'TF_RESOURCE_NAME' to a
+    resource name if you want to run acceptance tests only for a particular resource.
+    The resource name must be same as the value for x-tf-resource-name extension. For
+    example, setting TF_RESOURCE_NAME to 'Role' will run acceptance tests only for
+    the 'Role' resource.
+
+
+    Usage: $(basename $0) [OPTIONS]
+
+    Options:
+      -f <yaml-file>                Input yaml file
+      -d <output-dir-for-provider>  Output directory for the provider
+      -t                            Run acceptance tests
+      -h                            Display this help message
+  "
+  exit 0
+}
+
+while getopts 'tf:d:h' flag; do
+  case "${flag}" in
+    t) test="true" ;;
+    f) yaml="${OPTARG}" ;;
+    d) cloneDir="${OPTARG}" ;;
+    h | *) usage ;;
+  esac
+done
+
+if [ -z "$yaml" ]; then
+  usage
+fi
+
+YAML_FILE="$yaml"
+TF_CODEGEN_DIR="$(dirname "$0")/.."
+TF_PROVIDER_OUTPUT_DIR="$cloneDir"
+TF_SUMOLOGIC_PROVIDER_DIR="$TF_PROVIDER_OUTPUT_DIR/terraform-provider-sumologic"
 
 
 validateDependencies && validateEnv && installGoImport
 
 runGenerator && setupProvider && fmtProvider
 
-if [ -n "$TF_RESOURCE_NAME" ]; then
-  # TF_RESOURCE_NAME must be set to same value same as x-tf-resource-name extension.
-  runResourceTests $TF_RESOURCE_NAME
-else
-  runAcceptanceTests
+if [ -n "$test" ]; then
+  if [ -n "$TF_RESOURCE_NAME" ]; then
+    # TF_RESOURCE_NAME must be set to same value same as x-tf-resource-name extension.
+    runResourceTests
+  else
+    runAcceptanceTests
+  fi
 fi
