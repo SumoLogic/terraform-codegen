@@ -53,6 +53,12 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   val className: String = mainClass.name
   val objName: String = lowerCaseFirstLetter(className)
 
+  // We can have path parameter other than 'id'. Assuming for CRUD endpoints, we won't have any path
+  // parameter other than 'id'.
+  val hasPathParam: Boolean = endpoint.parameters.map(_.paramType).exists { param =>
+    param.contains(TerraformSupportedParameterTypes.PathParameter)
+  }
+
   val hasParams: Boolean = endpoint.parameters.map(_.paramType).exists { param =>
     param.contains(TerraformSupportedParameterTypes.QueryParameter) ||
         param.contains(TerraformSupportedParameterTypes.HeaderParameter)
@@ -97,11 +103,13 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
 
     val clientCall = if (!requestMap.isEmpty) {
       s"${objName}, err := c.Get${className}(id, requestParams)"
-    } else {
+    } else if (hasPathParam) {
       s"${objName}, err := c.Get${className}(id)"
+    } else {
+      s"${objName}, err := c.Get${className}()"
     }
 
-    s"""
+  s"""
        |func resourceSumologic${className}Read(d *schema.ResourceData, meta interface{}) error {
        |	c := meta.(*Client)
        |
@@ -130,8 +138,10 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   def generateResourceFunctionDELETE(): String = {
     val clientCall = if (!requestMap.isEmpty) {
       s"c.Delete${className}(d.Id(), requestParams)"
-    } else {
+    } else if (hasPathParam) {
       s"c.Delete${className}(d.Id())"
+    } else {
+      s"c.Delete${className}()"
     }
 
     s"""func resourceSumologic${className}Delete(d *schema.ResourceData, meta interface{}) error {

@@ -74,9 +74,15 @@ setupProvider() {
   mv -vf $TF_GENERATOR_DIR/target/resources/provider.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
 }
 
+installGoImport() {
+  if ! [ -x "$(command -v go)" ]; then
+    go get golang.org/x/tools/cmd/goimports
+  fi
+}
+
 fmtProvider() {
   cd $TF_SUMOLOGIC_PROVIDER_DIR
-  make fmt
+  goimports -w sumologic
 }
 
 runAcceptanceTests() {
@@ -84,7 +90,6 @@ runAcceptanceTests() {
   echo "Running Acceptance Tests"
   echo "------------------------------------------------------------------------"
   cd $TF_SUMOLOGIC_PROVIDER_DIR
-  make fmt
   make install
   make testacc
   echo "------------------------------------------------------------------------"
@@ -104,12 +109,13 @@ runResourceTests() {
 }
 
 
-validateDependencies && validateEnv
+validateDependencies && validateEnv && installGoImport
+
+runGenerator && setupProvider && fmtProvider
 
 if [ -n "$TF_RESOURCE_NAME" ]; then
   # TF_RESOURCE_NAME must be set to same value same as x-tf-resource-name extension.
-  runGenerator && setupProvider && fmtProvider
   runResourceTests $TF_RESOURCE_NAME
 else
-  runGenerator && setupProvider && runAcceptanceTests
+  runAcceptanceTests
 fi

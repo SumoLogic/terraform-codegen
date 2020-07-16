@@ -8,4 +8,8 @@ case class ScalaSwaggerResponse(respTypeName: String, respTypeOpt: Option[ScalaS
       respTypeOpt.get.name
     }
   }
+
+  override def toString = {
+    s"ScalaSwaggerResponse(name=$respTypeName, respTypeOpt=$respTypeOpt)"
+  }
 }

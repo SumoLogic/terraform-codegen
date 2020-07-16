@@ -9,59 +9,67 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     with SumoSwaggerEndpointHelper {
 
   case class ResponseProps(declReturnType: String, httpClientReturnType: String, responseVarDecl: String, unmarshal: String)
-  def getReturnTypesBasedOnRespone(): ResponseProps = {
+
+  def getReturnTypesBasedOnResponse: ResponseProps = {
     val respBodyTypeOpt = this.responses.filter(_.respTypeName != "default").head.respTypeOpt
     respBodyTypeOpt match {
       case Some(respType) =>
-        val writeOnlyProps = respType.props.filter(_.getCreateOnly())
-        val returnHandlingPart =
-          this.httpMethod.toLowerCase match {
-            case "get" =>
-              s"""
-                |    err = json.Unmarshal(data, &${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)})
-                |
-                |    if err != nil {
-                |        return nil, err
-                |    }
-                |
-                |    return &${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)}, nil""".stripMargin
-            case "post" =>
-              s"""
-                |    err = json.Unmarshal(data, &created${respType.name})
-                |    if err != nil {
-                |        return "", err
-                |    }
-                |
-                |    return created${respType.name}.ID, nil""".stripMargin
-            case "put" =>
-              val writeOnlyPropsString = if (writeOnlyProps.size >= 1) {
-                writeOnlyProps.map {
-                  prop => s"""${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)}.${prop.getName.capitalize} = """""
-                }.mkString("\n    ")
-              } else {
-                ""
-              }
-              s"""
-                |    ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)}.ID = ""
-                |    ${writeOnlyPropsString}
-                |
-                |    _, err := s.Put(urlWithParams, ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)})
-                |    return err""".stripMargin
-            case "delete" =>
-              """
-                |return err""".stripMargin
-            case _ =>
-              ""
-          }
+        val returnHandlingPart = this.httpMethod.toLowerCase match {
+          case "get" =>
+            // TODO: Make this a util method like 'toCamelCase'
+            val resourceVar = respType.name.head.toLower + respType.name.substring(1)
+            s"""
+              |    err = json.Unmarshal(data, &$resourceVar)
+              |
+              |    if err != nil {
+              |        return nil, err
+              |    }
+              |
+              |    return &$resourceVar, nil
+              |""".stripMargin
+
+          case "post" =>
+            s"""
+              |    err = json.Unmarshal(data, &created${respType.name})
+              |    if err != nil {
+              |        return "", err
+              |    }
+              |
+              |    return created${respType.name}.ID, nil
+              |""".stripMargin
+
+          case "put" =>
+            """
+              |    return err
+              |""".stripMargin
+
+          case "delete" =>
+            """
+             |    return err
+             |""".stripMargin
+
+          case _ =>
+            throw new Exception(s"HTTP method can only be Post, Get, Put, or Delete")
+        }
+
         if (httpMethod.toLowerCase == "get") {
-          ResponseProps(s"(*${respType.name}, error)", "responseBody, _, err", s"var ${respType.name.substring(0,1).toLowerCase + respType.name.substring(1)} ${respType.name}\n", returnHandlingPart)
+          ResponseProps(s"(*${respType.name}, error)",
+            "responseBody, _, err",
+            s"var ${respType.name.head.toLower + respType.name.substring(1)} ${respType.name}\n",
+            returnHandlingPart
+          )
         } else {
           if (httpMethod.toLowerCase == "post") {
-            ResponseProps(s"(string, error)", "responseBody, err", s"var created${respType.name} ${respType.name}\n", returnHandlingPart)
+            ResponseProps(s"(string, error)",
+              "responseBody, err",
+              s"var created${respType.name} ${respType.name}\n",
+              returnHandlingPart
+            )
           } else {
             ResponseProps(s"error", "responseBody, err", "", returnHandlingPart)
           }
         }
+
       case None =>
         val returnHandlingPart =
           """return err""".stripMargin
@@ -69,7 +77,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     }
   }
 
-  def getUrlCallBasedOnHttpMethod(): String = {
+  def getUrlCallBasedOnHttpMethod(urlArg: String): String = {
     val taggedResource = if (this.httpMethod.toLowerCase != "delete") {
       this.responses.filter {
         response => response.respTypeName != "default" && response.respTypeName != "204"
@@ -87,7 +95,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     httpMethod.toLowerCase match {
       case "get" =>
         s"""
-           |  data, _, err := s.Get(urlWithParams)
+           |  data, _, err := s.Get($urlArg)
            |  if err != nil {
            |		return nil, err
            |	}
@@ -95,27 +103,45 @@ case class ScalaSwaggerEndpoint(endpointName: String,
            |		return nil, nil
            |	}
            |""".stripMargin
+
       case "post" =>
-        // This is necessary in the case that the delete endpoint doesn't use the delete HTTP method and uses the post method instead
-        if (endpointName.contains("delete")) {
-          s"""
-             |  _, err := s.Post(urlWithParams, $varName)
-             |  if err != nil {
-             |		return err
-             |	}
-             |""".stripMargin
-        } else {
-          s"""
-             |  data, err := s.Post(urlWithoutParams, $varName)
-             |  if err != nil {
-             |		return "", err
-             |	}
-             |""".stripMargin
-        }
+        s"""
+           |  data, err := s.Post($urlArg, $varName)
+           |  if err != nil {
+           |		return "", err
+           |	}
+           |""".stripMargin
+
       case "delete" =>
-        s"""_, err := s.Delete(urlWithParams)"""
+        s"""_, err := s.Delete($urlArg)"""
+
+      case "put" =>
+        // unset write only properties before invoking update on the resource.
+        val responseTypeOpt = this.responses.head.respTypeOpt
+        assert(responseTypeOpt.isDefined)
+        val respType = responseTypeOpt.get
+
+        val writeOnlyProps = responseTypeOpt.get.props.filter(_.getCreateOnly())
+        val writeOnlyPropsString = if (writeOnlyProps.nonEmpty) {
+          writeOnlyProps.map { prop =>
+            s"""
+               |${respType.name.head.toLower + respType.name.substring(1)}.${prop.getName.capitalize} = ""
+               |""".stripMargin
+          }.mkString("\n    ")
+        } else {
+          ""
+        }
+
+        val resourceVar = respType.name.head.toLower + respType.name.substring(1)
+        s"""
+           |    ${resourceVar}.ID = ""
+           |    ${writeOnlyPropsString}
+           |
+           |    _, err := s.Put($urlArg, $resourceVar)
+           |""".stripMargin
+
       case _ =>
-        ""
+        throw new Exception(s"HTTP method can only be Post, Get, Put, or Delete")
     }
   }
 
@@ -219,23 +245,24 @@ case class ScalaSwaggerEndpoint(endpointName: String,
       s"""urlWithoutParams := "${path.replaceFirst(s"\\{id\\}", "%s")}"""".replaceFirst("/", "")
 
     // path, query and header params
-    val setParamString = getParamString
-    val urlWithParamsString = if (this.httpMethod.toLowerCase == "post" && !endpointName.contains("delete")) {
+    val paramString = getParamString
+    val urlWithParamsString = if (paramString.isEmpty) {
       ""
     } else {
       """urlWithParams := fmt.Sprintf(urlWithoutParams + paramString, sprintfArgs...)"""
     }
     val setRequestHeaders = getHeaderString
 
-    val urlCall = getUrlCallBasedOnHttpMethod()
+    val urlArg = if (paramString.isEmpty) "urlWithoutParams" else "urlWithParams"
+    val urlCall = getUrlCallBasedOnHttpMethod(urlArg)
 
-    val response = getReturnTypesBasedOnRespone()
+    val response = getReturnTypesBasedOnResponse
     val args = makeArgsListForDecl(this.parameters, baseTemplate.sumoSwaggerClassName)
 
     s"""
        |func (s *Client) ${this.endpointName.capitalize}($args) ${response.declReturnType} {
        |    $urlWithoutParamsString
-       |    $setParamString
+       |    $paramString
        |    $urlWithParamsString
        |    $setRequestHeaders
        |    $urlCall
