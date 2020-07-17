@@ -1,10 +1,15 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.{ForbiddenGoTerms, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformPropertyAttributes, TerraformSchemaTypes}
+import com.sumologic.terraform_generator.objects._
 
 case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClass: String)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
-  val functionGenerator = AcceptanceTestFunctionGenerator(terraform, terraform.getAllTypesUsed().filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head)
+
+  val functionGenerator = AcceptanceTestFunctionGenerator(
+    terraform,
+    terraform.getAllTypesUsed().filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head
+  )
+
   def generate(): String = {
     val pre = s"""// ----------------------------------------------------------------------------
                  |//
@@ -28,15 +33,36 @@ case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClas
                  |	"github.com/hashicorp/terraform-plugin-sdk/terraform"
                  |)
                  |""".stripMargin
-    pre + functionGenerator.generateTestFunctionCreateBasic() + "\n" + functionGenerator.generateTestFunctionCreate() + "\n" + functionGenerator.generateTestFunctionDestroy() +
-      functionGenerator.generateTestFunctionExists() + "\n" + functionGenerator.generateTestFunctionUpdate() + "\n" + functionGenerator.generateTestImportFunction() + "\n" +
-      functionGenerator.generateTestCreateResource() + "\n" + functionGenerator.generateTestUpdateResource() + "\n" + functionGenerator.generateTestResourceAttributes()
+
+
+    val endpoints = terraform.supportedEndpoints.filter { endpoint =>
+      endpoint.httpMethod.toLowerCase == "get"
+    }
+    assert(endpoints.size == 1, s"More than one Get endpoint? [$endpoints]")
+
+    // We can have path parameter other than 'id'. Assuming for CRUD endpoints, we won't have any path
+    // parameter other than 'id'.
+    val hasPathParam: Boolean = endpoints.head.parameters.map(_.paramType).exists { param =>
+      param.contains(TerraformSupportedParameterTypes.PathParameter)
+    }
+
+    pre +
+      functionGenerator.generateTestFunctionCreateBasic() + "\n" +
+      functionGenerator.generateTestFunctionCreate() + "\n" +
+      functionGenerator.generateTestFunctionUpdate() + "\n" +
+      functionGenerator.generateTestFunctionDestroy(hasPathParam) + "\n" +
+      functionGenerator.generateTestFunctionExists(hasPathParam) + "\n" +
+      functionGenerator.generateTestImportFunction() + "\n" +
+      functionGenerator.generateTestCreateResource() + "\n" +
+      functionGenerator.generateTestUpdateResource() + "\n" +
+      functionGenerator.generateTestResourceAttributes()
   }
 }
 
 case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, mainClass: ScalaSwaggerType)
   extends ScalaTerraformEntity
     with AcceptanceTestGeneratorHelper {
+
   val className = mainClass.name
   val objName = lowerCaseFirstLetter(className)
   val resourceProps = sumoSwaggerTemplate.getAllTypesUsed().head
@@ -85,18 +111,22 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
 
     val checkAttr = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
+        val name = s"sumologic_${removeCamelCase(objName)}.test"
+        val key = removeCamelCase(prop.getName)
+        val value = prop.getName.capitalize
+
         prop.getType.name match {
           case "bool" =>
-            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.FormatBool(test${prop.getName.capitalize})),"""
+            s"""resource.TestCheckResourceAttr("$name", "$key", strconv.FormatBool(test${value})),"""
           case "int" =>
-            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.Itoa(test${prop.getName.capitalize})),"""
+            s"""resource.TestCheckResourceAttr("$name", "$key", strconv.Itoa(test${value})),"""
           case "array" =>
-            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(test${prop.getName.capitalize}[0], "\\"", "", 2)),"""
+            s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(test${value}[0], "\\"", "", 2)),"""
           case _ =>
             if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
-              s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(test${prop.getName.capitalize}[0], "\\"", "", 2)),"""
+              s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(test${value}[0], "\\"", "", 2)),"""
             } else {
-              s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", test${prop.getName.capitalize}),"""
+              s"""resource.TestCheckResourceAttr("$name", "$key", test${value}),"""
             }
         }
     }.mkString("\n          ")
@@ -122,19 +152,21 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
        |}""".stripMargin
   }
 
-  def generateTestFunctionDestroy(): String = {
+  def generateTestFunctionDestroy(hasPathParam: Boolean): String = {
+    val getCall = if (hasPathParam) s"Get${className}(id)" else s"Get${className}()"
+
     s"""
        |func testAccCheck${className}Destroy(${objName} ${className}) resource.TestCheckFunc {
        |	return func(s *terraform.State) error {
        |		client := testAccProvider.Meta().(*Client)
        |    for _, r := range s.RootModule().Resources {
        |      id := r.Primary.ID
-       |		  u, err := client.Get${className}(id)
+       |		  u, err := client.$getCall
        |		  if err != nil {
        |        return fmt.Errorf("Encountered an error: " + err.Error())
        |		  }
        |      if u != nil {
-       |        return fmt.Errorf("${className} still exists")
+       |        return fmt.Errorf("${className} %s still exists", id)
        |      }
        |    }
        |		return nil
@@ -143,7 +175,9 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
        |""".stripMargin
   }
 
-  def generateTestFunctionExists(): String = {
+  def generateTestFunctionExists(hasPathParam: Boolean): String = {
+    val getCall = if (hasPathParam) s"Get${className}(id)" else s"Get${className}()"
+
     s"""func testAccCheck${className}Exists(name string, ${objName} *${className}, t *testing.T) resource.TestCheckFunc {
        |	return func(s *terraform.State) error {
        |		rs, ok := s.RootModule().Resources[name]
@@ -158,8 +192,8 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
        |		}
        |
        |		id := rs.Primary.ID
-       |		c := testAccProvider.Meta().(*Client)
-       |		new${className}, err := c.Get${className}(id)
+       |		client := testAccProvider.Meta().(*Client)
+       |		new${className}, err := client.$getCall
        |		if err != nil {
        |			return fmt.Errorf("${className} %s not found", id)
        |		}
@@ -173,6 +207,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
     val testArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop => s"""test${prop.getName.capitalize} := ${getTestValue(prop)}"""
     }.mkString("\n  ")
+
     val testUpdateArguments = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
         val unique = prop.getAttribute() == TerraformPropertyAttributes.UNIQUE
@@ -184,43 +219,55 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
           s"""testUpdated${prop.getName.capitalize} := ${getTestValue(prop, isUpdate = true)}"""
         }
     }.mkString("\n  ")
+
     val argList = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop => s"""test${prop.getName().capitalize}"""
     }.mkString(", ")
+
     val checkAttr = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
+        val name = s"sumologic_${removeCamelCase(objName)}.test"
+        val key = removeCamelCase(prop.getName)
+        val value = s"test${prop.getName.capitalize}"
+
         prop.getType.name match {
           case "bool" =>
-            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.FormatBool(test${prop.getName.capitalize})),"""
+            s"""resource.TestCheckResourceAttr("$name", "${key}", strconv.FormatBool(${value})),"""
           case "int" =>
-            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.Itoa(test${prop.getName.capitalize})),"""
+            s"""resource.TestCheckResourceAttr("$name", "${key}", strconv.Itoa(${value})),"""
           case "array" =>
-            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(test${prop.getName.capitalize}[0], "\\"", "", 2)),"""
+            s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
           case _ =>
             if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
-              s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(test${prop.getName.capitalize}[0], "\\"", "", 2)),"""
+              s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
             } else {
-              s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", test${prop.getName.capitalize}),"""
+              s"""resource.TestCheckResourceAttr("$name", "${key}", ${value}),"""
             }
         }
     }.mkString("\n          ")
+
     val updateArgList = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop => s"""testUpdated${prop.getName().capitalize}"""
     }.mkString(", ")
+
     val checkUpdateAttr = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
+        val name = s"sumologic_${removeCamelCase(objName)}.test"
+        val key = removeCamelCase(prop.getName)
+        val value = s"testUpdated${prop.getName.capitalize}"
+
         prop.getType.name match {
           case "bool" =>
-            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.FormatBool(testUpdated${prop.getName.capitalize})),"""
+            s"""resource.TestCheckResourceAttr("$name", "${key}", strconv.FormatBool(${value})),"""
           case "int" =>
-            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", strconv.Itoa(testUpdated${prop.getName.capitalize})),"""
+            s"""resource.TestCheckResourceAttr("$name", "${key}", strconv.Itoa(${value})),"""
           case "array" =>
-            s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(testUpdated${prop.getName.capitalize}[0], "\\"", "", 2)),"""
+            s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
           case _ =>
             if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
-              s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}.0", strings.Replace(testUpdated${prop.getName.capitalize}[0], "\\"", "", 2)),"""
+              s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
             } else {
-              s"""resource.TestCheckResourceAttr("sumologic_${removeCamelCase(objName)}.test", "${removeCamelCase(prop.getName())}", testUpdated${prop.getName.capitalize}),"""
+              s"""resource.TestCheckResourceAttr("$name", "${key}", ${value}),"""
             }
         }
     }.mkString("\n          ")
