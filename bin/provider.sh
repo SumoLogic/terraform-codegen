@@ -14,6 +14,12 @@ validateDependencies() {
     echo "See https://golang.org/doc/install"
     exit 1
   fi
+
+  if [ ! -n "$GOPATH" ]; then
+    echo "Env var 'GOPATH' must be set."
+    echo "Add 'export GOPATH=$HOME/.go' to ~/.profile file and launch a new shell"
+    exit 1
+  fi
 }
 
 validateEnv() {
@@ -36,6 +42,18 @@ validateEnv() {
   fi
 }
 
+installGoImport() {
+  if ! [ -x "$(command -v goimports)" ]; then
+    if $(go get golang.org/x/tools/cmd/goimports); then
+      export PATH=$PATH:$GOPATH/bin
+    else
+      echo "Failed to install goimports"
+      echo "Try installing manually - https://godoc.org/golang.org/x/tools/cmd/goimports"
+      echo "Make sure to update the PATH var ('export PATH=$PATH:$GOPATH/bin')."
+      exit 1
+    fi
+  fi
+}
 
 # generate provider files
 runGenerator() {
@@ -65,12 +83,6 @@ setupProvider() {
   mv -vf $TF_CODEGEN_DIR/target/resources/provider.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
 }
 
-installGoImport() {
-  if ! [ -x "$(command -v go)" ]; then
-    go get golang.org/x/tools/cmd/goimports
-  fi
-}
-
 fmtProvider() {
   cd $TF_SUMOLOGIC_PROVIDER_DIR
   goimports -w sumologic
@@ -81,16 +93,18 @@ runAcceptanceTests() {
   echo "Running Acceptance Tests"
   echo "--------------------------------------------------------------------------------"
   cd $TF_SUMOLOGIC_PROVIDER_DIR
-  make install
-  make testacc
+  make install && make testacc
 }
 
 # Runs tests for a particular resource.
 runResourceTests() {
-  cd $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
   echo "--------------------------------------------------------------------------------"
   echo "Running Acceptance Tests for resource '$TF_RESOURCE_NAME'"
   echo "--------------------------------------------------------------------------------"
+  cd $TF_SUMOLOGIC_PROVIDER_DIR
+  make install
+
+  cd $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
   TF_ACC=1 go test -v -run "TestAcc(Sumologic)?${TF_RESOURCE_NAME}.*"
 }
 
