@@ -11,6 +11,7 @@ import io.swagger.v3.oas.models.{OpenAPI, Operation, PathItem}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.language.existentials
 
 
 case class OpenApiPath(name: String, item: PathItem)
@@ -58,7 +59,7 @@ object OpenApiProcessor extends ProcessorHelper
             val swaggerType = processModel(openApi, ref, taggedModels(resourceName))
             List(ScalaSwaggerResponse(resourceName, Some(swaggerType.copy(name=resourceName))))
           } else {
-            logger.warn(s"model=$modelName is not terraform resource")
+            logger.warn(s"model '$modelName' is not terraform resource")
             List(emptyResponseBody)
           }
 
@@ -214,8 +215,6 @@ object OpenApiProcessor extends ProcessorHelper
         val filteredProps = swaggerType.props.filter { prop =>
           tfProperties.contains(prop.getName())
         }
-        assert(filteredProps.size == tfProperties.size,
-          s"Model '$modelName' has extraneous properties in x-tf-properties extension: $tfProperties")
 
         // Any terraform resource will have an 'id' property. This code assumes all terraform resource
         // model will name identifier field as 'id'. If there is no field named "id", it adds "id" as
@@ -224,14 +223,19 @@ object OpenApiProcessor extends ProcessorHelper
         //  the case, "userId" as well as "id" will be part of that resource. Not sure how it impacts
         //  generated code. Will have to try it out and see.
         val hasIdProperty = filteredProps.exists(obj => obj.getName() == "id")
-        if (hasIdProperty) {
-          ScalaSwaggerType(swaggerType.name, filteredProps)
-        } else {
-          val propsWithId =
+        val properties = if (hasIdProperty) {
+            filteredProps
+          } else {
+            logger.warn(s"No id property in '$modelName'")
             filteredProps ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, ""))
-          ScalaSwaggerType(swaggerType.name, propsWithId)
-        }
+          }
+        assert(tfProperties.toSet.subsetOf(properties.map(_.getName()).toSet),
+          s"Extraneous properties in x-tf-properties extension. model: $modelName, properties: " +
+              s"${properties.map(_.getName())}")
+
+        ScalaSwaggerType(swaggerType.name, properties)
       }
+
 
     logger.debug(s"processed model='$modelDefName', swaggerType=$swaggerType, filtered=$filteredSwaggerType")
     filteredSwaggerType
@@ -403,6 +407,13 @@ object OpenApiProcessor extends ProcessorHelper
             }
 
             val responseAndParamNames = (responseNames ++ paramNames).toSet
+            // FIXME: The paramNames we get use parameter names specified in the yaml file while
+            //  getTaggedComponents return x-tf-resourceName as the name of an object. So, if a
+            //  body parameter is tagged as a terraform resource we won't find any baseTypes as
+            //  taggedComponents name and paramNames are two different values.
+            //  Either we change getTaggedComponents to return component name instead of
+            //  x-tf-resourceName value or we change paramNames to x-tf-resourceName like we do
+            //  for response object. My preference is to go with first option.
             val taggedComponents = getTaggedComponents(openApi).keys.toSet
             types ++ taggedComponents.intersect(responseAndParamNames)
         }

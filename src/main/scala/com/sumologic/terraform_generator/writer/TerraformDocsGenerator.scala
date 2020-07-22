@@ -1,16 +1,28 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity}
+import com.sumologic.terraform_generator.StringHelper
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerTemplate, ScalaSwaggerType}
 
 case class TerraformDocsGenerator(terraform: ScalaSwaggerTemplate, mainClass: String)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
-  val functionGenerator = DocsFunctionGenerator(terraform, terraform.getAllTypesUsed().filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head)
+
+  val functionGenerator = DocsFunctionGenerator(
+    terraform,
+    terraform.getAllTypesUsed().filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head
+  )
+
   def generate(): String = {
-    functionGenerator.generateLayout() + functionGenerator.generateHeader() + functionGenerator.generateExampleUsage() + functionGenerator.generateArgReferences() + functionGenerator.generateFooter()
+    functionGenerator.generateLayout() +
+      functionGenerator.generateHeader() +
+      functionGenerator.generateExampleUsage() +
+      functionGenerator.generateArgReferences() +
+      functionGenerator.generateFooter()
   }
 }
 
-case class DocsFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, mainClass: ScalaSwaggerType) extends ScalaTerraformEntity {
+case class DocsFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, mainClass: ScalaSwaggerType)
+  extends StringHelper {
+
   val className = mainClass.name
   val objName = className.substring(0, 1).toLowerCase() + className.substring(1)
   val resourceProps = sumoSwaggerTemplate.getAllTypesUsed().head

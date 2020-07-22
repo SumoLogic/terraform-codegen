@@ -1,11 +1,12 @@
 package com.sumologic.terraform_generator.writer
 
 import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerParameter, ScalaSwaggerResponse, ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity, TerraformSupportedParameterTypes}
+import com.sumologic.terraform_generator.objects._
 
 case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate)
     with ResourceGeneratorHelper {
+
   def generate(): String = {
     val specialImport = if (terraform.getMainObjectClass().props.exists {
       prop => prop.getType().props.nonEmpty
@@ -49,7 +50,11 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
   }
 }
 
-case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: ScalaSwaggerType) extends ScalaTerraformEntity {
+
+// FIXME: This class should not extend ScalaTerraformEntity as it doesn't make any sense.
+case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: ScalaSwaggerType)
+    extends ScalaTerraformEntity {
+
   val className: String = mainClass.name
   val objName: String = lowerCaseFirstLetter(className)
 
