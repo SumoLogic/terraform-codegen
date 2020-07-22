@@ -60,8 +60,7 @@ case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClas
 }
 
 case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, mainClass: ScalaSwaggerType)
-  extends ScalaTerraformEntity
-    with AcceptanceTestGeneratorHelper {
+    extends AcceptanceTestGeneratorHelper {
 
   val className = mainClass.name
   val objName = lowerCaseFirstLetter(className)

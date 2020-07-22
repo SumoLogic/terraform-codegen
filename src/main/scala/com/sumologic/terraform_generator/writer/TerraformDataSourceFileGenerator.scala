@@ -5,6 +5,7 @@ import com.sumologic.terraform_generator.objects.{ScalaSwaggerTemplate, ScalaSwa
 case class TerraformDataSourceFileGenerator(terraform: ScalaSwaggerTemplate)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate)
     with DataSourceGeneratorHelper {
+
   def generate(): String = {
     val pre = """// ----------------------------------------------------------------------------
                 |//
@@ -34,9 +35,12 @@ case class TerraformDataSourceFileGenerator(terraform: ScalaSwaggerTemplate)
   }
 }
 
+
+// FIXME: This class should not extend ScalaTerraformEntity as it doesn't make any sense.
 case class DataSourceFunctionGenerator(mainClass: ScalaSwaggerType)
   extends ScalaTerraformEntity
     with DataSourceGeneratorHelper {
+
   def getTerraformDataResourceSetters(propName: String, objName: String): String = {
     s"""resourceData.Set("$propName", $objName.$propName)""".stripMargin
   }

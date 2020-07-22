@@ -5,6 +5,7 @@ import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwa
 
 case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
+
   def generate(): String = {
     val typesUsed: Set[ScalaSwaggerType] = terraform.getAllTypesUsed()
 
