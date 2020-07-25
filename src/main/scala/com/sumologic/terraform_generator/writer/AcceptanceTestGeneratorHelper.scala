@@ -46,12 +46,10 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           val generatedString = generator.generate()
           s"""[]string{"${generatedString.replace("\"", "\\\"")}"}"""
         } else {
-          val r = new Random
-          val sb = new StringBuilder
-          for (i <- 1 to 10) {
-            sb.append(r.nextPrintableChar)
-          }
-          s"""[]string{"${sb.toString().replace("\"", "\\\"")}"}"""
+          // FIXME: optimistically assuming randomStr will be less than maxLength of the prop. We should
+          //  fix this and use minLength + 1 as random string length.
+          val randomStr = s"${prop.getName}-${Random.alphanumeric.take(5).mkString}"
+          s"""[]string{"\\"$randomStr\\""}"""
         }
       case "string" =>
         val testStringValue = if (prop.getDefault().isDefined) {
@@ -64,12 +62,10 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           if (prop.getFormat() == "date-time") {
             s""""${LocalDateTime.now(ZoneOffset.UTC).toString.takeWhile(_ != '.')}Z""""
           } else {
-            val r = new Random
-            val sb = new StringBuilder
-            for (i <- 1 to 10) {
-              sb.append(r.nextPrintableChar)
-            }
-            s""""${sb.toString.replace(""""""", """\"""")}""""
+            // FIXME: optimistically assuming randomStr will be less than maxLength of the prop. We should
+            //  fix this and use minLength + 1 as random string length.
+            val randomStr = s"${prop.getName}-${Random.alphanumeric.take(5).mkString}"
+            s""""$randomStr""""
           }
         }
 
