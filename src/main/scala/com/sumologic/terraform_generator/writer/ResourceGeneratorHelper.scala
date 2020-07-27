@@ -1,7 +1,7 @@
 package com.sumologic.terraform_generator.writer
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerType}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerArrayObject, ScalaSwaggerObject, ScalaSwaggerType}
 
 trait ResourceGeneratorHelper extends StringHelper {
   def getTerraformResourceGetters(prop: ScalaSwaggerObject): String = {
@@ -9,7 +9,7 @@ trait ResourceGeneratorHelper extends StringHelper {
     val noCamelCaseName = removeCamelCase(propName)
     val propType = prop.getType().name
     prop match {
-      case arrayProp: ScalaSwaggerObjectArray =>
+      case arrayProp: ScalaSwaggerArrayObject =>
         s"""${propName.capitalize}: ${propName.toLowerCase},""".stripMargin
       case singleProp: ScalaSwaggerObject =>
         if (singleProp.getName().toLowerCase == "id") {
@@ -37,7 +37,7 @@ trait ResourceGeneratorHelper extends StringHelper {
     val funcName = getTerraformResourceDataToObjectConverterFuncName(objClass)
 
     val arrayBlock = objClass.props.filter {
-      prop => prop.isInstanceOf[ScalaSwaggerObjectArray]
+      prop => prop.isInstanceOf[ScalaSwaggerArrayObject]
     }.map {
       prop =>
         if (prop.getType().props.nonEmpty) {
@@ -61,7 +61,7 @@ trait ResourceGeneratorHelper extends StringHelper {
       prop =>
         val lowerCasePropName = prop.getType.name.toLowerCase
         val capitalizedPropName = prop.getType.name.capitalize
-        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
           s"""
              |    var ${lowerCasePropName} []${capitalizedPropName}
              |    for _, x := range ${lowerCasePropName}List {

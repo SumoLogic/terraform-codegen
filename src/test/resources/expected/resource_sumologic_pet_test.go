@@ -65,47 +65,6 @@ func TestAccPet_create(t *testing.T) {
 	})
 }
 
-func testAccCheckPetDestroy(pet Pet) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		client := testAccProvider.Meta().(*Client)
-		for _, r := range s.RootModule().Resources {
-			id := r.Primary.ID
-			u, err := client.GetPet(id)
-			if err != nil {
-				return fmt.Errorf("Encountered an error: " + err.Error())
-			}
-			if u != nil {
-				return fmt.Errorf("Pet still exists")
-			}
-		}
-		return nil
-	}
-}
-
-func testAccCheckPetExists(name string, pet *Pet, t *testing.T) resource.TestCheckFunc {
-	return func(s *terraform.State) error {
-		rs, ok := s.RootModule().Resources[name]
-		if !ok {
-			//need this so that we don't get an unused import error for strconv in some cases
-			return fmt.Errorf("Error = %s. Pet not found: %s", strconv.FormatBool(ok), name)
-		}
-
-		//need this so that we don't get an unused import error for strings in some cases
-		if strings.EqualFold(rs.Primary.ID, "") {
-			return fmt.Errorf("Pet ID is not set")
-		}
-
-		id := rs.Primary.ID
-		c := testAccProvider.Meta().(*Client)
-		newPet, err := c.GetPet(id)
-		if err != nil {
-			return fmt.Errorf("Pet %s not found", id)
-		}
-		pet = newPet
-		return nil
-	}
-}
-
 func TestAccPet_update(t *testing.T) {
 	var pet Pet
 	testName := "Rupert"
@@ -137,6 +96,47 @@ func TestAccPet_update(t *testing.T) {
 			},
 		},
 	})
+}
+
+func testAccCheckPetDestroy(pet Pet) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		client := testAccProvider.Meta().(*Client)
+		for _, r := range s.RootModule().Resources {
+			id := r.Primary.ID
+			u, err := client.GetPet(id)
+			if err != nil {
+				return fmt.Errorf("Encountered an error: " + err.Error())
+			}
+			if u != nil {
+				return fmt.Errorf("Pet %s still exists", id)
+			}
+		}
+		return nil
+	}
+}
+
+func testAccCheckPetExists(name string, pet *Pet, t *testing.T) resource.TestCheckFunc {
+	return func(s *terraform.State) error {
+		rs, ok := s.RootModule().Resources[name]
+		if !ok {
+			//need this so that we don't get an unused import error for strconv in some cases
+			return fmt.Errorf("Error = %s. Pet not found: %s", strconv.FormatBool(ok), name)
+		}
+
+		//need this so that we don't get an unused import error for strings in some cases
+		if strings.EqualFold(rs.Primary.ID, "") {
+			return fmt.Errorf("Pet ID is not set")
+		}
+
+		id := rs.Primary.ID
+		client := testAccProvider.Meta().(*Client)
+		newPet, err := client.GetPet(id)
+		if err != nil {
+			return fmt.Errorf("Pet %s not found", id)
+		}
+		pet = newPet
+		return nil
+	}
 }
 
 func testAccCheckSumologicPetConfigImported(name string, tag string) string {

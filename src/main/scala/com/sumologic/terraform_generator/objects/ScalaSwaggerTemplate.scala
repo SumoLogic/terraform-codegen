@@ -5,7 +5,7 @@ import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.cr
 case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
                                 supportedEndpoints: List[ScalaSwaggerEndpoint]) extends ScalaTerraformEntity {
 
-  def getAllTypesUsed(): Set[ScalaSwaggerType] = {
+  def getAllTypesUsed: Set[ScalaSwaggerType] = {
     // FIXME: There is only one tf resource. We should add it as class member of ScalaSwaggerTemplate instead of
     //  traversing all endpoints.
     val swaggerResponse = supportedEndpoints.flatMap { endpoint =>
@@ -24,7 +24,7 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     Set(mainClassType) ++ otherTypes.map(_.getType()).toSet
   }
 
-  def getUpdateAndCreateRequestBodyType(): List[ScalaSwaggerType] = {
+  def getUpdateAndCreateRequestBodyType: List[ScalaSwaggerType] = {
     val endpoints = supportedEndpoints.filter { op: ScalaSwaggerEndpoint =>
       op.endpointName.equalsIgnoreCase(TerraformSupportedOperations.UPDATE + sumoSwaggerClassName) ||
         op.endpointName.equalsIgnoreCase(TerraformSupportedOperations.CREATE + sumoSwaggerClassName) ||
@@ -39,18 +39,18 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     types.filter(_.name.toUpperCase.equals(sumoSwaggerClassName.toUpperCase())).toSet.toList
   }
 
-  def getAllRequestBodyTypesUsed(): Set[ScalaSwaggerType] = {
+  def getAllRequestBodyTypesUsed: Set[ScalaSwaggerType] = {
     supportedEndpoints.flatMap { endpoint =>
       endpoint.parameters.filter(_.paramType == TerraformSupportedParameterTypes.BodyParameter).
         flatMap(_.param.getAllTypes())
     }.toSet
   }
 
-  def getDataSourceFuncMappings(): String = {
+  def getDataSourceFuncMappings: String = {
     val funcMappings: String = getFunctionMappings(
       List[String](TerraformSupportedOperations.GET)).mkString(",\n").concat(",")
 
-    val mainClass = getMainObjectClass()
+    val mainClass = getMainObjectClass
 
     val mainClassProps = mainClass.props.map {
       case sobj: ScalaSwaggerObject =>
@@ -89,8 +89,8 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     }
   }
 
-  def getMainObjectClass(): ScalaSwaggerType = {
-    val typesUsed: Set[ScalaSwaggerType] = getAllTypesUsed()
+  def getMainObjectClass: ScalaSwaggerType = {
+    val typesUsed: Set[ScalaSwaggerType] = getAllTypesUsed
 
     typesUsed.find {
       t => t.name.toUpperCase == sumoSwaggerClassName.toUpperCase() || t.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase)
@@ -99,14 +99,16 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     }
   }
 
-  def getResourceFuncMappings(): String = {
+  def getResourceFuncMappings: String = {
     // TODO Each type used needs to be generated somewhere for this to work, for now...
     // ... hoping that this is all basic types
 
-    val funcMappings: String = getFunctionMappings(crud.filter(_.toLowerCase != "exists")).mkString(",\n      ").concat(",")
+    val funcMappings: String = getFunctionMappings(
+      crud.filter(_.toLowerCase != "exists")
+    ).mkString(",\n      ").concat(",")
 
     // TODO This assumption is too optimistic
-    val classes = getUpdateAndCreateRequestBodyType()
+    val classes = getUpdateAndCreateRequestBodyType
 
     val classesProps = classes.flatMap(_.props.filter(prop => !prop.getName().toLowerCase.contains("created") &&
       !prop.getName().toLowerCase.contains("modified") && !prop.getName().toLowerCase.contains("system") &&
@@ -117,8 +119,8 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
         sumoSwaggerObject.getAsTerraformSchemaType(false)
     }.toList.toSet.mkString(",\n         ").concat(",")
 
-    // Only supporting query params for now. Assuming path parameters in CRUD endpoints will only be id. Not supporting header parameters yet.
-
+    // Only supporting query params for now. Assuming path parameters in CRUD endpoints will only be id.
+    // Not supporting header parameters yet.
     val requestMaps = supportedEndpoints.filter { endpoint =>
       val paramTypes = endpoint.parameters.map(_.paramType)
       paramTypes.exists { x =>
@@ -135,7 +137,6 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
       ""
     }
 
-
     s"""func resourceSumologic${sumoSwaggerClassName.capitalize}() *schema.Resource {
        |    return &schema.Resource{
        |      $funcMappings
@@ -143,7 +144,7 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
        |        State: schema.ImportStatePassthrough,
        |      },
        |
-      |       Schema: map[string]*schema.Schema{
+       |       Schema: map[string]*schema.Schema{
        |        $propsObjects
        |        $requestMapsString
        |    },

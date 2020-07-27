@@ -30,11 +30,12 @@ abstract class ScalaSwaggerObject(name: String,
   def getAsTerraformFunctionArgument(): String
 
   def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
-    val schemaType = if (this.isInstanceOf[ScalaSwaggerObjectArray]) {
+    val schemaType = if (this.isInstanceOf[ScalaSwaggerArrayObject]) {
       TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
     } else {
       TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)
     }
+
     val requiredTxt = if (required) { // TODO: check why Frank did it this way
       "Required: true"
     } else {
@@ -56,14 +57,14 @@ abstract class ScalaSwaggerObject(name: String,
       }
     }
 
-    val validationAndDiffSuppress = if (!this.isInstanceOf[ScalaSwaggerObjectArray] && this.getType().props.nonEmpty) {
+    val validationAndDiffSuppress = if (!this.isInstanceOf[ScalaSwaggerArrayObject] && this.getType().props.nonEmpty) {
       """ValidateFunc:     validation.StringIsJSON,
         |				DiffSuppressFunc: suppressEquivalentJsonDiffs,""".stripMargin
     } else {
       ""
     }
 
-    val elementType = if (this.isInstanceOf[ScalaSwaggerObjectArray]) {
+    val elementType = if (this.isInstanceOf[ScalaSwaggerArrayObject]) {
       if (this.getType().props.nonEmpty) {
         s"""Elem:  &schema.Schema{
            |            Type: ${TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)},
@@ -80,12 +81,19 @@ abstract class ScalaSwaggerObject(name: String,
     }
 
     val noCamelCaseName = removeCamelCase(name)
-    "\"" + noCamelCaseName + "\"" + s": {\n           Type: $schemaType,\n          $requiredTxt,\n           $specifics,\n           $validationAndDiffSuppress\n           $elementType\n         }"
+    s"""
+      |"$noCamelCaseName": {
+      |   Type: $schemaType,
+      |   $requiredTxt,
+      |   $specifics,
+      |   $validationAndDiffSuppress
+      |   $elementType
+      |}""".stripMargin
   }
 }
 
 
-case class ScalaSwaggerObjectSingle(name: String,
+case class ScalaSwaggerSimpleObject(name: String,
                                     objType: ScalaSwaggerType,
                                     required: Boolean,
                                     defaultOpt: Option[AnyRef],
@@ -125,7 +133,7 @@ case class ScalaSwaggerObjectSingle(name: String,
 }
 
 
-case class ScalaSwaggerObjectArray(name: String,
+case class ScalaSwaggerArrayObject(name: String,
                                    objType: ScalaSwaggerType,
                                    required: Boolean,
                                    defaultOpt: Option[AnyRef],

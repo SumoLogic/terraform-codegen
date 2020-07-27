@@ -8,7 +8,7 @@ case class TerraformDocsGenerator(terraform: ScalaSwaggerTemplate, mainClass: St
 
   val functionGenerator = DocsFunctionGenerator(
     terraform,
-    terraform.getAllTypesUsed().filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head
+    terraform.getAllTypesUsed.filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head
   )
 
   def generate(): String = {
@@ -25,7 +25,7 @@ case class DocsFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, main
 
   val className = mainClass.name
   val objName = className.substring(0, 1).toLowerCase() + className.substring(1)
-  val resourceProps = sumoSwaggerTemplate.getAllTypesUsed().head
+  val resourceProps = sumoSwaggerTemplate.getAllTypesUsed.head
 
   def generateLayout(): String = {
     s"""---

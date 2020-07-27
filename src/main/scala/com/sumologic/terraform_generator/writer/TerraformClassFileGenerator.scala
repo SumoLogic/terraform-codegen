@@ -7,7 +7,7 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
   extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
 
   def generate(): String = {
-    val typesUsed: Set[ScalaSwaggerType] = terraform.getAllTypesUsed()
+    val typesUsed: Set[ScalaSwaggerType] = terraform.getAllTypesUsed
 
     val intro = s"""// ----------------------------------------------------------------------------
          |//
@@ -33,7 +33,7 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
       endpoint =>
         val name = crud.find(endpoint.endpointName.toLowerCase.contains(_))
         if (name.isDefined) {
-          endpoint.copy(endpointName = name.get.toLowerCase + terraform.getMainObjectClass().name.capitalize)
+          endpoint.copy(endpointName = name.get.toLowerCase + terraform.getMainObjectClass.name.capitalize)
         } else {
           endpoint
         }

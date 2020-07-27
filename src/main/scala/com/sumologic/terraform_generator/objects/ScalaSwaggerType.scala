@@ -7,11 +7,7 @@ case class ScalaSwaggerType(name: String, props: List[ScalaSwaggerObject] = List
       ""
     } else {
       val terraProps = props.map(indent + _.terraformify(baseTemplate)).toSet
-      if (name.toLowerCase == "errorresponse" || name.toLowerCase == "errordescription") {
-        ""
-      } else {
-        s"type $name struct {\n" + terraProps.mkString("") + "}\n"
-      }
+      s"type $name struct {\n" + terraProps.mkString("") + "}\n"
     }
   }
 
