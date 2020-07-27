@@ -7,7 +7,7 @@ case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClas
 
   val functionGenerator = AcceptanceTestFunctionGenerator(
     terraform,
-    terraform.getAllTypesUsed().filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head
+    terraform.getAllTypesUsed.filter(_.name.toLowerCase.contains(mainClass.toLowerCase)).head
   )
 
   def generate(): String = {
@@ -64,7 +64,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
 
   val className = mainClass.name
   val objName = lowerCaseFirstLetter(className)
-  val resourceProps = sumoSwaggerTemplate.getAllTypesUsed().head
+  val resourceProps = sumoSwaggerTemplate.getAllTypesUsed.head
 
   def generateTestFunctionCreateBasic(): String = {
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -122,7 +122,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
           case "array" =>
             s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(test${value}[0], "\\"", "", 2)),"""
           case _ =>
-            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+            if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
               s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(test${value}[0], "\\"", "", 2)),"""
             } else {
               s"""resource.TestCheckResourceAttr("$name", "$key", test${value}),"""
@@ -237,7 +237,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
           case "array" =>
             s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
           case _ =>
-            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+            if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
               s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
             } else {
               s"""resource.TestCheckResourceAttr("$name", "${key}", ${value}),"""
@@ -263,7 +263,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
           case "array" =>
             s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
           case _ =>
-            if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+            if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
               s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
             } else {
               s"""resource.TestCheckResourceAttr("$name", "${key}", ${value}),"""
@@ -310,7 +310,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
         } else {
           prop.getName()
         }
-        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
           s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType("array")}"""
         } else {
           s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
@@ -318,7 +318,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
     }.mkString(", ")
     val terraformArgs = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
           s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
         } else {
           s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
@@ -349,7 +349,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
         } else {
           prop.getName()
         }
-        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
           s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType("array")}"""
         } else {
           s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
@@ -357,7 +357,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
     }.mkString(", ")
     val terraformArgs = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
           s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
         } else {
           s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
@@ -390,7 +390,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
         } else {
           prop.getName()
         }
-        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
           s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType("array")}"""
         } else {
           s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
@@ -398,7 +398,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
     }.mkString(", ")
     val terraformArgs = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.isInstanceOf[ScalaSwaggerObjectArray]) {
+        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
           s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
         } else {
           s"""${removeCamelCase(prop.getName())} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""

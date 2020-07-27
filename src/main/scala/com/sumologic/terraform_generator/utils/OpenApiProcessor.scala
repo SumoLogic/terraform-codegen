@@ -25,7 +25,6 @@ object OpenApiProcessor extends ProcessorHelper
       processModel(openApi, property.get$ref(), model)
     } else {
       ScalaSwaggerType(TerraformSchemaTypes.swaggerTypeToGoType(property.getType))
-
     }
   }
 
@@ -74,14 +73,14 @@ object OpenApiProcessor extends ProcessorHelper
 
   def processPathParameter(openApi: OpenAPI, pathParam: PathParameter): ScalaSwaggerParameter = {
     ScalaSwaggerParameter(TerraformSupportedParameterTypes.PathParameter,
-      ScalaSwaggerObjectSingle(pathParam.getName,
+      ScalaSwaggerSimpleObject(pathParam.getName,
         ScalaSwaggerType(pathParam.getSchema.getType, List[ScalaSwaggerObject]()),
         pathParam.getRequired, Some(pathParam.getSchema.getDefault.asInstanceOf[AnyRef]), pathParam.getSchema.getDescription, ""))
   }
 
   def processQueryParameter(openApi: OpenAPI, queryParam: QueryParameter): ScalaSwaggerParameter = {
     ScalaSwaggerParameter(TerraformSupportedParameterTypes.QueryParameter,
-      ScalaSwaggerObjectSingle(
+      ScalaSwaggerSimpleObject(
         queryParam.getName,
         ScalaSwaggerType(
           queryParam.getSchema.getType,
@@ -103,7 +102,7 @@ object OpenApiProcessor extends ProcessorHelper
   def processHeaderParameter(openApi: OpenAPI, headerParam: HeaderParameter): ScalaSwaggerParameter = {
     ScalaSwaggerParameter(
       TerraformSupportedParameterTypes.HeaderParameter,
-      ScalaSwaggerObjectSingle(
+      ScalaSwaggerSimpleObject(
         headerParam.getName,
         ScalaSwaggerType(headerParam.getSchema.getType, List[ScalaSwaggerObject]()),
         headerParam.getRequired,
@@ -119,7 +118,7 @@ object OpenApiProcessor extends ProcessorHelper
 
     val swaggerType = processModel(openApi, modelName, model)
     val swaggerParameter = ScalaSwaggerParameter(TerraformSupportedParameterTypes.BodyParameter,
-      ScalaSwaggerObjectSingle(
+      ScalaSwaggerSimpleObject(
         defName,
         swaggerType,
         true,
@@ -227,7 +226,7 @@ object OpenApiProcessor extends ProcessorHelper
             filteredProps
           } else {
             logger.warn(s"No id property in '$modelName'")
-            filteredProps ++ List(ScalaSwaggerObjectSingle("id", ScalaSwaggerType("string"), false, None, ""))
+            filteredProps ++ List(ScalaSwaggerSimpleObject("id", ScalaSwaggerType("string"), false, None, ""))
           }
         assert(tfProperties.toSet.subsetOf(properties.map(_.getName()).toSet),
           s"Extraneous properties in x-tf-properties extension. model: $modelName, properties: " +
@@ -259,7 +258,7 @@ object OpenApiProcessor extends ProcessorHelper
       case arrayProp: ArraySchema =>
         val itemPattern = Option(arrayProp.getItems.getPattern).getOrElse("")
 
-        ScalaSwaggerObjectArray(
+        ScalaSwaggerArrayObject(
           name,
           resolvePropertyType(openApi, arrayProp),
           requiredProps.contains(arrayProp.getName),
@@ -273,7 +272,7 @@ object OpenApiProcessor extends ProcessorHelper
 
       case refProp if (refProp.get$ref() != null) =>
         val refModel = getComponent(openApi, refProp.get$ref().split("/").last)._2
-        ScalaSwaggerObjectSingle(
+        ScalaSwaggerSimpleObject(
           name,
           processModel(openApi, propName, refModel),
           // TODO is propName different from refProp.getName?
@@ -287,32 +286,17 @@ object OpenApiProcessor extends ProcessorHelper
           isWriteOnly)
 
       case _ =>
-        // TODO if and else block have same code. Can be removed?
-        if (propName.toLowerCase != "id") {
-          ScalaSwaggerObjectSingle(
-            name,
-            resolvePropertyType(openApi, prop),
-            requiredProps.map(_.toLowerCase).contains(propName.toLowerCase),
-            Option(prop.getDefault.asInstanceOf[AnyRef]),
-            prop.getDescription,
-            example,
-            pattern,
-            format,
-            attribute,
-            isWriteOnly)
-        } else {
-          ScalaSwaggerObjectSingle(
-            name,
-            resolvePropertyType(openApi, prop),
-            requiredProps.map(_.toLowerCase).contains(propName.toLowerCase),
-            Option(prop.getDefault.asInstanceOf[AnyRef]),
-            prop.getDescription,
-            example,
-            pattern,
-            format,
-            attribute,
-            isWriteOnly)
-        }
+        ScalaSwaggerSimpleObject(
+          name,
+          resolvePropertyType(openApi, prop),
+          requiredProps.map(_.toLowerCase).contains(propName.toLowerCase),
+          Option(prop.getDefault.asInstanceOf[AnyRef]),
+          prop.getDescription,
+          example,
+          pattern,
+          format,
+          attribute,
+          isWriteOnly)
     }
   }
 

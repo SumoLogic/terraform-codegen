@@ -3,7 +3,7 @@ package com.sumologic.terraform_generator.writer
 import java.time.{LocalDateTime, ZoneOffset}
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerObjectArray, TerraformPropertyAttributes}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerArrayObject, ScalaSwaggerObject, TerraformPropertyAttributes}
 import nl.flotsam.xeger.Xeger
 
 import scala.util.Random
@@ -41,7 +41,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
         } else if (prop.getExample().nonEmpty) {
           val items = prop.getExample().replace("[", "").replace("]", "").split(",")
           s"""[]string{"${items.head.replace("\"", "\\\"")}"}"""
-        } else if (prop.asInstanceOf[ScalaSwaggerObjectArray].getPattern().nonEmpty) {
+        } else if (prop.asInstanceOf[ScalaSwaggerArrayObject].getPattern().nonEmpty) {
           val generator = new Xeger(prop.getPattern())
           val generatedString = generator.generate()
           s"""[]string{"${generatedString.replace("\"", "\\\"")}"}"""

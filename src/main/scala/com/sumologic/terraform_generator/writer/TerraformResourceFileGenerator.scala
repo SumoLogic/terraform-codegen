@@ -8,7 +8,7 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
     with ResourceGeneratorHelper {
 
   def generate(): String = {
-    val specialImport = if (terraform.getMainObjectClass().props.exists {
+    val specialImport = if (terraform.getMainObjectClass.props.exists {
       prop => prop.getType().props.nonEmpty
     }) {
       """"github.com/hashicorp/terraform-plugin-sdk/helper/validation""""
@@ -35,15 +35,15 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
                 |)
                 |""".stripMargin
 
-    val mappingSchema = terraform.getResourceFuncMappings()
+    val mappingSchema = terraform.getResourceFuncMappings
 
     val ops: String = terraform.supportedEndpoints.map {
       endpoint: ScalaSwaggerEndpoint =>
-        val gen = ResourceFunctionGenerator(endpoint, terraform.getMainObjectClass())
+        val gen = ResourceFunctionGenerator(endpoint, terraform.getMainObjectClass)
         gen.terraformify(terraform)
     }.mkString("\n")
 
-    val converters = getTerraformResourceDataToObjectConverter(terraform.getMainObjectClass(), true)
+    val converters = getTerraformResourceDataToObjectConverter(terraform.getMainObjectClass, true)
 
     pre + "\n" + mappingSchema + "\n" + ops + "\n" +
       converters

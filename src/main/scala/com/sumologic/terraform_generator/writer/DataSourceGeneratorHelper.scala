@@ -1,7 +1,7 @@
 package com.sumologic.terraform_generator.writer
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerObjectArray, ScalaSwaggerType}
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerType}
 
 trait DataSourceGeneratorHelper extends StringHelper {
   def getTerraformResourceSetters(propName: String, objName: String): String = {
