@@ -311,7 +311,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
           prop.getName
         }
         if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
-          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+          s"""${name} ${prop.getGoType}"""
         } else {
           s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
@@ -350,7 +350,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
           prop.getName
         }
         if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
-          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+          s"""${name} ${prop.getGoType}"""
         } else {
           s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
@@ -391,7 +391,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
           prop.getName
         }
         if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
-          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType("array")}"""
+          s"""${name} ${prop.getGoType}"""
         } else {
           s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
         }

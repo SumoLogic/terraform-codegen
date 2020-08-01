@@ -29,6 +29,8 @@ abstract class ScalaSwaggerObject(name: String,
 
   def getAsTerraformFunctionArgument: String
 
+  def getGoType: String
+
   def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
     val schemaType = if (this.isInstanceOf[ScalaSwaggerArrayObject]) {
       TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
@@ -127,6 +129,10 @@ case class ScalaSwaggerSimpleObject(name: String,
     }
   }
 
+  override def getGoType: String = {
+    TerraformSchemaTypes.swaggerTypeToGoType(objType.name)
+  }
+
   def getAsTerraformFunctionArgument: String = {
     s"$name ${objType.name}"
   }
@@ -161,10 +167,14 @@ case class ScalaSwaggerArrayObject(name: String,
       ",omitempty"
     }
 
-    s"${name.capitalize} ${objType.name} " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
+    s"${name.capitalize} $getGoType " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
+  }
+
+  override def getGoType: String = {
+    s"[]${objType.name}"
   }
 
   def getAsTerraformFunctionArgument: String = {
-    s"$name []${objType.name}"
+    s"$name $getGoType"
   }
 }

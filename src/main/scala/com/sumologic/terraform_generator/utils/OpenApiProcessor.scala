@@ -19,6 +19,12 @@ case class OpenApiPath(name: String, item: PathItem)
 object OpenApiProcessor extends ProcessorHelper
   with Logging {
 
+  def resolveArrayPropertyType(openApi: OpenAPI, property: Schema[_]): ScalaSwaggerType = {
+    val arrayProp = property.asInstanceOf[ArraySchema]
+    val itemProp = arrayProp.getItems
+    resolvePropertyType(openApi, itemProp)
+  }
+
   def resolvePropertyType(openApi: OpenAPI, property: Schema[_]): ScalaSwaggerType = {
     if (property.get$ref() != null) {
       val model = getComponent(openApi, property.get$ref().split("/").last)._2
@@ -265,7 +271,7 @@ object OpenApiProcessor extends ProcessorHelper
 
         ScalaSwaggerArrayObject(
           name,
-          resolvePropertyType(openApi, arrayProp),
+          resolveArrayPropertyType(openApi, arrayProp),
           requiredProps.contains(arrayProp.getName),
           None,
           prop.getDescription,
