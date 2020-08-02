@@ -8,7 +8,10 @@ case class ScalaSwaggerEndpoint(endpointName: String,
   extends ScalaTerraformEntity
     with SumoSwaggerEndpointHelper {
 
-  case class ResponseProps(declReturnType: String, httpClientReturnType: String, responseVarDecl: String, unmarshal: String)
+  case class ResponseProps(declReturnType: String,
+                           httpClientReturnType: String,
+                           responseVarDecl: String,
+                           unmarshal: String)
 
   def getReturnTypesBasedOnResponse: ResponseProps = {
     val respBodyTypeOpt = this.responses.filter(_.respTypeName != "default").head.respTypeOpt
@@ -95,21 +98,21 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     httpMethod.toLowerCase match {
       case "get" =>
         s"""
-           |  data, _, err := s.Get($urlArg)
-           |  if err != nil {
-           |		return nil, err
-           |	}
-           |	if data == nil {
-           |		return nil, nil
-           |	}
+           |    data, _, err := s.Get($urlArg)
+           |    if err != nil {
+           |	 		  return nil, err
+           |	 	}
+           |	 	if data == nil {
+           |	 		  return nil, nil
+           |	 	}
            |""".stripMargin
 
       case "post" =>
         s"""
-           |  data, err := s.Post($urlArg, $varName)
-           |  if err != nil {
-           |		return "", err
-           |	}
+           |    data, err := s.Post($urlArg, $varName)
+           |    if err != nil {
+           |	 		  return "", err
+           |	 	}
            |""".stripMargin
 
       case "delete" =>
@@ -121,7 +124,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
         assert(responseTypeOpt.isDefined)
         val respType = responseTypeOpt.get
 
-        val writeOnlyProps = responseTypeOpt.get.props.filter(_.getCreateOnly())
+        val writeOnlyProps = responseTypeOpt.get.props.filter(_.getCreateOnly)
         val writeOnlyPropsString = if (writeOnlyProps.nonEmpty) {
           writeOnlyProps.map { prop =>
             s"""
@@ -135,7 +138,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
         val resourceVar = respType.name.head.toLower + respType.name.substring(1)
         s"""
            |    ${resourceVar}.ID = ""
-           |    ${writeOnlyPropsString}
+           |    $writeOnlyPropsString
            |
            |    _, err := s.Put($urlArg, $resourceVar)
            |""".stripMargin
@@ -175,7 +178,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
                    |""".stripMargin
               }
             } else {
-              s"""if val, ok := paramMap["${lowerCaseFirstLetter(pathParam.param.getName())}"]; ok {
+              s"""if val, ok := paramMap["${lowerCaseFirstLetter(pathParam.param.getName)}"]; ok {
                  | sprintfArgs = append(sprintfArgs, val)
                  | }
                  |""".stripMargin
@@ -188,15 +191,15 @@ case class ScalaSwaggerEndpoint(endpointName: String,
       val queryParamString = if (queryParams.nonEmpty) {
         val queryString = queryParams.map {
           queryParam =>
-            s"""if val, ok := paramMap["${lowerCaseFirstLetter(queryParam.param.getName())}"]; ok {
-               |queryParam := fmt.Sprintf("${lowerCaseFirstLetter(queryParam.param.getName())}=%s&", val)
+            s"""if val, ok := paramMap["${lowerCaseFirstLetter(queryParam.param.getName)}"]; ok {
+               |queryParam := fmt.Sprintf("${lowerCaseFirstLetter(queryParam.param.getName)}=%s&", val)
                |paramString += queryParam
                |}
                |""".stripMargin
         }.mkString("\n")
         s"""paramString += "?"
            |
-           |${queryString}
+           |$queryString
            |
            |""".stripMargin
       } else {
@@ -205,9 +208,9 @@ case class ScalaSwaggerEndpoint(endpointName: String,
 
       s"""paramString := ""
          |sprintfArgs := []interface{}{}
-         |${pathParamString}
+         |$pathParamString
          |
-         |${queryParamString}
+         |$queryParamString
          |
          |""".stripMargin
     } else {
@@ -222,8 +225,8 @@ case class ScalaSwaggerEndpoint(endpointName: String,
 
     val headers = headerParams.map {
       headerParam =>
-        s"""if val, ok := paramMap["${lowerCaseFirstLetter(headerParam.param.getName())}"]; ok {
-           |    reqHeaders["${lowerCaseFirstLetter(headerParam.param.getName())}"] = val
+        s"""if val, ok := paramMap["${lowerCaseFirstLetter(headerParam.param.getName)}"]; ok {
+           |    reqHeaders["${lowerCaseFirstLetter(headerParam.param.getName)}"] = val
            |}""".stripMargin
     }.mkString("\n")
 
@@ -233,7 +236,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
       } else {
         s"""
           |$reqHeadersVarName := make(map[string]string)
-          |${headers}
+          |$headers
           |""".stripMargin
       }
 

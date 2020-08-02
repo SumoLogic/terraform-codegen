@@ -12,22 +12,22 @@ abstract class ScalaSwaggerObject(name: String,
                                   createOnly: Boolean = false) extends ScalaTerraformEntity {
 
   // TODO Assumption of NO collision without namespaces is probably wrong - should fix
-  def getAllTypes(): List[ScalaSwaggerType] = {
-    List(objType) ++ objType.props.flatMap(_.getAllTypes())
+  def getAllTypes: List[ScalaSwaggerType] = {
+    List(objType) ++ objType.props.flatMap(_.getAllTypes)
   }
 
-  def getName(): String = { name }
-  def getType(): ScalaSwaggerType = { objType }
-  def getRequired(): Boolean = { required }
-  def getDescription(): String = { description }
-  def getExample(): String = { example }
-  def getCreateOnly(): Boolean = { createOnly }
-  def getPattern(): String = { pattern }
-  def getDefault(): Option[AnyRef] = { defaultOpt}
-  def getFormat(): String = { format }
-  def getAttribute(): String = { attribute }
+  def getName: String = { name }
+  def getType: ScalaSwaggerType = { objType }
+  def getRequired: Boolean = { required }
+  def getDescription: String = { description }
+  def getExample: String = { example }
+  def getCreateOnly: Boolean = { createOnly }
+  def getPattern: String = { pattern }
+  def getDefault: Option[AnyRef] = { defaultOpt}
+  def getFormat: String = { format }
+  def getAttribute: String = { attribute }
 
-  def getAsTerraformFunctionArgument(): String
+  def getAsTerraformFunctionArgument: String
 
   def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
     val schemaType = if (this.isInstanceOf[ScalaSwaggerArrayObject]) {
@@ -57,7 +57,7 @@ abstract class ScalaSwaggerObject(name: String,
       }
     }
 
-    val validationAndDiffSuppress = if (!this.isInstanceOf[ScalaSwaggerArrayObject] && this.getType().props.nonEmpty) {
+    val validationAndDiffSuppress = if (!this.isInstanceOf[ScalaSwaggerArrayObject] && this.getType.props.nonEmpty) {
       """ValidateFunc:     validation.StringIsJSON,
         |				DiffSuppressFunc: suppressEquivalentJsonDiffs,""".stripMargin
     } else {
@@ -65,7 +65,7 @@ abstract class ScalaSwaggerObject(name: String,
     }
 
     val elementType = if (this.isInstanceOf[ScalaSwaggerArrayObject]) {
-      if (this.getType().props.nonEmpty) {
+      if (this.getType.props.nonEmpty) {
         s"""Elem:  &schema.Schema{
            |            Type: ${TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)},
            |            ValidateFunc:     validation.StringIsJSON,
@@ -127,7 +127,7 @@ case class ScalaSwaggerSimpleObject(name: String,
     }
   }
 
-  def getAsTerraformFunctionArgument(): String = {
+  def getAsTerraformFunctionArgument: String = {
     s"$name ${objType.name}"
   }
 }
@@ -164,7 +164,7 @@ case class ScalaSwaggerArrayObject(name: String,
     s"${name.capitalize} ${objType.name} " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
   }
 
-  def getAsTerraformFunctionArgument(): String = {
+  def getAsTerraformFunctionArgument: String = {
     s"$name []${objType.name}"
   }
 }

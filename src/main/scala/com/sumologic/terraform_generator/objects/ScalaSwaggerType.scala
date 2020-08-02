@@ -2,6 +2,7 @@ package com.sumologic.terraform_generator.objects
 
 case class ScalaSwaggerType(name: String, props: List[ScalaSwaggerObject] = List[ScalaSwaggerObject]())
   extends ScalaTerraformEntity {
+
   override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
     if (props.isEmpty) {
       ""
@@ -25,7 +26,7 @@ case class ScalaSwaggerType(name: String, props: List[ScalaSwaggerObject] = List
   }
 
   override def toString = {
-    val propNames = props.map(_.getName())
+    val propNames = props.map(_.getName)
     s"ScalaSwaggerType(name=$name, props=$propNames)"
   }
 }

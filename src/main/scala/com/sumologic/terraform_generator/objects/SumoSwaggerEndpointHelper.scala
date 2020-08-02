@@ -5,7 +5,7 @@ import com.sumologic.terraform_generator.StringHelper
 trait SumoSwaggerEndpointHelper extends StringHelper {
   def bodyParamToArgList(bodyParamOption: Option[ScalaSwaggerParameter], baseType: String): List[String] = {
     bodyParamOption match {
-      case Some(bodyParam) =>
+      case Some(_) =>
         val requestBodyType = baseType
         List[String](lowerCaseFirstLetter(requestBodyType) + " " + requestBodyType)
       case None => List[String]()
@@ -13,7 +13,7 @@ trait SumoSwaggerEndpointHelper extends StringHelper {
   }
 
   def paramListToArgList(params: List[ScalaSwaggerParameter]): List[String] = {
-    params.map(_.toTerraformFuncArg())
+    params.map(_.toTerraformFuncArg)
   }
 
   def makeArgsListForDecl(params: List[ScalaSwaggerParameter], baseType: String): String = {

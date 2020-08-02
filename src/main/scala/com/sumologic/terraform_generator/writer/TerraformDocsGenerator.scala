@@ -48,7 +48,7 @@ case class DocsFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, main
   def generateExampleUsage(): String = {
     val terraformArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
       prop =>
-        s"""${removeCamelCase(prop.getName())} = "${prop.getExample()}""""
+        s"""${removeCamelCase(prop.getName)} = "${prop.getExample}""""
     }.mkString("\n    ")
 
     s"""## Example Usage
@@ -63,10 +63,10 @@ case class DocsFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, main
   def generateArgReferences(): String = {
     val terraformArgs = resourceProps.props.filter(_.getName.toLowerCase != "id").map {
       prop =>
-        if (prop.getRequired()) {
-          s"""- `${removeCamelCase(prop.getName())}` - (Required) ${prop.getDescription()}"""
+        if (prop.getRequired) {
+          s"""- `${removeCamelCase(prop.getName)}` - (Required) ${prop.getDescription}"""
         } else {
-          s"""- `${removeCamelCase(prop.getName())}` - (Optional) ${prop.getDescription()}"""
+          s"""- `${removeCamelCase(prop.getName)}` - (Optional) ${prop.getDescription}"""
         }
     }.mkString("\n")
 
