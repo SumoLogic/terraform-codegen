@@ -5,16 +5,16 @@ import com.sumologic.terraform_generator.objects.{ScalaSwaggerArrayObject, Scala
 
 trait ResourceGeneratorHelper extends StringHelper {
   def getTerraformResourceGetters(prop: ScalaSwaggerObject): String = {
-    val propName = prop.getName()
+    val propName = prop.getName
     val noCamelCaseName = removeCamelCase(propName)
-    val propType = prop.getType().name
+    val propType = prop.getType.name
     prop match {
-      case arrayProp: ScalaSwaggerArrayObject =>
+      case _: ScalaSwaggerArrayObject =>
         s"""${propName.capitalize}: ${propName.toLowerCase},""".stripMargin
       case singleProp: ScalaSwaggerObject =>
-        if (singleProp.getName().toLowerCase == "id") {
+        if (singleProp.getName.toLowerCase == "id") {
           s"""${propName.toUpperCase}: d.Id(),""".stripMargin
-        } else if (singleProp.getType().props.nonEmpty){
+        } else if (singleProp.getType.props.nonEmpty){
           s"""${propName.capitalize}: ${propName.toLowerCase},""".stripMargin
         } else {
           s"""${propName.capitalize}: d.Get(\"${noCamelCaseName.toLowerCase}\").($propType),""".stripMargin
@@ -26,7 +26,7 @@ trait ResourceGeneratorHelper extends StringHelper {
     s"resourceTo${objClass.name}"
   }
 
-  def getTerraformResourceDataToObjectConverter(objClass: ScalaSwaggerType, skipValidators: Boolean): String = {
+  def getTerraformResourceDataToObjectConverter(objClass: ScalaSwaggerType): String = {
     val className = objClass.name
 
     val getters = objClass.props.map {
@@ -40,38 +40,38 @@ trait ResourceGeneratorHelper extends StringHelper {
       prop => prop.isInstanceOf[ScalaSwaggerArrayObject]
     }.map {
       prop =>
-        if (prop.getType().props.nonEmpty) {
-          s"""raw${prop.getName().capitalize} := d.Get("${removeCamelCase(prop.getName())}").([]interface{})
-             |	${prop.getName().toLowerCase}List := make([]string, len(raw${prop.getName().capitalize} ))
-             |	for i, v := range raw${prop.getName().capitalize}  {
-             |		${prop.getName().toLowerCase}List[i] = v.(string)
+        if (prop.getType.props.nonEmpty) {
+          s"""raw${prop.getName.capitalize} := d.Get("${removeCamelCase(prop.getName)}").([]interface{})
+             |	${prop.getName.toLowerCase}List := make([]string, len(raw${prop.getName.capitalize} ))
+             |	for i, v := range raw${prop.getName.capitalize}  {
+             |		${prop.getName.toLowerCase}List[i] = v.(string)
              |	}""".stripMargin
         } else {
-          s"""raw${prop.getName().capitalize} := d.Get("${removeCamelCase(prop.getName())}").([]interface{})
-             |	${prop.getName().toLowerCase} := make([]string, len(raw${prop.getName().capitalize} ))
-             |	for i, v := range raw${prop.getName().capitalize}  {
-             |		${prop.getName().toLowerCase}[i] = v.(string)
+          s"""raw${prop.getName.capitalize} := d.Get("${removeCamelCase(prop.getName)}").([]interface{})
+             |	${prop.getName.toLowerCase} := make([]string, len(raw${prop.getName.capitalize} ))
+             |	for i, v := range raw${prop.getName.capitalize}  {
+             |		${prop.getName.toLowerCase}[i] = v.(string)
              |	}""".stripMargin
         }
     }.mkString("\n")
 
     val propsJsonParser = objClass.props.filter {
-      prop => !prop.getType.props.isEmpty
+      prop => prop.getType.props.nonEmpty
     }.map {
       prop =>
         val lowerCasePropName = prop.getType.name.toLowerCase
         val capitalizedPropName = prop.getType.name.capitalize
         if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
           s"""
-             |    var ${lowerCasePropName} []${capitalizedPropName}
+             |    var $lowerCasePropName []$capitalizedPropName
              |    for _, x := range ${lowerCasePropName}List {
-             |        ${lowerCasePropName}Single := ${capitalizedPropName}{}
-             |        ${lowerCasePropName} = append(${lowerCasePropName}, json.Unmarshal([]byte(x), &${lowerCasePropName}Single)
+             |        ${lowerCasePropName}Single := $capitalizedPropName{}
+             |        $lowerCasePropName = append($lowerCasePropName, json.Unmarshal([]byte(x), &${lowerCasePropName}Single)
              |    }""".stripMargin
         } else {
-          s"""s := d.Get("${removeCamelCase(prop.getName())}").(string)
-             |      ${lowerCasePropName} := ${capitalizedPropName}{}
-             |      json.Unmarshal([]byte(s), &${lowerCasePropName})""".stripMargin
+          s"""s := d.Get("${removeCamelCase(prop.getName)}").(string)
+             |      $lowerCasePropName := $capitalizedPropName{}
+             |      json.Unmarshal([]byte(s), &$lowerCasePropName)""".stripMargin
         }
     }.mkString("\n")
 

@@ -54,21 +54,21 @@ case class DataSourceFunctionGenerator(mainClass: ScalaSwaggerType)
        |func dataSourceSumologic${className}Get(resourceData *schema.ResourceData, meta interface{}) error {
        |  client := meta.(*Client)
        |
-       |  var $objName *${className}
+       |  var $objName *$className
        |  var err error
        |  if id, ok := resourceData.GetOk("id"); ok {
-       |    $objName, err = client.get${className}(id.(string))
+       |    $objName, err = client.get$className(id.(string))
        |    if err != nil {
-       |      return fmt.Errorf("SumologicTerraformError: ${className} with id %s not found: %v", id, err)
+       |      return fmt.Errorf("SumologicTerraformError: $className with id %s not found: %v", id, err)
        |    }
        |  } else {
-       |      return errors.New("SumologicTerraformError: ${className} object Id is required")
+       |      return errors.New("SumologicTerraformError: $className object Id is required")
        |    }
        |
        |  resourceData.SetId($objName.id)
        |  $setter
        |
-       |  log.Printf("[DEBUG] SumologicTerraformDebug DataSource ${className} : retrieved %v", $objName)
+       |  log.Printf("[DEBUG] SumologicTerraformDebug DataSource $className : retrieved %v", $objName)
        |  return nil
        |}""".stripMargin
   }

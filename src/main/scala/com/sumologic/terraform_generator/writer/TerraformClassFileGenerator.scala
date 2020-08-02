@@ -47,7 +47,7 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
 
         if (bodyParams.size > 1 || endpoint.responses.filterNot(_.respTypeName.toLowerCase == "default").size > 1) {
           val paramsToExclude = bodyParams.filterNot {
-            _.param.getName().toLowerCase == terraform.sumoSwaggerClassName.toLowerCase
+            _.param.getName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase
           }
 
           val filteredEndpoint = endpoint.copy(

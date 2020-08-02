@@ -53,12 +53,12 @@ object TerraformSchemaTypes {
       case "bool" => TypeBool
       case "float" => TypeFloat // TODO does float exist in swagger?
       case "array" => TypeList
-      case _ => TypeString // TODO this generalization is way too naiive
+      case _ => TypeString // TODO this generalization is way too naive
       //TODO Date type? translates to TypeString
     }
   }
 
-  def swaggerTypeToGoType(swaggerType: String, format: String = null): String = {
+  def swaggerTypeToGoType(swaggerType: String): String = {
     swaggerType match {
       case "boolean" => "bool"
       case "object" => "map[string]string"

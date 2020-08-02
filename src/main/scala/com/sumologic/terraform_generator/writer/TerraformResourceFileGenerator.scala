@@ -9,7 +9,7 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
 
   def generate(): String = {
     val specialImport = if (terraform.getMainObjectClass.props.exists {
-      prop => prop.getType().props.nonEmpty
+      prop => prop.getType.props.nonEmpty
     }) {
       """"github.com/hashicorp/terraform-plugin-sdk/helper/validation""""
     } else {
@@ -43,7 +43,7 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
         gen.terraformify(terraform)
     }.mkString("\n")
 
-    val converters = getTerraformResourceDataToObjectConverter(terraform.getMainObjectClass, true)
+    val converters = getTerraformResourceDataToObjectConverter(terraform.getMainObjectClass)
 
     pre + "\n" + mappingSchema + "\n" + ops + "\n" +
       converters
@@ -84,7 +84,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   val parameter: String = if (modelInResponse.isDefined) {
     modelInResponse.get.respTypeOpt.get.name
   } else if (modelInParam.isDefined) {
-    modelInParam.get.param.getName()
+    modelInParam.get.param.getName
   } else {
     ""
   }
@@ -100,18 +100,18 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
 
   // TODO: This is gross, generalize if possible
   def generateResourceFunctionGET(): String = {
-    val setters = mainClass.props.filter(_.getName().toLowerCase != "id").map {
+    val setters = mainClass.props.filter(_.getName.toLowerCase != "id").map {
       prop: ScalaSwaggerObject =>
-        val name = prop.getName()
+        val name = prop.getName
         s"""d.Set("${removeCamelCase(name)}", $objName.${name.capitalize})""".stripMargin
     }.mkString("\n    ")
 
     val clientCall = if (!requestMap.isEmpty) {
-      s"${objName}, err := c.Get${className}(id, requestParams)"
+      s"$objName, err := c.Get$className(id, requestParams)"
     } else if (hasPathParam) {
-      s"${objName}, err := c.Get${className}(id)"
+      s"$objName, err := c.Get$className(id)"
     } else {
-      s"${objName}, err := c.Get${className}()"
+      s"$objName, err := c.Get$className()"
     }
 
   s"""
@@ -142,11 +142,11 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   // TODO: This is gross, generalize if possible
   def generateResourceFunctionDELETE(): String = {
     val clientCall = if (!requestMap.isEmpty) {
-      s"c.Delete${className}(d.Id(), requestParams)"
+      s"c.Delete$className(d.Id(), requestParams)"
     } else if (hasPathParam) {
-      s"c.Delete${className}(d.Id())"
+      s"c.Delete$className(d.Id())"
     } else {
-      s"c.Delete${className}()"
+      s"c.Delete$className()"
     }
 
     s"""func resourceSumologic${className}Delete(d *schema.ResourceData, meta interface{}) error {
@@ -164,9 +164,9 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
     val lowerCaseName = parameter.substring(0, 1).toLowerCase() + parameter.substring(1)
 
     val clientCall = if (!requestMap.isEmpty) {
-      s"err := c.Update${className}($lowerCaseName, requestParams)"
+      s"err := c.Update$className($lowerCaseName, requestParams)"
     } else {
-      s"err := c.Update${className}($lowerCaseName)"
+      s"err := c.Update$className($lowerCaseName)"
     }
 
     s"""
@@ -175,7 +175,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
        |
        |  $requestMap
        |
-       |	$lowerCaseName := resourceTo${className}(d)
+       |	$lowerCaseName := resourceTo$className(d)
        |
        |	$clientCall
        |
@@ -192,9 +192,9 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
     val lowerCaseName = parameter.substring(0, 1).toLowerCase() + parameter.substring(1)
 
     val clientCall = if (!requestMap.isEmpty) {
-      s"id, err := c.Create${className}($lowerCaseName, requestParams)"
+      s"id, err := c.Create$className($lowerCaseName, requestParams)"
     } else {
-      s"id, err := c.Create${className}($lowerCaseName)"
+      s"id, err := c.Create$className($lowerCaseName)"
     }
 
     s"""
@@ -204,7 +204,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
        |  $requestMap
        |
        |	if d.Id() == "" {
-       |		$lowerCaseName := resourceTo${className}(d)
+       |		$lowerCaseName := resourceTo$className(d)
        |		$clientCall
        |
        |		if err != nil {
@@ -225,7 +225,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
        |func resourceSumologic${className}Exists(d *schema.ResourceData, meta interface{}) error {
        |	c := meta.(*Client)
        |
-       |	_, err := c.Get${className}(d.Id())
+       |	_, err := c.Get$className(d.Id())
        |	if err != nil {
        |		return err
        |	}

@@ -12,9 +12,10 @@ trait DataSourceGeneratorHelper extends StringHelper {
   def getTerraformDataSourceValueSetCheck(varName: String,
                                           varTypeOpt: Option[String] = None,
                                           singleReturn: Boolean = false): String = {
-    val singleReturnTxt = singleReturn match {
-      case false => "nil, "
-      case true => ""
+    val singleReturnTxt = if (singleReturn) {
+      ""
+    } else {
+      "nil, "
     }
     val typeInfo = varTypeOpt match {
       case Some(varType) => s" to construct $varType"
@@ -26,7 +27,7 @@ trait DataSourceGeneratorHelper extends StringHelper {
     } else {
       s"""${varName}Exists, ok := resourceData.GetOkExists("$noCamelCaseName");
          |if !ok {
-         |    return ${singleReturnTxt}fmt.Errorf("SumologicTerraformError: %q is required${typeInfo}.", ${varName}Exists)
+         |    return ${singleReturnTxt}fmt.Errorf("SumologicTerraformError: %q is required$typeInfo.", ${varName}Exists)
          |  }\n""".stripMargin
     }
   }
@@ -42,7 +43,7 @@ trait DataSourceGeneratorHelper extends StringHelper {
 
     val setters = objClass.props.map {
       prop: ScalaSwaggerObject =>
-        getTerraformResourceSetters(prop.getName(), objName)
+        getTerraformResourceSetters(prop.getName, objName)
     }.mkString("\n")
 
     s"""func ${objName}ToResourceData(resourceData *schema.ResourceData, $objName *$className) {

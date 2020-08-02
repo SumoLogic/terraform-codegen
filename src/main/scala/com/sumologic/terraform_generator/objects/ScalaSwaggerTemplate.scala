@@ -18,12 +18,15 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     val mainClassType = swaggerResponse.respTypeOpt.get
 
     val otherTypes = mainClassType.props.filter {
-      prop => prop.getType().props.nonEmpty
+      prop => prop.getType.props.nonEmpty
     }
 
-    Set(mainClassType) ++ otherTypes.map(_.getType()).toSet
+    Set(mainClassType) ++ otherTypes.map(_.getType).toSet
   }
 
+  // FIXME: Get rid of this method. There is only one terraform resource and we already know about that.
+  //  Don't look at create and update request response models, instead make resource a data member of
+  //  ScalaSwaggerTemplate class.
   def getUpdateAndCreateRequestBodyType: List[ScalaSwaggerType] = {
     val endpoints = supportedEndpoints.filter { op: ScalaSwaggerEndpoint =>
       op.endpointName.equalsIgnoreCase(TerraformSupportedOperations.UPDATE + sumoSwaggerClassName) ||
@@ -31,19 +34,13 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
         op.responses.map(_.respTypeName).contains(sumoSwaggerClassName)
     }
 
-    val types = endpoints.flatMap {
-      endpoint => endpoint.parameters.filter(_.paramType == TerraformSupportedParameterTypes.BodyParameter)
-        .flatMap(_.param.getAllTypes()) ++ endpoint.responses.filter(_.respTypeOpt.isDefined).map(_.respTypeOpt.get)
+    val types = endpoints.flatMap { endpoint =>
+      val filteredParams = endpoint.parameters.filter(_.paramType == TerraformSupportedParameterTypes.BodyParameter)
+      filteredParams.flatMap(_.param.getAllTypes) ++
+          endpoint.responses.filter(_.respTypeOpt.isDefined).map(_.respTypeOpt.get)
     }
 
-    types.filter(_.name.toUpperCase.equals(sumoSwaggerClassName.toUpperCase())).toSet.toList
-  }
-
-  def getAllRequestBodyTypesUsed: Set[ScalaSwaggerType] = {
-    supportedEndpoints.flatMap { endpoint =>
-      endpoint.parameters.filter(_.paramType == TerraformSupportedParameterTypes.BodyParameter).
-        flatMap(_.param.getAllTypes())
-    }.toSet
+    types.filter(_.name.toUpperCase.equals(sumoSwaggerClassName.toUpperCase())).distinct
   }
 
   def getDataSourceFuncMappings: String = {
@@ -53,17 +50,17 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     val mainClass = getMainObjectClass
 
     val mainClassProps = mainClass.props.map {
-      case sobj: ScalaSwaggerObject =>
-        sobj.getAsTerraformSchemaType(true)
+      obj: ScalaSwaggerObject =>
+        obj.getAsTerraformSchemaType(true)
     }.mkString(",\n").concat(",")
 
     s"""func dataSourceSumologic$sumoSwaggerClassName() *schema.Resource {
-       |  return &schema.Resource{
-       |    $funcMappings
-       |    Schema: map[string]*schema.Schema{
-       |      $mainClassProps
-       |    },
-       |  }
+       |    return &schema.Resource{
+       |        $funcMappings
+       |        Schema: map[string]*schema.Schema{
+       |            $mainClassProps
+       |        },
+       |    }
        |}""".stripMargin
   }
 
@@ -93,16 +90,14 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     val typesUsed: Set[ScalaSwaggerType] = getAllTypesUsed
 
     typesUsed.find {
-      t => t.name.toUpperCase == sumoSwaggerClassName.toUpperCase() || t.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase)
+      t => t.name.toUpperCase == sumoSwaggerClassName.toUpperCase() ||
+           t.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase)
     }.getOrElse {
       throw new RuntimeException("No Main Class. This should not happen in getMainObjectClass ")
     }
   }
 
   def getResourceFuncMappings: String = {
-    // TODO Each type used needs to be generated somewhere for this to work, for now...
-    // ... hoping that this is all basic types
-
     val funcMappings: String = getFunctionMappings(
       crud.filter(_.toLowerCase != "exists")
     ).mkString(",\n      ").concat(",")
@@ -110,9 +105,11 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     // TODO This assumption is too optimistic
     val classes = getUpdateAndCreateRequestBodyType
 
-    val classesProps = classes.flatMap(_.props.filter(prop => !prop.getName().toLowerCase.contains("created") &&
-      !prop.getName().toLowerCase.contains("modified") && !prop.getName().toLowerCase.contains("system") &&
-      !prop.getName().toLowerCase.equals("id"))).toSet //.filter(_.getRequired()).toSet
+    val classesProps = classes.flatMap {
+      _.props.filter { prop =>
+        !prop.getName.toLowerCase.equals("id")
+      }
+    }.toSet
 
     val propsObjects = classesProps.map {
       sumoSwaggerObject: ScalaSwaggerObject =>
@@ -139,16 +136,16 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
 
     s"""func resourceSumologic${sumoSwaggerClassName.capitalize}() *schema.Resource {
        |    return &schema.Resource{
-       |      $funcMappings
-       |      Importer: &schema.ResourceImporter{
-       |        State: schema.ImportStatePassthrough,
-       |      },
+       |        $funcMappings
+       |        Importer: &schema.ResourceImporter{
+       |            State: schema.ImportStatePassthrough,
+       |        },
        |
-       |       Schema: map[string]*schema.Schema{
-       |        $propsObjects
-       |        $requestMapsString
-       |    },
-       |  }
+       |        Schema: map[string]*schema.Schema{
+       |            $propsObjects
+       |            $requestMapsString
+       |        },
+       |    }
        |}""".stripMargin
   }
 

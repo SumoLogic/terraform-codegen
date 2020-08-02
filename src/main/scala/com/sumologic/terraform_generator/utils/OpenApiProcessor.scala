@@ -75,7 +75,11 @@ object OpenApiProcessor extends ProcessorHelper
     ScalaSwaggerParameter(TerraformSupportedParameterTypes.PathParameter,
       ScalaSwaggerSimpleObject(pathParam.getName,
         ScalaSwaggerType(pathParam.getSchema.getType, List[ScalaSwaggerObject]()),
-        pathParam.getRequired, Some(pathParam.getSchema.getDefault.asInstanceOf[AnyRef]), pathParam.getSchema.getDescription, ""))
+        pathParam.getRequired,
+        Some(pathParam.getSchema.getDefault.asInstanceOf[AnyRef]),
+        pathParam.getSchema.getDescription
+      )
+    )
   }
 
   def processQueryParameter(openApi: OpenAPI, queryParam: QueryParameter): ScalaSwaggerParameter = {
@@ -121,7 +125,7 @@ object OpenApiProcessor extends ProcessorHelper
       ScalaSwaggerSimpleObject(
         defName,
         swaggerType,
-        true,
+        required = true,
         None,
         model.getDescription,
         Option(model.getExample).map(_.toString).getOrElse(""),
@@ -212,7 +216,7 @@ object OpenApiProcessor extends ProcessorHelper
         swaggerType
       } else {
         val filteredProps = swaggerType.props.filter { prop =>
-          tfProperties.contains(prop.getName())
+          tfProperties.contains(prop.getName)
         }
 
         // Any terraform resource will have an 'id' property. This code assumes all terraform resource
@@ -221,16 +225,17 @@ object OpenApiProcessor extends ProcessorHelper
         // FIXME: This might break if we identifier field is called something else like "userId". In
         //  the case, "userId" as well as "id" will be part of that resource. Not sure how it impacts
         //  generated code. Will have to try it out and see.
-        val hasIdProperty = filteredProps.exists(obj => obj.getName() == "id")
+        val hasIdProperty = filteredProps.exists(obj => obj.getName == "id")
         val properties = if (hasIdProperty) {
             filteredProps
           } else {
             logger.warn(s"No id property in '$modelName'")
-            filteredProps ++ List(ScalaSwaggerSimpleObject("id", ScalaSwaggerType("string"), false, None, ""))
+            filteredProps ++
+                List(ScalaSwaggerSimpleObject("id", ScalaSwaggerType("string"), required = false, None, ""))
           }
-        assert(tfProperties.toSet.subsetOf(properties.map(_.getName()).toSet),
+        assert(tfProperties.toSet.subsetOf(properties.map(_.getName).toSet),
           s"Extraneous properties in x-tf-properties extension. model: $modelName, properties: " +
-              s"${properties.map(_.getName())}")
+              s"${properties.map(_.getName)}")
 
         ScalaSwaggerType(swaggerType.name, properties)
       }
@@ -270,7 +275,7 @@ object OpenApiProcessor extends ProcessorHelper
           attribute,
           isWriteOnly)
 
-      case refProp if (refProp.get$ref() != null) =>
+      case refProp if refProp.get$ref() != null =>
         val refModel = getComponent(openApi, refProp.get$ref().split("/").last)._2
         ScalaSwaggerSimpleObject(
           name,
@@ -387,7 +392,7 @@ object OpenApiProcessor extends ProcessorHelper
             }
 
             val paramNames = endpoint.parameters.map {
-              param => param.param.getName()
+              param => param.param.getName
             }
 
             val responseAndParamNames = (responseNames ++ paramNames).toSet

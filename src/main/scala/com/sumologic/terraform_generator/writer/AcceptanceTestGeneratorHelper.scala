@@ -10,39 +10,39 @@ import scala.util.Random
 
 trait AcceptanceTestGeneratorHelper extends StringHelper {
   def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false): String = {
-    prop.getType().name match {
+    prop.getType.name match {
       case "bool" =>
-        val testBoolValue = if (prop.getDefault().isDefined) {
-          prop.getDefault().get.asInstanceOf[Boolean]
+        val testBoolValue = if (prop.getDefault.isDefined) {
+          prop.getDefault.get.asInstanceOf[Boolean]
         } else {
           false
         }
         testBoolValue.toString
       case "int" =>
-        //TODO: Add functionality to update ints
-        val testIntValue = if (prop.getExample().nonEmpty) {
-          prop.getExample()
+        //TODO: Add functionality to update int
+        val testIntValue = if (prop.getExample.nonEmpty) {
+          prop.getExample
         }
-        else if (prop.getDefault().isDefined) {
-          prop.getDefault().get.toString
+        else if (prop.getDefault.isDefined) {
+          prop.getDefault.get.toString
         } else {
           "0"
         }
 
-        if (isUpdate && !prop.getCreateOnly()) {
+        if (isUpdate && !prop.getCreateOnly) {
           (testIntValue.toLong + 1).toString
         }else {
           testIntValue
         }
       case "[]string" =>
-        if (prop.getDefault().isDefined) {
-          val default = prop.getDefault().get.asInstanceOf[List[String]]
+        if (prop.getDefault.isDefined) {
+          val default = prop.getDefault.get.asInstanceOf[List[String]]
           s"""[]string{"${default.head.replace("\"", "\\\"")}"}"""
-        } else if (prop.getExample().nonEmpty) {
-          val items = prop.getExample().replace("[", "").replace("]", "").split(",")
+        } else if (prop.getExample.nonEmpty) {
+          val items = prop.getExample.replace("[", "").replace("]", "").split(",")
           s"""[]string{"${items.head.replace("\"", "\\\"")}"}"""
-        } else if (prop.asInstanceOf[ScalaSwaggerArrayObject].getPattern().nonEmpty) {
-          val generator = new Xeger(prop.getPattern())
+        } else if (prop.asInstanceOf[ScalaSwaggerArrayObject].getPattern.nonEmpty) {
+          val generator = new Xeger(prop.getPattern)
           val generatedString = generator.generate()
           s"""[]string{"${generatedString.replace("\"", "\\\"")}"}"""
         } else {
@@ -52,14 +52,14 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           s"""[]string{"\\"$randomStr\\""}"""
         }
       case "string" =>
-        val testStringValue = if (prop.getDefault().isDefined) {
-          s""""${prop.getDefault().get.toString.replace(""""""", """\"""")}""""
-        } else if (prop.getExample().nonEmpty) {
-          s""""${prop.getExample().toString.replace(""""""", """\"""")}""""
-        } else if (prop.getPattern().nonEmpty) {
-          generateTestValueFromPattern(prop.getPattern())
+        val testStringValue = if (prop.getDefault.isDefined) {
+          s""""${prop.getDefault.get.toString.replace(""""""", """\"""")}""""
+        } else if (prop.getExample.nonEmpty) {
+          s""""${prop.getExample.replace(""""""", """\"""")}""""
+        } else if (prop.getPattern.nonEmpty) {
+          generateTestValueFromPattern(prop.getPattern)
         } else {
-          if (prop.getFormat() == "date-time") {
+          if (prop.getFormat == "date-time") {
             s""""${LocalDateTime.now(ZoneOffset.UTC).toString.takeWhile(_ != '.')}Z""""
           } else {
             // FIXME: optimistically assuming randomStr will be less than maxLength of the prop. We should
@@ -69,18 +69,18 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           }
         }
 
-        val testStringValueWithAttribute = prop.getAttribute() match {
+        val testStringValueWithAttribute = prop.getAttribute match {
           case TerraformPropertyAttributes.UNIQUE =>
             testStringValue.dropRight(1) + Random.alphanumeric.take(10).mkString("") + "\""
           case _ =>
             testStringValue
         }
 
-        if (isUpdate && !prop.getCreateOnly()) {
-          val newVal = if (prop.getPattern().nonEmpty) {
+        if (isUpdate && !prop.getCreateOnly) {
+          val newVal = if (prop.getPattern.nonEmpty) {
             var generatedVal = ""
             do {
-              generatedVal = generateTestValueFromPattern(prop.getPattern())
+              generatedVal = generateTestValueFromPattern(prop.getPattern)
             } while (generatedVal.isEmpty || generatedVal == testStringValue)
             generatedVal
           } else {
@@ -91,7 +91,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
           testStringValueWithAttribute
         }
       case _ =>
-        throw new RuntimeException("Trying to generate test values for an unsupported type.")
+        throw new RuntimeException(s"Unsupported type='${prop.getType.name}', object='${prop.getName}'")
     }
   }
 
