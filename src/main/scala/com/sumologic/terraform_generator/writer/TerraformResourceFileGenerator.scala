@@ -15,7 +15,8 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
     } else {
       ""
     }
-    val pre = s"""// ----------------------------------------------------------------------------
+    val fileHeader = s"""
+                |// ----------------------------------------------------------------------------
                 |//
                 |//     ***     AUTO GENERATED CODE    ***    AUTO GENERATED CODE     ***
                 |//
@@ -45,8 +46,7 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
 
     val converters = getTerraformResourceDataToObjectConverter(terraform.getMainObjectClass)
 
-    pre + "\n" + mappingSchema + "\n" + ops + "\n" +
-      converters
+    fileHeader + "\n" + mappingSchema + "\n" + ops + "\n" + converters
   }
 }
 
@@ -115,28 +115,27 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
     }
 
   s"""
-       |func resourceSumologic${className}Read(d *schema.ResourceData, meta interface{}) error {
-       |	c := meta.(*Client)
-       |
-       |  $requestMap
-       |
-       |	id := d.Id()
-       |	$clientCall
-       |
-       |	if err != nil {
-       |		return err
-       |	}
-       |
-       |	if $objName == nil {
-       |		log.Printf("[WARN] $className not found, removing from state: %v - %v", id, err)
-       |		d.SetId("")
-       |		return nil
-       |	}
-       |
-       |	$setters
-       |
-       |	return nil
-       |}""".stripMargin
+     |func resourceSumologic${className}Read(d *schema.ResourceData, meta interface{}) error {
+     |	c := meta.(*Client)
+     |
+     |  $requestMap
+     |
+     |	id := d.Id()
+     |	$clientCall
+     |	if err != nil {
+     |		return err
+     |	}
+     |
+     |	if $objName == nil {
+     |		log.Printf("[WARN] $className not found, removing from state: %v - %v", id, err)
+     |		d.SetId("")
+     |		return nil
+     |	}
+     |
+     |	$setters
+     |
+     |	return nil
+     |}""".stripMargin
   }
 
   // TODO: This is gross, generalize if possible
@@ -149,7 +148,8 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
       s"c.Delete$className()"
     }
 
-    s"""func resourceSumologic${className}Delete(d *schema.ResourceData, meta interface{}) error {
+    s"""
+       |func resourceSumologic${className}Delete(d *schema.ResourceData, meta interface{}) error {
        |  c := meta.(*Client)
        |
        |  $requestMap
@@ -176,9 +176,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
        |  $requestMap
        |
        |	$lowerCaseName := resourceTo$className(d)
-       |
        |	$clientCall
-       |
        |	if err != nil {
        |		return err
        |	}
@@ -206,7 +204,6 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
        |	if d.Id() == "" {
        |		$lowerCaseName := resourceTo$className(d)
        |		$clientCall
-       |
        |		if err != nil {
        |			return err
        |		}

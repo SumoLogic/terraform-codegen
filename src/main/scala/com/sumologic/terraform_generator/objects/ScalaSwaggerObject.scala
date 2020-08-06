@@ -178,3 +178,75 @@ case class ScalaSwaggerArrayObject(name: String,
     s"$name $getGoType"
   }
 }
+
+
+case class ScalaSwaggerRefObject(name: String,
+                                 objType: ScalaSwaggerType,
+                                 required: Boolean,
+                                 defaultOpt: Option[AnyRef],
+                                 description: String,
+                                 example: String = "",
+                                 pattern: String = "",
+                                 format: String = "",
+                                 attribute: String = "",
+                                 createOnly: Boolean = false) extends
+    ScalaSwaggerObject(name: String,
+      objType: ScalaSwaggerType,
+      required: Boolean,
+      defaultOpt: Option[AnyRef],
+      description,
+      example,
+      pattern,
+      format,
+      attribute,
+      createOnly) {
+
+  override def getAsTerraformFunctionArgument: String = {
+    s"$name $getGoType"
+  }
+
+  override def getGoType: String = {
+    s"${objType.name.capitalize}"
+  }
+
+
+  override def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
+    val schemaType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
+
+    val requiredTxt = if (required) {
+      "Required: true"
+    } else {
+      "Optional: true"
+    }
+
+    val specifics = if (forUseInDataResource) {
+      // TODO I am not sure if this is all we need.
+      "Computed: true"
+    } else {
+      "MaxItems: 1"
+    }
+
+    // TODO Add support for validateFunc and DiffSuppressFunc
+
+    // get schema of referenced type
+    val refSchemaType = this.getType.props.map { prop =>
+      prop.getAsTerraformSchemaType(forUseInDataResource)
+    }.mkString(",").concat(",")
+
+    val elementType =
+      s"""Elem: &schema.Resource{
+         |    Schema: map[string]*schema.Schema{
+         |        $refSchemaType
+         |    },
+         |},""".stripMargin
+
+    val noCamelCaseName = removeCamelCase(name)
+    s"""
+       |"$noCamelCaseName": {
+       |   Type: $schemaType,
+       |   $requiredTxt,
+       |   $specifics,
+       |   $elementType
+       |}""".stripMargin
+  }
+}

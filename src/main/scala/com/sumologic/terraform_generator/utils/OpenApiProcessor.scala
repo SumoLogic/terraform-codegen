@@ -282,17 +282,16 @@ object OpenApiProcessor extends ProcessorHelper
           isWriteOnly)
 
       case refProp if refProp.get$ref() != null =>
-        val refModel = getComponent(openApi, refProp.get$ref().split("/").last)._2
-        ScalaSwaggerSimpleObject(
+        val (refModelName, refModel) = getComponent(openApi, refProp.get$ref().split("/").last)
+        ScalaSwaggerRefObject(
           name,
-          processModel(openApi, propName, refModel),
-          // TODO is propName different from refProp.getName?
-          requiredProps.contains(refProp.getName),
+          processModel(openApi, refModelName, refModel),
+          requiredProps.contains(propName),
           None,
-          refProp.getDescription,
-          example,
-          pattern,
-          format,
+          refModel.getDescription,
+          Option(refModel.getExample).getOrElse("").toString,
+          Option(refModel.getPattern).getOrElse(""),
+          Option(refModel.getFormat).getOrElse(""),
           attribute,
           isWriteOnly)
 
