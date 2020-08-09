@@ -209,7 +209,6 @@ case class ScalaSwaggerRefObject(name: String,
     s"${objType.name.capitalize}"
   }
 
-
   override def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
     val schemaType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
 
@@ -248,5 +247,15 @@ case class ScalaSwaggerRefObject(name: String,
        |   $specifics,
        |   $elementType
        |}""".stripMargin
+  }
+
+  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
+    val req = if (required) {
+      ""
+    } else {
+      ",omitempty"
+    }
+
+    s"${name.capitalize} $getGoType " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
   }
 }

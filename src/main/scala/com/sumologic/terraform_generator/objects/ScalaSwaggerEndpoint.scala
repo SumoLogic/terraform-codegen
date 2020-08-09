@@ -23,7 +23,6 @@ case class ScalaSwaggerEndpoint(endpointName: String,
             val resourceVar = respType.name.head.toLower + respType.name.substring(1)
             s"""
               |    err = json.Unmarshal(data, &$resourceVar)
-              |
               |    if err != nil {
               |        return nil, err
               |    }
