@@ -160,6 +160,9 @@ case class ScalaSwaggerArrayObject(name: String,
     attribute,
     createOnly) {
 
+  // TODO ScalaSwaggerArrayObject should contain a data member of ScalaSwaggerObject type
+  //  to capture type of item contained with in the array object.
+
   override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
     val req = if (required) {
       ""
