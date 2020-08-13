@@ -1,6 +1,5 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
 import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerTemplate, ScalaSwaggerType, TerraformSupportedParameterTypes}
 
 case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
@@ -28,18 +27,7 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
          |)
          |""".stripMargin
 
-
-    val endpointsWithChangedNames = terraform.supportedEndpoints.map {
-      endpoint =>
-        val name = crud.find(endpoint.endpointName.toLowerCase.contains(_))
-        if (name.isDefined) {
-          endpoint.copy(endpointName = name.get.toLowerCase + terraform.getMainObjectClass.name.capitalize)
-        } else {
-          endpoint
-        }
-    }
-
-    val endpoints = endpointsWithChangedNames.map {
+    val endpoints = terraform.supportedEndpoints.map {
       endpoint: ScalaSwaggerEndpoint =>
         val bodyParams = endpoint.parameters.filter {
           _.paramType == TerraformSupportedParameterTypes.BodyParameter
