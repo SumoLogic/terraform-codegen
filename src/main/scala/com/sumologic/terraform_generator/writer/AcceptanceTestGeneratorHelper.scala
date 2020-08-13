@@ -97,7 +97,11 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
 
   private def generateTestValueFromPattern(pattern: String): String = {
     val generator = new Xeger(pattern)
-    generator.generate()
-    s""""${generator.generate().replace(""""""", """\"""")}""""
+    // NOTE: Xeger doesn't support all valid regular expressions. A regex like "^(Opt1|opt2)$"
+    // would end up generating value like "^Opt1$" which doesn't work. Doing a fix locally till
+    // we fix all regular expressions in the yaml files.
+    // https://code.google.com/archive/p/xeger/wikis/XegerLimitations.wiki
+    val testValue = generator.generate().replace("^", "").replace("$", "")
+    s""""${testValue.replace(""""""", """\"""")}""""
   }
 }
