@@ -1,5 +1,7 @@
 package com.sumologic.terraform_generator.objects
 
+import org.openapitools.codegen.utils.StringUtils
+
 abstract class ScalaSwaggerObject(name: String,
                                   objType: ScalaSwaggerType,
                                   required: Boolean,
@@ -82,15 +84,15 @@ abstract class ScalaSwaggerObject(name: String,
       ""
     }
 
-    val noCamelCaseName = removeCamelCase(name)
+    val schemaFieldName = StringUtils.underscore(name)
     s"""
-      |"$noCamelCaseName": {
-      |   Type: $schemaType,
-      |   $requiredTxt,
-      |   $specifics,
-      |   $validationAndDiffSuppress
-      |   $elementType
-      |}""".stripMargin
+       |"$schemaFieldName": {
+       |    Type: $schemaType,
+       |    $requiredTxt,
+       |    $specifics,
+       |    $validationAndDiffSuppress
+       |    $elementType
+       |}""".stripMargin
   }
 }
 
@@ -180,6 +182,53 @@ case class ScalaSwaggerArrayObject(name: String,
   def getAsTerraformFunctionArgument: String = {
     s"$name $getGoType"
   }
+
+  override def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
+    val schemaType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
+
+    val requiredTxt = if (required) {
+      "Required: true"
+    } else {
+      "Optional: true"
+    }
+
+    val specifics = if (forUseInDataResource) {
+      // TODO I am not sure if this is all we need.
+      "Computed: true"
+    } else {
+      // TODO add specific for array items like max items, min items
+      s"""Description: "${this.getDescription}" """
+    }
+
+    // TODO Add support for validateFunc and DiffSuppressFunc
+
+    // get schema of item type
+    val elementSchema = if (this.getType.props.nonEmpty) {
+      val itemSchema = this.getType.props.map { prop =>
+          prop.getAsTerraformSchemaType(forUseInDataResource)
+        }.mkString(",\n").concat(",")
+
+        s"""Elem: &schema.Resource{
+           |    Schema: map[string]*schema.Schema{
+           |        $itemSchema
+           |    },
+           |},""".stripMargin
+    } else {
+      val itemType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)
+      s"""Elem:  &schema.Schema{
+         |    Type: $itemType,
+         |},""".stripMargin
+    }
+
+    val schemaFieldName = StringUtils.underscore(name)
+    s"""
+       |"$schemaFieldName": {
+       |    Type: $schemaType,
+       |    $requiredTxt,
+       |    $specifics,
+       |    $elementSchema
+       |}""".stripMargin
+  }
 }
 
 
@@ -225,7 +274,8 @@ case class ScalaSwaggerRefObject(name: String,
       // TODO I am not sure if this is all we need.
       "Computed: true"
     } else {
-      "MaxItems: 1"
+      s"""|MaxItems: 1,
+          |Description: "${this.getDescription}"""".stripMargin
     }
 
     // TODO Add support for validateFunc and DiffSuppressFunc
@@ -233,22 +283,22 @@ case class ScalaSwaggerRefObject(name: String,
     // get schema of referenced type
     val refSchemaType = this.getType.props.map { prop =>
       prop.getAsTerraformSchemaType(forUseInDataResource)
-    }.mkString(",").concat(",")
+    }.mkString(",\n").concat(",")
 
-    val elementType =
+    val elementSchema =
       s"""Elem: &schema.Resource{
          |    Schema: map[string]*schema.Schema{
          |        $refSchemaType
          |    },
          |},""".stripMargin
 
-    val noCamelCaseName = removeCamelCase(name)
+    val schemaFieldName = StringUtils.underscore(name)
     s"""
-       |"$noCamelCaseName": {
-       |   Type: $schemaType,
-       |   $requiredTxt,
-       |   $specifics,
-       |   $elementType
+       |"$schemaFieldName": {
+       |    Type: $schemaType,
+       |    $requiredTxt,
+       |    $specifics,
+       |    $elementSchema
        |}""".stripMargin
   }
 

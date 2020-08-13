@@ -53,20 +53,21 @@ trait ResourceGeneratorHelper {
     fieldScalaObj match {
       case _: ScalaSwaggerArrayObject =>
         // TODO add a better way to figure out non-primitive types in case of container objects
-        val fieldValue = if (fieldScalaObj.getType.props.nonEmpty) {
+        val fieldSetter = if (fieldScalaObj.getType.props.nonEmpty) {
           // array of non-primitive type
           val funcName = getResourceDataToStructFuncName(fieldScalaObj.getType)
-          s"""$funcName(v)"""
+          s"""|${fieldName}Slice := []interface{}{v}
+              |$fieldName[i] = $funcName(${fieldName}Slice)""".stripMargin
         } else {
           // array of primitive type
-          s"""v.(${fieldScalaObj.getType.name})"""
+          s"""$fieldName[i] = v.(${fieldScalaObj.getType.name})"""
         }
 
         s"""
            |${fieldName}Data := d.Get("$fieldSchemaName").([]interface{})
            |$fieldName := make(${fieldScalaObj.getGoType}, len(${fieldName}Data))
            |for i, v := range ${fieldName}Data  {
-           |    $fieldName[i] = $fieldValue
+           |    $fieldSetter
            |}
            |""".stripMargin
 
