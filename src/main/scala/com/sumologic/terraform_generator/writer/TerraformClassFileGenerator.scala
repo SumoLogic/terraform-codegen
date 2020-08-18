@@ -8,7 +8,8 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
   def generate(): String = {
     val typesUsed: Set[ScalaSwaggerType] = terraform.getAllTypesUsed
 
-    val intro = s"""// ----------------------------------------------------------------------------
+    val fileHeader = s"""
+         |// ----------------------------------------------------------------------------
          |//
          |//     ***     AUTO GENERATED CODE    ***    AUTO GENERATED CODE     ***
          |//
@@ -22,8 +23,8 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
          |package sumologic
          |
          |import (
-         |  "encoding/json"
-         |  "fmt"
+         |    "encoding/json"
+         |    "fmt"
          |)
          |""".stripMargin
 
@@ -44,20 +45,21 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
               _.respTypeName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase
             }
           )
-          filteredEndpoint.terraformify(terraform) + "\n"
+          filteredEndpoint.terraformify(terraform)
         } else {
-          endpoint.terraformify(terraform) + "\n"
+          endpoint.terraformify(terraform)
         }
-    }.mkString("")
+    }.mkString("\n")
 
     val types = typesUsed.map {
       sType: ScalaSwaggerType =>
-        sType.terraformify(terraform) + "\n"
-    }.mkString("")
+        sType.terraformify(terraform)
+    }.mkString("\n")
 
-    s"// ---------- BEGIN ${terraform.sumoSwaggerClassName} ----------\n" + intro +
-      "\n// ---------- ENDPOINTS ---------- \n\n" + endpoints +
-      "\n// ---------- TYPES ----------\n" + types +
-      "\n// ---------- END ----------\n"
+    s"""
+       |$fileHeader
+       |$endpoints
+       |$types
+       |""".stripMargin
   }
 }

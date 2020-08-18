@@ -1,5 +1,3 @@
-// ---------- BEGIN Pet ----------
-
 // ----------------------------------------------------------------------------
 //
 //     ***     AUTO GENERATED CODE    ***    AUTO GENERATED CODE     ***
@@ -17,8 +15,6 @@ import (
 	"encoding/json"
 	"fmt"
 )
-
-// ---------- ENDPOINTS ----------
 
 func (s *Client) GetPet(id string) (*Pet, error) {
     urlWithoutParams := "pets/%s"
@@ -90,11 +86,8 @@ func (s *Client) CreatePet(pet Pet) (string, error) {
 	return createdPet.ID, nil
 }
 
-// ---------- TYPES ----------
 type Pet struct {
     Name    string  `json:"name"`
     Tag     string  `json:"tag"`
     ID      string  `json:"id,omitempty"`
 }
-
-// ---------- END ----------

@@ -7,7 +7,7 @@ case class ScalaSwaggerType(name: String, props: List[ScalaSwaggerObject] = List
     if (props.isEmpty) {
       ""
     } else {
-      val terraProps = props.map(indent + _.terraformify(baseTemplate)).toSet
+      val terraProps = props.map(_.terraformify(baseTemplate)).toSet
       s"type $name struct {\n" + terraProps.mkString("") + "}\n"
     }
   }

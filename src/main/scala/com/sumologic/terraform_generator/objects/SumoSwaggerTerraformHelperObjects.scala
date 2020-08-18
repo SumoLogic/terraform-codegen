@@ -62,8 +62,9 @@ object TerraformSchemaTypes {
     swaggerType match {
       case "boolean" => "bool"
       case "object" => "map[string]string"
-      case "array" => "[]string"
       case "integer" => "int"
+      // TODO eventually we want to replace this method with ScalaSwaggerObject.getGoType
+      case "array" => throw new RuntimeException("Should not be called for array objects")
       case _ => swaggerType
     }
   }

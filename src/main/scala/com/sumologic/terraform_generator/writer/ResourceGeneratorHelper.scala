@@ -1,86 +1,257 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerArrayObject, ScalaSwaggerObject, ScalaSwaggerType}
+import com.sumologic.terraform_generator.objects._
+import org.openapitools.codegen.utils.StringUtils
 
-trait ResourceGeneratorHelper extends StringHelper {
-  def getTerraformResourceGetters(prop: ScalaSwaggerObject): String = {
-    val propName = prop.getName
-    val noCamelCaseName = removeCamelCase(propName)
-    val propType = prop.getType.name
-    prop match {
+trait ResourceGeneratorHelper {
+
+  /**
+   * Generates Terraform resource struct field and it's value. Used in converter from
+   * ResourceData to Go struct.
+   *
+   * @param fieldScalaObj The field of resource struct to generate.
+   * @return
+   */
+  def getResourceFieldsWithValues(fieldScalaObj: ScalaSwaggerObject): String = {
+    val fieldValue = StringUtils.camelize(fieldScalaObj.getName, true)
+    val fieldName = fieldScalaObj.getName.capitalize
+    val schemaFieldName = StringUtils.underscore(fieldScalaObj.getName)
+
+    fieldScalaObj match {
       case _: ScalaSwaggerArrayObject =>
-        s"""${propName.capitalize}: ${propName.toLowerCase},""".stripMargin
-      case singleProp: ScalaSwaggerObject =>
-        if (singleProp.getName.toLowerCase == "id") {
-          s"""${propName.toUpperCase}: d.Id(),""".stripMargin
-        } else if (singleProp.getType.props.nonEmpty){
-          s"""${propName.capitalize}: ${propName.toLowerCase},""".stripMargin
+        s"""$fieldName: $fieldValue,"""
+
+      case _: ScalaSwaggerRefObject =>
+        s"""$fieldName: $fieldValue,"""
+
+      case _: ScalaSwaggerSimpleObject =>
+        if (fieldScalaObj.getName.toLowerCase == "id") {
+          s"""${fieldScalaObj.getName.toUpperCase}: d.Id(),"""
         } else {
-          s"""${propName.capitalize}: d.Get(\"${noCamelCaseName.toLowerCase}\").($propType),""".stripMargin
+          s"""$fieldName: d.Get("$schemaFieldName").(${fieldScalaObj.getGoType}),"""
         }
     }
   }
 
-  def getTerraformResourceDataToObjectConverterFuncName(objClass: ScalaSwaggerType): String = {
+
+  def getResourceDataToStructFuncName(objClass: ScalaSwaggerType): String = {
     s"resourceTo${objClass.name}"
   }
 
-  def getTerraformResourceDataToObjectConverter(objClass: ScalaSwaggerType): String = {
-    val className = objClass.name
 
-    val getters = objClass.props.map {
-      prop: ScalaSwaggerObject =>
-        getTerraformResourceGetters(prop)
-    }.toSet.mkString("\n    ")
+  /**
+   * For a given field, generates code to extract struct field from ResourceData object.
+   * Used in converter from ResourceData to Go struct.
+   *
+   * @param fieldScalaObj The field for which to generate the extraction code.
+   * @return
+   */
+  def extractFieldFromResourceData(fieldScalaObj: ScalaSwaggerObject): String = {
+    val fieldName = StringUtils.camelize(fieldScalaObj.getName, true)
+    val fieldSchemaName = StringUtils.underscore(fieldScalaObj.getName)
 
-    val funcName = getTerraformResourceDataToObjectConverterFuncName(objClass)
-
-    val arrayBlock = objClass.props.filter {
-      prop => prop.isInstanceOf[ScalaSwaggerArrayObject]
-    }.map {
-      prop =>
-        if (prop.getType.props.nonEmpty) {
-          s"""raw${prop.getName.capitalize} := d.Get("${removeCamelCase(prop.getName)}").([]interface{})
-             |	${prop.getName.toLowerCase}List := make([]string, len(raw${prop.getName.capitalize} ))
-             |	for i, v := range raw${prop.getName.capitalize}  {
-             |		${prop.getName.toLowerCase}List[i] = v.(string)
-             |	}""".stripMargin
+    fieldScalaObj match {
+      case _: ScalaSwaggerArrayObject =>
+        // TODO add a better way to figure out non-primitive types in case of container objects
+        val fieldValue = if (fieldScalaObj.getType.props.nonEmpty) {
+          // array of non-primitive type
+          val funcName = getResourceDataToStructFuncName(fieldScalaObj.getType)
+          s"""$funcName(v)"""
         } else {
-          s"""raw${prop.getName.capitalize} := d.Get("${removeCamelCase(prop.getName)}").([]interface{})
-             |	${prop.getName.toLowerCase} := make([]string, len(raw${prop.getName.capitalize} ))
-             |	for i, v := range raw${prop.getName.capitalize}  {
-             |		${prop.getName.toLowerCase}[i] = v.(string)
-             |	}""".stripMargin
+          // array of primitive type
+          s"""v.(${fieldScalaObj.getType.name})"""
         }
+
+        s"""
+           |${fieldName}Data := d.Get("$fieldSchemaName").([]interface{})
+           |$fieldName := make(${fieldScalaObj.getGoType}, len(${fieldName}Data))
+           |for i, v := range ${fieldName}Data  {
+           |    $fieldName[i] = $fieldValue
+           |}
+           |""".stripMargin
+
+      case _: ScalaSwaggerRefObject =>
+        val funcName = getResourceDataToStructFuncName(fieldScalaObj.getType)
+        s"""$fieldName := $funcName(d.Get("$fieldSchemaName"))"""
+
+      case _: ScalaSwaggerObject =>
+        s""""""
+    }
+  }
+
+
+  /**
+   * For a given ScalaSwaggerObject object, finds out all non-primitive objects in it and
+   * all of it's descendants by recursively traversing the object.
+   *
+   * @param obj Top level ScalaSwaggerObject to start iteration from.
+   * @return All non-primitive objects in obj arg and descendants.
+   */
+  def getAllRefObjects(obj: ScalaSwaggerObject): List[ScalaSwaggerRefObject] = {
+    obj match {
+      case refObject: ScalaSwaggerRefObject =>
+        val converters = obj.getType.props.flatMap { prop =>
+          getAllRefObjects(prop)
+        }
+        List(refObject) ++ converters
+
+      case arrObject: ScalaSwaggerArrayObject if arrObject.getType.props.nonEmpty =>
+        // FIXME: Create ScalaSwaggerRefObject from prop for item contained with in array.
+        //  This is a hacky solution. ScalaSwaggerArrayObject should have a data member of
+        //  ScalaSwaggerObject type to capture item object.
+        val itemObject = ScalaSwaggerRefObject(
+          StringUtils.camelize(arrObject.getType.name, true),
+          arrObject.getType,
+          arrObject.getRequired,
+          arrObject.getDefault,
+          arrObject.getDescription,
+          arrObject.getExample,
+          arrObject.getPattern,
+          arrObject.getFormat,
+          arrObject.getAttribute,
+          arrObject.getCreateOnly
+        )
+        getAllRefObjects(itemObject)
+
+      case _ =>
+        List.empty[ScalaSwaggerRefObject]
+    }
+  }
+
+
+  /**
+   * Helper method for {{getRefObjectConverter}}.
+   * Extracts a field from ResourceData map ({{goMapObject}} and sets it in the
+   * struct {{goObjectName}}.
+   *
+   * @param fieldScalaObj Field to extract.
+   * @param goObjectName Name of Go struct which contains the field.
+   * @param goMapObject Name of ResourceData map that contains the value of the field.
+   * @return String version of field set to its value.
+   */
+  def extractFieldFromMap(fieldScalaObj: ScalaSwaggerObject, goObjectName: String, goMapObject: String): String = {
+    val fieldName = StringUtils.camelize(fieldScalaObj.getName)
+    val fieldSchemaName = StringUtils.underscore(fieldScalaObj.getName)
+
+    fieldScalaObj match {
+      case _: ScalaSwaggerArrayObject =>
+        // TODO add a better way to figure out non-primitive types in case of container objects
+        val fieldValue = if (fieldScalaObj.getType.props.nonEmpty) {
+          // array of non-primitive type
+          val funcName = getResourceDataToStructFuncName(fieldScalaObj.getType)
+          s"""$funcName(v)"""
+        } else {
+          // array of primitive type
+          s"""v.(${fieldScalaObj.getType.name})"""
+        }
+
+        val fieldVar = fieldName.head.toLower + fieldName.tail
+        s"""
+           |${fieldVar}Data := $goMapObject["$fieldSchemaName"].([]interface{})
+           |$fieldVar := make(${fieldScalaObj.getGoType}, len(${fieldVar}Data))
+           |for i, v := range ${fieldVar}Data  {
+           |    $fieldVar[i] = $fieldValue
+           |}
+           |$goObjectName.$fieldName = $fieldVar
+           |""".stripMargin
+
+      case _: ScalaSwaggerRefObject =>
+        val funcName = getResourceDataToStructFuncName(fieldScalaObj.getType)
+        s"""$goObjectName.$fieldName = $funcName($goMapObject["$fieldSchemaName"])"""
+
+      case _: ScalaSwaggerObject =>
+        s"""$goObjectName.$fieldName = $goMapObject["$fieldSchemaName"].(${fieldScalaObj.getGoType})"""
+    }
+  }
+
+
+  /**
+   * Generates a converter method that converts a ResourceData map to non-primitive (ref) object
+   *
+   * A non-primitive object is represented as a list of one item in Terraform schema. Extracts
+   * properties from ResourceData and creates an object of {{obj.objType.name}} type.
+   *
+   * Example converter method generated by this method:
+   * func resourceToLookupTableField(data interface{}) LookupTableField {
+   *    lookupTableFieldSlice := data.([]interface{})
+   *    lookupTableField := LookupTableField{}
+   *    if len(lookupTableFieldSlice) > 0 {
+   *        lookupTableFieldObj := lookupTableFieldSlice[0].(map[string]interface{})
+   *        lookupTableField.FieldName = lookupTableFieldObj["field_name"].(string)
+   *        lookupTableField.FieldType = lookupTableFieldObj["field_type"].(string)
+   *    }
+   *    return lookupTableField
+   * }
+   *
+   * @param obj ScalaSwaggerRefObject to extract from ResourceData object.
+   * @return String representation of converter method.
+   */
+  def getRefObjectConverter(obj: ScalaSwaggerRefObject): String = {
+    val funcName = getResourceDataToStructFuncName(obj.getType)
+    val returnType = obj.getType.name
+
+    val propName = StringUtils.camelize(obj.getName, true)
+    val propArr = s"${propName}Arr"
+    val propObj = s"${propName}Obj"
+    val goTypeName = obj.getGoType
+
+    val properties = obj.getType.props.map { fieldObj =>
+      extractFieldFromMap(fieldObj, propName, propObj)
     }.mkString("\n")
 
-    val propsJsonParser = objClass.props.filter {
-      prop => prop.getType.props.nonEmpty
-    }.map {
-      prop =>
-        val lowerCasePropName = prop.getType.name.toLowerCase
-        val capitalizedPropName = prop.getType.name.capitalize
-        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
-          s"""
-             |    var $lowerCasePropName []$capitalizedPropName
-             |    for _, x := range ${lowerCasePropName}List {
-             |        ${lowerCasePropName}Single := $capitalizedPropName{}
-             |        $lowerCasePropName = append($lowerCasePropName, json.Unmarshal([]byte(x), &${lowerCasePropName}Single)
-             |    }""".stripMargin
-        } else {
-          s"""s := d.Get("${removeCamelCase(prop.getName)}").(string)
-             |      $lowerCasePropName := $capitalizedPropName{}
-             |      json.Unmarshal([]byte(s), &$lowerCasePropName)""".stripMargin
-        }
+    val extractedProperty = s"""
+      |$propArr := data.([]interface{})
+      |$propName := $goTypeName{}
+      |if len($propArr) > 0 {
+      |  $propObj := $propArr[0].(map[string]interface{})
+      |  $properties
+      |}
+      |""".stripMargin
+
+    s"""
+       |func $funcName(data interface{}) $returnType {
+       |    $extractedProperty
+       |    return $propName
+       |}""".stripMargin
+  }
+
+
+  /**
+   * Generates the converter method to extract a resource object from ResourceData.
+   * i.e. resourceToObj(d *schema.ResourceData) ObjType
+   *
+   * @param objType ScalaSwaggerType object containing info about object to convert to.
+   * @return String representation of resourceTo<Obj> method.
+   */
+  def getTerraformResourceDataToObjectConverter(objType: ScalaSwaggerType): String = {
+    val returnType = objType.name
+    val funcName = getResourceDataToStructFuncName(objType)
+
+    val extractedProperties = objType.props.map {
+      obj => extractFieldFromResourceData(obj)
     }.mkString("\n")
 
-    s"""func $funcName(d *schema.ResourceData) $className {
-       |   $arrayBlock
-       |   $propsJsonParser
-       |   return $className{
-       |    $getters
-       |   }
-       | }""".stripMargin
+    val fieldsWithValues = objType.props.map { prop =>
+      getResourceFieldsWithValues(prop)
+    }.toSet.mkString("\n")
+
+    // Find out all non-primitive types and generate converter methods i.e. resourceTo<FieldObject>
+    // method to extract properties from ResourceData and create an object of FieldObject type.
+    val nonPrimitiveObjects = objType.props.flatMap {
+      getAllRefObjects
+    }.distinct
+    val converters = nonPrimitiveObjects.map { obj =>
+      getRefObjectConverter(obj)
+    }.mkString("\n")
+
+    s"""
+       |func $funcName(d *schema.ResourceData) $returnType {
+       |    $extractedProperties
+       |    return $returnType{
+       |        $fieldsWithValues
+       |    }
+       |}
+       |$converters
+       |""".stripMargin
   }
 }

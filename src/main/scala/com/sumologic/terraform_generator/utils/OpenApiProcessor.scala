@@ -19,6 +19,12 @@ case class OpenApiPath(name: String, item: PathItem)
 object OpenApiProcessor extends ProcessorHelper
   with Logging {
 
+  def resolveArrayPropertyType(openApi: OpenAPI, property: Schema[_]): ScalaSwaggerType = {
+    val arrayProp = property.asInstanceOf[ArraySchema]
+    val itemProp = arrayProp.getItems
+    resolvePropertyType(openApi, itemProp)
+  }
+
   def resolvePropertyType(openApi: OpenAPI, property: Schema[_]): ScalaSwaggerType = {
     if (property.get$ref() != null) {
       val model = getComponent(openApi, property.get$ref().split("/").last)._2
@@ -265,7 +271,7 @@ object OpenApiProcessor extends ProcessorHelper
 
         ScalaSwaggerArrayObject(
           name,
-          resolvePropertyType(openApi, arrayProp),
+          resolveArrayPropertyType(openApi, arrayProp),
           requiredProps.contains(arrayProp.getName),
           None,
           prop.getDescription,
@@ -276,17 +282,16 @@ object OpenApiProcessor extends ProcessorHelper
           isWriteOnly)
 
       case refProp if refProp.get$ref() != null =>
-        val refModel = getComponent(openApi, refProp.get$ref().split("/").last)._2
-        ScalaSwaggerSimpleObject(
+        val (refModelName, refModel) = getComponent(openApi, refProp.get$ref().split("/").last)
+        ScalaSwaggerRefObject(
           name,
-          processModel(openApi, propName, refModel),
-          // TODO is propName different from refProp.getName?
-          requiredProps.contains(refProp.getName),
+          processModel(openApi, refModelName, refModel),
+          requiredProps.contains(propName),
           None,
-          refProp.getDescription,
-          example,
-          pattern,
-          format,
+          refModel.getDescription,
+          Option(refModel.getExample).getOrElse("").toString,
+          Option(refModel.getPattern).getOrElse(""),
+          Option(refModel.getFormat).getOrElse(""),
           attribute,
           isWriteOnly)
 

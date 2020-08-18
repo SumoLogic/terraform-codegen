@@ -29,6 +29,8 @@ abstract class ScalaSwaggerObject(name: String,
 
   def getAsTerraformFunctionArgument: String
 
+  def getGoType: String
+
   def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
     val schemaType = if (this.isInstanceOf[ScalaSwaggerArrayObject]) {
       TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
@@ -127,6 +129,10 @@ case class ScalaSwaggerSimpleObject(name: String,
     }
   }
 
+  override def getGoType: String = {
+    TerraformSchemaTypes.swaggerTypeToGoType(objType.name)
+  }
+
   def getAsTerraformFunctionArgument: String = {
     s"$name ${objType.name}"
   }
@@ -154,6 +160,9 @@ case class ScalaSwaggerArrayObject(name: String,
     attribute,
     createOnly) {
 
+  // TODO ScalaSwaggerArrayObject should contain a data member of ScalaSwaggerObject type
+  //  to capture type of item contained with in the array object.
+
   override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
     val req = if (required) {
       ""
@@ -161,10 +170,95 @@ case class ScalaSwaggerArrayObject(name: String,
       ",omitempty"
     }
 
-    s"${name.capitalize} ${objType.name} " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
+    s"${name.capitalize} $getGoType " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
+  }
+
+  override def getGoType: String = {
+    s"[]${objType.name}"
   }
 
   def getAsTerraformFunctionArgument: String = {
-    s"$name []${objType.name}"
+    s"$name $getGoType"
+  }
+}
+
+
+case class ScalaSwaggerRefObject(name: String,
+                                 objType: ScalaSwaggerType,
+                                 required: Boolean,
+                                 defaultOpt: Option[AnyRef],
+                                 description: String,
+                                 example: String = "",
+                                 pattern: String = "",
+                                 format: String = "",
+                                 attribute: String = "",
+                                 createOnly: Boolean = false) extends
+    ScalaSwaggerObject(name: String,
+      objType: ScalaSwaggerType,
+      required: Boolean,
+      defaultOpt: Option[AnyRef],
+      description,
+      example,
+      pattern,
+      format,
+      attribute,
+      createOnly) {
+
+  override def getAsTerraformFunctionArgument: String = {
+    s"$name $getGoType"
+  }
+
+  override def getGoType: String = {
+    s"${objType.name.capitalize}"
+  }
+
+  override def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
+    val schemaType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
+
+    val requiredTxt = if (required) {
+      "Required: true"
+    } else {
+      "Optional: true"
+    }
+
+    val specifics = if (forUseInDataResource) {
+      // TODO I am not sure if this is all we need.
+      "Computed: true"
+    } else {
+      "MaxItems: 1"
+    }
+
+    // TODO Add support for validateFunc and DiffSuppressFunc
+
+    // get schema of referenced type
+    val refSchemaType = this.getType.props.map { prop =>
+      prop.getAsTerraformSchemaType(forUseInDataResource)
+    }.mkString(",").concat(",")
+
+    val elementType =
+      s"""Elem: &schema.Resource{
+         |    Schema: map[string]*schema.Schema{
+         |        $refSchemaType
+         |    },
+         |},""".stripMargin
+
+    val noCamelCaseName = removeCamelCase(name)
+    s"""
+       |"$noCamelCaseName": {
+       |   Type: $schemaType,
+       |   $requiredTxt,
+       |   $specifics,
+       |   $elementType
+       |}""".stripMargin
+  }
+
+  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
+    val req = if (required) {
+      ""
+    } else {
+      ",omitempty"
+    }
+
+    s"${name.capitalize} $getGoType " + "`" + "json:\"" + name + req + "\"" + "`" + "\n"
   }
 }
