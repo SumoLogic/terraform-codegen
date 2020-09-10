@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects._
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, _}
 import org.openapitools.codegen.utils.StringUtils
 
 trait ResourceGeneratorHelper {
@@ -39,6 +39,37 @@ trait ResourceGeneratorHelper {
   }
 
 
+  def extractArrayItems(arrayObj: ScalaSwaggerArrayObject, obj: String, fieldName: String): String = {
+    val items = arrayObj.items
+    items match {
+      case arrayItem: ScalaSwaggerArrayObject =>
+        val tmpSliceName = "tmpSlice"
+        val newObjName = "d"
+        val arrayItems = extractArrayItems(arrayItem, newObjName, tmpSliceName)
+
+        s"""|${obj}Slice := $obj.([]interface{})
+            |var $tmpSliceName ${arrayItem.getGoType}
+            |for _, $newObjName := range ${obj}Slice {
+            |    $arrayItems
+            |}
+            |$fieldName = append($fieldName, $tmpSliceName)""".stripMargin
+
+      case _: ScalaSwaggerRefObject =>
+        val itemType = items.getType
+        assert(itemType.toString == arrayObj.getType.toString,
+          s"itemType=$itemType, fieldScalaObj=${arrayObj.getType}")
+        // TODO replace fieldScalaObj.getType with itemType
+        val funcName = getResourceDataToStructFuncName(arrayObj.getType)
+        s"""|$fieldName = append($fieldName, $funcName([]interface{}{$obj}))""".stripMargin
+
+      case _:ScalaSwaggerSimpleObject =>
+        // s"""$fieldName[i] = v.(${arrayObj.getType.name})"""
+        s"""$fieldName = append($fieldName, $obj.(${arrayObj.getType.name})) """
+    }
+
+  }
+
+
   /**
    * For a given field, generates code to extract struct field from ResourceData object.
    * Used in converter from ResourceData to Go struct.
@@ -51,23 +82,12 @@ trait ResourceGeneratorHelper {
     val fieldSchemaName = StringUtils.underscore(fieldScalaObj.getName)
 
     fieldScalaObj match {
-      case _: ScalaSwaggerArrayObject =>
-        // TODO add a better way to figure out non-primitive types in case of container objects
-        val fieldSetter = if (fieldScalaObj.getType.props.nonEmpty) {
-          // array of non-primitive type
-          val funcName = getResourceDataToStructFuncName(fieldScalaObj.getType)
-          s"""|${fieldName}Slice := []interface{}{v}
-              |$fieldName[i] = $funcName(${fieldName}Slice)""".stripMargin
-        } else {
-          // array of primitive type
-          s"""$fieldName[i] = v.(${fieldScalaObj.getType.name})"""
-        }
-
+      case arrayObj: ScalaSwaggerArrayObject =>
         s"""
            |${fieldName}Data := d.Get("$fieldSchemaName").([]interface{})
-           |$fieldName := make(${fieldScalaObj.getGoType}, len(${fieldName}Data))
-           |for i, v := range ${fieldName}Data  {
-           |    $fieldSetter
+           |var $fieldName ${fieldScalaObj.getGoType}
+           |for _, data := range ${fieldName}Data  {
+           |    ${extractArrayItems(arrayObj, "data", s"$fieldName")}
            |}
            |""".stripMargin
 
@@ -192,7 +212,7 @@ trait ResourceGeneratorHelper {
     val returnType = obj.getType.name
 
     val propName = StringUtils.camelize(obj.getName, true)
-    val propArr = s"${propName}Arr"
+    val propArr = s"${propName}Slice"
     val propObj = s"${propName}Obj"
     val goTypeName = obj.getGoType
 

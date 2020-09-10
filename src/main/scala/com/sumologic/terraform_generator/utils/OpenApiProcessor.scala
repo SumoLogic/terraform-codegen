@@ -29,6 +29,8 @@ object OpenApiProcessor extends ProcessorHelper
     if (property.get$ref() != null) {
       val model = getComponent(openApi, property.get$ref().split("/").last)._2
       processModel(openApi, property.get$ref(), model)
+    } else if (property.isInstanceOf[ArraySchema]) {
+      resolveArrayPropertyType(openApi, property)
     } else {
       ScalaSwaggerType(TerraformSchemaTypes.swaggerTypeToGoType(property.getType))
     }
@@ -269,7 +271,7 @@ object OpenApiProcessor extends ProcessorHelper
       case arrayProp: ArraySchema =>
         val itemPattern = Option(arrayProp.getItems.getPattern).getOrElse("")
 
-        ScalaSwaggerArrayObject(
+        val swaggerArrayObj = ScalaSwaggerArrayObject(
           name,
           resolveArrayPropertyType(openApi, arrayProp),
           requiredProps.contains(arrayProp.getName),
@@ -280,6 +282,9 @@ object OpenApiProcessor extends ProcessorHelper
           format,
           attribute,
           isWriteOnly)
+
+        swaggerArrayObj.items = processModelProperty(openApi, "", arrayProp.getItems, List[String](), "")
+        swaggerArrayObj
 
       case refProp if refProp.get$ref() != null =>
         val (refModelName, refModel) = getComponent(openApi, refProp.get$ref().split("/").last)

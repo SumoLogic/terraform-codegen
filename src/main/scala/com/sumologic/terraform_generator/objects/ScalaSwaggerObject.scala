@@ -33,6 +33,8 @@ abstract class ScalaSwaggerObject(name: String,
 
   def getGoType: String
 
+  def getTerraformElementSchema: String
+
   def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
     val schemaType = if (this.isInstanceOf[ScalaSwaggerArrayObject]) {
       TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
@@ -135,6 +137,13 @@ case class ScalaSwaggerSimpleObject(name: String,
     TerraformSchemaTypes.swaggerTypeToGoType(objType.name)
   }
 
+  override def getTerraformElementSchema: String = {
+    val itemType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)
+    s"""Elem:  &schema.Schema{
+       |    Type: $itemType,
+       |},""".stripMargin
+  }
+
   def getAsTerraformFunctionArgument: String = {
     s"$name ${objType.name}"
   }
@@ -164,6 +173,7 @@ case class ScalaSwaggerArrayObject(name: String,
 
   // TODO ScalaSwaggerArrayObject should contain a data member of ScalaSwaggerObject type
   //  to capture type of item contained with in the array object.
+  var items: ScalaSwaggerObject = _
 
   override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
     val req = if (required) {
@@ -176,11 +186,20 @@ case class ScalaSwaggerArrayObject(name: String,
   }
 
   override def getGoType: String = {
-    s"[]${objType.name}"
+    s"[]${items.getGoType}"
   }
 
   def getAsTerraformFunctionArgument: String = {
     s"$name $getGoType"
+  }
+
+  override def getTerraformElementSchema: String = {
+    val schemaType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
+    val itemSchema = this.items.getTerraformElementSchema
+    s"""Elem:  &schema.Schema{
+       |    Type: $schemaType,
+       |    $itemSchema
+       |},""".stripMargin
   }
 
   override def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
@@ -196,29 +215,17 @@ case class ScalaSwaggerArrayObject(name: String,
       // TODO I am not sure if this is all we need.
       "Computed: true"
     } else {
+      // NOTE: Hack to avoid multiline and long descriptions. Need a better solution.
+      val idx = this.getDescription.indexOf(". ")
+      val end = if (idx != -1) idx else this.getDescription.length
+      val description = this.getDescription.substring(0, end).replace('\n', ' ')
+      s"""Description: "$description" """
       // TODO add specific for array items like max items, min items
-      s"""Description: "${this.getDescription}" """
     }
 
     // TODO Add support for validateFunc and DiffSuppressFunc
 
-    // get schema of item type
-    val elementSchema = if (this.getType.props.nonEmpty) {
-      val itemSchema = this.getType.props.map { prop =>
-          prop.getAsTerraformSchemaType(forUseInDataResource)
-        }.mkString(",\n").concat(",")
-
-        s"""Elem: &schema.Resource{
-           |    Schema: map[string]*schema.Schema{
-           |        $itemSchema
-           |    },
-           |},""".stripMargin
-    } else {
-      val itemType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)
-      s"""Elem:  &schema.Schema{
-         |    Type: $itemType,
-         |},""".stripMargin
-    }
+    val elementSchema = this.items.getTerraformElementSchema
 
     val schemaFieldName = StringUtils.underscore(name)
     s"""
@@ -261,6 +268,18 @@ case class ScalaSwaggerRefObject(name: String,
     s"${objType.name.capitalize}"
   }
 
+  override def getTerraformElementSchema: String = {
+    val itemSchema = this.getType.props.map { prop =>
+      prop.getAsTerraformSchemaType(false)
+    }.mkString(",\n").concat(",")
+
+    s"""Elem: &schema.Resource{
+       |    Schema: map[string]*schema.Schema{
+       |        $itemSchema
+       |    },
+       |},""".stripMargin
+  }
+
   override def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
     val schemaType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
 
@@ -274,8 +293,12 @@ case class ScalaSwaggerRefObject(name: String,
       // TODO I am not sure if this is all we need.
       "Computed: true"
     } else {
+      // NOTE: Hack to avoid multiline and long descriptions. Need a better solution.
+      val idx = this.getDescription.indexOf(". ")
+      val end = if (idx != -1) idx else this.getDescription.length
+      val description = this.getDescription.substring(0, end).replace('\n', ' ')
       s"""|MaxItems: 1,
-          |Description: "${this.getDescription}"""".stripMargin
+          |Description: "$description"""".stripMargin
     }
 
     // TODO Add support for validateFunc and DiffSuppressFunc
