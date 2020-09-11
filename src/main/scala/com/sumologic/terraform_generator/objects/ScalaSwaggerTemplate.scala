@@ -111,10 +111,9 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
       }
     }.toSet
 
-    val propsObjects = classesProps.map {
-      sumoSwaggerObject: ScalaSwaggerObject =>
-        sumoSwaggerObject.getAsTerraformSchemaType(false)
-    }.toList.toSet.mkString(",\n         ").concat(",")
+    val propsObjects = classesProps.map { swaggerObject =>
+      swaggerObject.getAsTerraformSchemaType(false)
+    }.toList.toSet.mkString(",\n").concat(",")
 
     // Only supporting query params for now. Assuming path parameters in CRUD endpoints will only be id.
     // Not supporting header parameters yet.
@@ -125,11 +124,19 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
       }
     }.map {
       endpoint =>
-        "\"" + s"${endpoint.httpMethod.toLowerCase}_request_map" + "\"" + s": {\n           Type: schema.TypeMap,\n          Optional: true,\n           Elem: &schema.Schema{\n            Type: schema.TypeString,\n            },\n         }"
+          """
+          |"${endpoint.httpMethod.toLowerCase}_request_map": {
+          |   Type: schema.TypeMap,
+          |   Optional: true,
+          |   Elem: &schema.Schema{
+          |       Type: schema.TypeString,
+          |   },
+          |}
+          |""".stripMargin
     }
 
     val requestMapsString = if (requestMaps.nonEmpty) {
-      requestMaps.mkString(",\n         ").concat(",")
+      requestMaps.mkString(",\n").concat(",")
     } else {
       ""
     }

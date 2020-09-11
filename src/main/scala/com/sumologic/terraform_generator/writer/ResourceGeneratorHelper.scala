@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects._
+import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, _}
 import org.openapitools.codegen.utils.StringUtils
 
 trait ResourceGeneratorHelper {
@@ -10,7 +10,7 @@ trait ResourceGeneratorHelper {
    * ResourceData to Go struct.
    *
    * @param fieldScalaObj The field of resource struct to generate.
-   * @return
+   * @return Go code to set field 'fieldScalaObj' to its value.
    */
   def getResourceFieldsWithValues(fieldScalaObj: ScalaSwaggerObject): String = {
     val fieldValue = StringUtils.camelize(fieldScalaObj.getName, true)
@@ -40,33 +40,62 @@ trait ResourceGeneratorHelper {
 
 
   /**
+   * Helper method for extractFieldFromResourceData method.
+   * For a given field of array type, generates code to extract the given field from ResourceData object
+   * represented by 'goObjName' argument.
+   *
+   * @param arrayObj The field for which to generate the extraction code.
+   * @param goObjName The name of the golang Terraform object that represents the given field.
+   * @param fieldName The name of the golang var in which the field will be extracted.
+   *
+   * @return Go code to extract a field from ResourceData object.
+   */
+  def extractArrayItems(arrayObj: ScalaSwaggerArrayObject, goObjName: String, fieldName: String): String = {
+    val items = arrayObj.items
+    items match {
+      case arrayItem: ScalaSwaggerArrayObject =>
+        // Only nested arrays of 1 level are supported currently.
+        // Need to generate unique names for itemSliceName and newGoObjName to support nested arrays of
+        // any depth.
+        val itemSliceName = "itemSlice"
+        val newGoObjName = "item"
+        val arrayItems = extractArrayItems(arrayItem, newGoObjName, itemSliceName)
+
+        s"""|${goObjName}Slice := $goObjName.([]interface{})
+            |var $itemSliceName ${arrayItem.getGoType}
+            |for _, $newGoObjName := range ${goObjName}Slice {
+            |    $arrayItems
+            |}
+            |$fieldName = append($fieldName, $itemSliceName)""".stripMargin
+
+      case _: ScalaSwaggerRefObject =>
+        val funcName = getResourceDataToStructFuncName(items.getType)
+        s"""|$fieldName = append($fieldName, $funcName([]interface{}{$goObjName}))""".stripMargin
+
+      case _:ScalaSwaggerSimpleObject =>
+        s"""$fieldName = append($fieldName, $goObjName.(${items.getGoType})) """
+    }
+  }
+
+
+  /**
    * For a given field, generates code to extract struct field from ResourceData object.
    * Used in converter from ResourceData to Go struct.
    *
    * @param fieldScalaObj The field for which to generate the extraction code.
-   * @return
+   * @return Go code to extract a field from ResourceData object.
    */
   def extractFieldFromResourceData(fieldScalaObj: ScalaSwaggerObject): String = {
     val fieldName = StringUtils.camelize(fieldScalaObj.getName, true)
     val fieldSchemaName = StringUtils.underscore(fieldScalaObj.getName)
 
     fieldScalaObj match {
-      case _: ScalaSwaggerArrayObject =>
-        // TODO add a better way to figure out non-primitive types in case of container objects
-        val fieldValue = if (fieldScalaObj.getType.props.nonEmpty) {
-          // array of non-primitive type
-          val funcName = getResourceDataToStructFuncName(fieldScalaObj.getType)
-          s"""$funcName(v)"""
-        } else {
-          // array of primitive type
-          s"""v.(${fieldScalaObj.getType.name})"""
-        }
-
+      case arrayObj: ScalaSwaggerArrayObject =>
         s"""
            |${fieldName}Data := d.Get("$fieldSchemaName").([]interface{})
-           |$fieldName := make(${fieldScalaObj.getGoType}, len(${fieldName}Data))
-           |for i, v := range ${fieldName}Data  {
-           |    $fieldName[i] = $fieldValue
+           |var $fieldName ${fieldScalaObj.getGoType}
+           |for _, data := range ${fieldName}Data  {
+           |    ${extractArrayItems(arrayObj, "data", s"$fieldName")}
            |}
            |""".stripMargin
 
@@ -85,7 +114,7 @@ trait ResourceGeneratorHelper {
    * all of it's descendants by recursively traversing the object.
    *
    * @param obj Top level ScalaSwaggerObject to start iteration from.
-   * @return All non-primitive objects in obj arg and descendants.
+   * @return All non-primitive objects in 'obj' arg and descendants.
    */
   def getAllRefObjects(obj: ScalaSwaggerObject): List[ScalaSwaggerRefObject] = {
     obj match {
@@ -127,7 +156,7 @@ trait ResourceGeneratorHelper {
    * @param fieldScalaObj Field to extract.
    * @param goObjectName Name of Go struct which contains the field.
    * @param goMapObject Name of ResourceData map that contains the value of the field.
-   * @return String version of field set to its value.
+   * @return Go code to set field to its value.
    */
   def extractFieldFromMap(fieldScalaObj: ScalaSwaggerObject, goObjectName: String, goMapObject: String): String = {
     val fieldName = StringUtils.camelize(fieldScalaObj.getName)
@@ -169,7 +198,7 @@ trait ResourceGeneratorHelper {
    * Generates a converter method that converts a ResourceData map to non-primitive (ref) object
    *
    * A non-primitive object is represented as a list of one item in Terraform schema. Extracts
-   * properties from ResourceData and creates an object of {{obj.objType.name}} type.
+   * properties from ResourceData and creates an object of {{goObjName.objType.name}} type.
    *
    * Example converter method generated by this method:
    * func resourceToLookupTableField(data interface{}) LookupTableField {
@@ -184,14 +213,14 @@ trait ResourceGeneratorHelper {
    * }
    *
    * @param obj ScalaSwaggerRefObject to extract from ResourceData object.
-   * @return String representation of converter method.
+   * @return Go code of converter method.
    */
   def getRefObjectConverter(obj: ScalaSwaggerRefObject): String = {
     val funcName = getResourceDataToStructFuncName(obj.getType)
     val returnType = obj.getType.name
 
     val propName = StringUtils.camelize(obj.getName, true)
-    val propArr = s"${propName}Arr"
+    val propArr = s"${propName}Slice"
     val propObj = s"${propName}Obj"
     val goTypeName = obj.getGoType
 
@@ -220,8 +249,36 @@ trait ResourceGeneratorHelper {
    * Generates the converter method to extract a resource object from ResourceData.
    * i.e. resourceToObj(d *schema.ResourceData) ObjType
    *
+   * Example converter method generated by this method:
+   *
+   * func resourceToLookupTable(d *schema.ResourceData) LookupTable {
+   *   fieldsData := d.Get("fields").([]interface{})
+   *   var fields []LookupTableField
+   *   for _, data := range fieldsData {
+   *     fields = append(fields, resourceToLookupTableField([]interface{}{data}))
+   *   }
+   *
+   *   primaryKeysData := d.Get("primary_keys").([]interface{})
+   *   var primaryKeys []string
+   *   for _, data := range primaryKeysData {
+   *     primaryKeys = append(primaryKeys, data.(string))
+   *   }
+   *
+   *   return LookupTable{
+   *     Name:            d.Get("name").(string),
+   *     ID:              d.Id(),
+   *     Fields:          fields,
+   *     Description:     d.Get("description").(string),
+   *     Ttl:             d.Get("ttl").(int),
+   *     SizeLimitAction: d.Get("size_limit_action").(string),
+   *     PrimaryKeys:     primaryKeys,
+   *     ParentFolderId:  d.Get("parent_folder_id").(string),
+   *   }
+   * }
+   *
+   *
    * @param objType ScalaSwaggerType object containing info about object to convert to.
-   * @return String representation of resourceTo<Obj> method.
+   * @return Go code of resourceTo<Obj> method.
    */
   def getTerraformResourceDataToObjectConverter(objType: ScalaSwaggerType): String = {
     val returnType = objType.name
