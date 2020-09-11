@@ -3,7 +3,7 @@ package com.sumologic.terraform_generator.writer
 import java.time.{LocalDateTime, ZoneOffset}
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerArrayObject, ScalaSwaggerObject, ScalaSwaggerSimpleObject, TerraformPropertyAttributes}
+import com.sumologic.terraform_generator.objects._
 import nl.flotsam.xeger.Xeger
 
 import scala.util.Random
@@ -12,7 +12,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
 
   def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false): String = {
     prop match {
-      case prop if prop.isInstanceOf[ScalaSwaggerSimpleObject] =>
+      case _: ScalaSwaggerSimpleObject =>
         prop.getType.name match {
           case "bool" =>
             val testBoolValue = generateBoolValue(prop)
@@ -49,7 +49,8 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
             throw new RuntimeException(s"Unsupported type='${prop.getType.name}', property='${prop.getName}'")
         }
 
-      case prop if prop.isInstanceOf[ScalaSwaggerArrayObject] =>
+      case _: ScalaSwaggerArrayObject =>
+        // TODO should use item type instead of prop type
         prop.getType.name match {
           case "string" =>
             val item = if (prop.getDefault.isDefined) {
@@ -78,6 +79,9 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
             // TODO Add support for non primitive types.
             throw new RuntimeException(s"Unsupported type='${prop.getType.name}', property='${prop.getName}'")
         }
+      case _: ScalaSwaggerRefObject =>
+        // TODO Add support for non primitive types.
+        throw new RuntimeException(s"Unsupported type='${prop.getType.name}', property='${prop.getName}'")
     }
   }
 
