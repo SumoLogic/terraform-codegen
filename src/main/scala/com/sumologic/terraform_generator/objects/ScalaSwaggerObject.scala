@@ -53,13 +53,11 @@ abstract class ScalaSwaggerObject(name: String,
     } else {
       defaultOpt match { // This probably won't work for composite types
         case Some(defaultValue) => if (objType.name == "string") {
-          s"""ForceNew: false,
-            |Default: "${defaultValue.toString}"""".stripMargin
+          s"""Default: "${defaultValue.toString}"""".stripMargin
         } else {
-          s"""ForceNew: false,
-             |Default: ${defaultValue.toString}""".stripMargin
+          s"""Default: ${defaultValue.toString}""".stripMargin
         }
-        case None => "ForceNew: false"
+        case None => ""
       }
     }
 
