@@ -31,12 +31,10 @@ func resourceSumologicPet() *schema.Resource {
 			"name": {
 				Type:     schema.TypeString,
 				Required: true,
-				ForceNew: false,
 			},
 			"tag": {
 				Type:     schema.TypeString,
 				Optional: true,
-				ForceNew: false,
 			},
 		},
 	}
