@@ -292,10 +292,15 @@ case class ScalaSwaggerRefObject(name: String,
       // TODO I am not sure if this is all we need.
       "Computed: true"
     } else {
-      // NOTE: Hack to avoid multiline and long descriptions. Need a better solution.
-      val idx = this.getDescription.indexOf(". ")
-      val end = if (idx != -1) idx else this.getDescription.length
-      val description = this.getDescription.substring(0, end).replace('\n', ' ')
+      val description = Option(this.getDescription) match {
+        case Some(_) =>
+          // NOTE: Hack to avoid multiline and long descriptions. Need a better solution.
+          val idx = this.getDescription.indexOf(". ")
+          val end = if (idx != -1) idx else this.getDescription.length
+          this.getDescription.substring(0, end).replace('\n', ' ')
+        case None =>
+          ""
+      }
       s"""|MaxItems: 1,
           |Description: "$description"""".stripMargin
     }
