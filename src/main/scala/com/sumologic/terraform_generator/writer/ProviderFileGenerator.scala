@@ -138,6 +138,16 @@ case class ProviderFunctionGenerator(taggedApis: List[String]) extends StringHel
       |			"sumologic_collector":                          resourceSumologicCollector(),
       |			"sumologic_http_source":                        resourceSumologicHTTPSource(),
       |			"sumologic_polling_source":                     resourceSumologicPollingSource(),
+      |			"sumologic_s3_source":                          resourceSumologicGenericPollingSource(),
+      |			"sumologic_s3_audit_source":                    resourceSumologicGenericPollingSource(),
+      |			"sumologic_cloudwatch_source":                  resourceSumologicGenericPollingSource(),
+      |			"sumologic_aws_inventory_source":               resourceSumologicGenericPollingSource(),
+      |			"sumologic_aws_xray_source":                    resourceSumologicGenericPollingSource(),
+      |			"sumologic_cloudtrail_source":                  resourceSumologicGenericPollingSource(),
+      |			"sumologic_elb_source":                         resourceSumologicGenericPollingSource(),
+      |			"sumologic_cloudfront_source":                  resourceSumologicGenericPollingSource(),
+      |			"sumologic_cloud_to_cloud_source":              resourceSumologicCloudToCloudSource(),
+      |			"sumologic_metadata_source":                    resourceSumologicMetadataSource(),
       |			"sumologic_cloudsyslog_source":                 resourceSumologicCloudsyslogSource(),
       |			"sumologic_user":                               resourceSumologicUser(),
       |			"sumologic_ingest_budget":                      resourceSumologicIngestBudget(),
@@ -146,6 +156,10 @@ case class ProviderFunctionGenerator(taggedApis: List[String]) extends StringHel
       |			"sumologic_content":                            resourceSumologicContent(),
       |			"sumologic_partition":                          resourceSumologicPartition(),
       |     "sumologic_connection":                         resourceSumologicConnection(),
+      |			"sumologic_monitor":                            resourceSumologicMonitorsLibraryMonitor(),
+      |			"sumologic_monitor_folder":                     resourceSumologicMonitorsLibraryFolder(),
+      |			"sumologic_ingest_budget_v2":                   resourceSumologicIngestBudgetV2(),
+      |			"sumologic_field":                              resourceSumologicField(),
       |     $listOfResources
       |		},""".stripMargin
   }
