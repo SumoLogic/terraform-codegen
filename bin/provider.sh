@@ -67,7 +67,7 @@ runGenerator() {
 cloneProvider() {
   echo "Cloning terraform-provider-sumologic repo in '$TF_SUMOLOGIC_PROVIDER_DIR'"
   if [ ! -d $TF_SUMOLOGIC_PROVIDER_DIR ]; then
-    git clone https://github.com/terraform-providers/terraform-provider-sumologic --quiet $TF_SUMOLOGIC_PROVIDER_DIR
+    git clone https://github.com/SumoLogic/terraform-provider-sumologic --quiet $TF_SUMOLOGIC_PROVIDER_DIR
   fi
 }
 
