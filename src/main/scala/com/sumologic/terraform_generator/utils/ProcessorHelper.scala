@@ -30,12 +30,10 @@ trait ProcessorHelper
   }
 
   // Checks if this prop can only be set in a create request and cannot be updated
+  // This is a horrible way to find if a property cannot be updated. Please replace it.
   def isPropertyWriteOnly(openAPI: OpenAPI, property: String, modelName: String): Boolean = {
-    val propertyName = if (property.contains("(") && property.contains(")")) {
-      property.split("""\(""").head
-    } else {
-      property
-    }
+    val (propertyName, _) = getNameAndAttribute(property)
+
     if (modelName.toLowerCase.contains("create")) {
       openAPI.getComponents.getSchemas.asScala.toList.exists {
         case (name, schema) =>
@@ -45,7 +43,7 @@ trait ProcessorHelper
     } else {
       val modelsWithTag: Map[String, (String, Schema[_])] = getTagForComponent(openAPI, modelName)
 
-      if (modelsWithTag.contains(modelName)) {
+      if (modelsWithTag.contains(modelName) && modelsWithTag(modelName)._1.nonEmpty /* empty tag check */) {
         val tag = modelsWithTag(modelName)._1
         val baseType = tag.replace("Management", "")
         val groupedByTag = modelsWithTag.groupBy(_._2._1)
