@@ -161,6 +161,7 @@ case class ProviderFunctionGenerator(taggedApis: List[String]) extends StringHel
       |			"sumologic_ingest_budget_v2":                   resourceSumologicIngestBudgetV2(),
       |			"sumologic_field":                              resourceSumologicField(),
       |			"sumologic_lookup_table":                       resourceSumologicLookupTable(),
+      |			"sumologic_subdomain":                          resourceSumologicSubdomain(),
       |     $listOfResources
       |		},""".stripMargin
   }
