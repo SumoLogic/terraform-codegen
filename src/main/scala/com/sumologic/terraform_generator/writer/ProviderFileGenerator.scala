@@ -137,6 +137,7 @@ case class ProviderFunctionGenerator(taggedApis: List[String]) extends StringHel
       |   ResourcesMap: map[string]*schema.Resource{
       |			"sumologic_collector":                          resourceSumologicCollector(),
       |			"sumologic_http_source":                        resourceSumologicHTTPSource(),
+      |			"sumologic_gcp_source":                         resourceSumologicGCPSource(),
       |			"sumologic_polling_source":                     resourceSumologicPollingSource(),
       |			"sumologic_s3_source":                          resourceSumologicGenericPollingSource(),
       |			"sumologic_s3_audit_source":                    resourceSumologicGenericPollingSource(),
