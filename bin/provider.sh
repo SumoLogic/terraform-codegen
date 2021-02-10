@@ -29,7 +29,7 @@ validateEnv() {
   fi
 
   if [ ! -n "$SUMOLOGIC_ACCESSKEY" ]; then
-    echo "Env var 'SUMOLOGIC_ACCESSID' must be set"
+    echo "Env var 'SUMOLOGIC_ACCESSKEY' must be set"
     exit 1
   fi
 

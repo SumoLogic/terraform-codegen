@@ -13,4 +13,4 @@ export JAVA_PROGRAM_ARGS=`echo "$@"`
 # make sure you configure log level to debug in log4j.properties as well.
 # Set -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN to change maven log level.
 ./mvnw -q clean
-./mvnw -B compile exec:java  -Dexec.mainClass="com.sumologic.terraform_generator.TerraformGenerator" -Dexec.args="$JAVA_PROGRAM_ARGS"
+./mvnw -B compile exec:java -Dorg.slf4j.simpleLogger.defaultLogLevel=WARN -Dexec.mainClass="com.sumologic.terraform_generator.TerraformGenerator" -Dexec.args="$JAVA_PROGRAM_ARGS"
