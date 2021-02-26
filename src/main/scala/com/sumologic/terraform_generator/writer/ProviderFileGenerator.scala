@@ -164,6 +164,7 @@ case class ProviderFunctionGenerator(taggedApis: List[String]) extends StringHel
       |			"sumologic_lookup_table":                       resourceSumologicLookupTable(),
       |			"sumologic_subdomain":                          resourceSumologicSubdomain(),
       |			"sumologic_dashboard":                          resourceSumologicDashboard(),
+      |			"sumologic_password_policy":                    resourceSumologicPasswordPolicy(),
       |     $listOfResources
       |		},""".stripMargin
   }
