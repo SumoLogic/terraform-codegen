@@ -1,9 +1,9 @@
 package com.sumologic.terraform_generator.utils
 
 import java.util.Collections
-
 import com.sumologic.terraform_generator.StringHelper
 import com.sumologic.terraform_generator.objects.TerraformModelExtensions
+import com.sumologic.terraform_generator.utils.OpenApiProcessor.logger
 import io.swagger.v3.oas.models.media.{ComposedSchema, Schema}
 import io.swagger.v3.oas.models.{OpenAPI, Operation}
 
@@ -173,22 +173,14 @@ trait ProcessorHelper
         model.getProperties.asScala.toList ++ refProps
     }
 
-    val propsWithAttribute = model.getExtensions.asScala(TerraformModelExtensions.Properties).toString.split(",")
-    val tfPropNames = propsWithAttribute.map { prop =>
-      if (prop.contains("(") && prop.contains(")")) {
-        prop.split("""\(""").head
-      } else {
-        prop
-      }
-    }
+    val generatedProperties = model.getExtensions.asScala(TerraformModelExtensions.Properties)
+    val tfPropNames = generatedProperties.toString.split(",")
 
     val tfProperties = allProps.filter { prop =>
       tfPropNames.contains(prop._1)
     }
-    tfProperties.map {
-      case (name, schema) =>
-        (propsWithAttribute.filter(_.contains(name)).head, schema)
-    }
+    logger.debug(s"tfProperties=${tfProperties.mkString(",")}")
+    tfProperties
   }
 
   def getRequiredProperties(openAPI: OpenAPI, model: Schema[_]): Seq[String] = {
@@ -236,15 +228,9 @@ trait ProcessorHelper
       return List[String]()
     }
 
-    val propsWithAttribute = extensions.asScala(TerraformModelExtensions.Properties).toString.split(",")
-    val tfProperties = propsWithAttribute.map { prop =>
-      if (prop.contains("(") && prop.contains(")")) {
-        prop.split("""\(""").head
-      } else {
-        prop
-      }
-    }
-
+    val generatedProperties = model.getExtensions.asScala(TerraformModelExtensions.Properties)
+    val tfProperties = generatedProperties.toString.split(",")
+    logger.debug(s"tfProperties=${tfProperties.mkString(",")}")
     tfProperties.toList
   }
 }
