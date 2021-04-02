@@ -166,6 +166,7 @@ case class ProviderFunctionGenerator(taggedApis: List[String]) extends StringHel
       |			"sumologic_dashboard":                          resourceSumologicDashboard(),
       |			"sumologic_password_policy":                    resourceSumologicPasswordPolicy(),
       |			"sumologic_saml_configuration":                 resourceSumologicSamlConfiguration(),
+      |			"sumologic_kinesis_metrics_source":             resourceSumologicKinesisMetricsSource(),
       |     $listOfResources
       |		},""".stripMargin
   }
