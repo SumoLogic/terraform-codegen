@@ -1,10 +1,10 @@
 package com.sumologic.terraform_generator.writer
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerTemplate, ScalaSwaggerType}
+import com.sumologic.terraform_generator.objects.{TerraformResource, OpenApiType}
 
-case class TerraformDocsGenerator(terraform: ScalaSwaggerTemplate, mainClass: String)
-  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
+case class TerraformDocsGenerator(terraform: TerraformResource, mainClass: String)
+  extends TerraformFileGeneratorBase(terraform: TerraformResource) {
 
   val functionGenerator = DocsFunctionGenerator(
     terraform,
@@ -20,12 +20,12 @@ case class TerraformDocsGenerator(terraform: ScalaSwaggerTemplate, mainClass: St
   }
 }
 
-case class DocsFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, mainClass: ScalaSwaggerType)
+case class DocsFunctionGenerator(terraformResource: TerraformResource, mainClass: OpenApiType)
   extends StringHelper {
 
   val className = mainClass.name
   val objName = className.substring(0, 1).toLowerCase() + className.substring(1)
-  val resourceProps = sumoSwaggerTemplate.getAllTypesUsed.head
+  val resourceProps = terraformResource.getAllTypesUsed.head
 
   def generateLayout(): String = {
     s"""---

@@ -10,9 +10,9 @@ import scala.util.Random
 
 trait AcceptanceTestGeneratorHelper extends StringHelper {
 
-  def getTestValue(prop: ScalaSwaggerObject, isUpdate: Boolean = false): String = {
+  def getTestValue(prop: OpenApiObject, isUpdate: Boolean = false): String = {
     prop match {
-      case _: ScalaSwaggerSimpleObject =>
+      case _: OpenApiSimpleObject =>
         prop.getType.name match {
           case "bool" =>
             val testBoolValue = generateBoolValue(prop)
@@ -49,7 +49,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
             throw new RuntimeException(s"Unsupported type='${prop.getType.name}', property='${prop.getName}'")
         }
 
-      case _: ScalaSwaggerArrayObject =>
+      case _: OpenApiArrayObject =>
         // TODO should use item type instead of prop type
         prop.getType.name match {
           case "string" =>
@@ -59,7 +59,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
               } else if (prop.getExample.nonEmpty) {
                 val items = prop.getExample.replace("[", "").replace("]", "").split(",")
                 items.head.replace("\"", "\\\"")
-              } else if (prop.asInstanceOf[ScalaSwaggerArrayObject].getPattern.nonEmpty) {
+              } else if (prop.asInstanceOf[OpenApiArrayObject].getPattern.nonEmpty) {
                 val generator = new Xeger(prop.getPattern)
                 val generatedStr = generator.generate()
                 generatedStr.replace("\"", "\\\"")
@@ -79,13 +79,13 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
             // TODO Add support for non primitive types.
             throw new RuntimeException(s"Unsupported type='${prop.getType.name}', property='${prop.getName}'")
         }
-      case _: ScalaSwaggerRefObject =>
+      case _: OpenApiRefObject =>
         // TODO Add support for non primitive types.
         throw new RuntimeException(s"Unsupported type='${prop.getType.name}', property='${prop.getName}'")
     }
   }
 
-  def generateBoolValue(prop: ScalaSwaggerObject): Boolean = {
+  def generateBoolValue(prop: OpenApiObject): Boolean = {
     if (prop.getDefault.isDefined) {
       prop.getDefault.get.asInstanceOf[Boolean]
     } else {
@@ -93,7 +93,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
     }
   }
 
-  def generateLongValue(prop: ScalaSwaggerObject): Long = {
+  def generateLongValue(prop: OpenApiObject): Long = {
     if (prop.getExample.nonEmpty) {
       prop.getExample.toLong
     } else if (prop.getDefault.isDefined) {
@@ -104,7 +104,7 @@ trait AcceptanceTestGeneratorHelper extends StringHelper {
     }
   }
 
-  def generateStringValue(prop: ScalaSwaggerObject): String = {
+  def generateStringValue(prop: OpenApiObject): String = {
     val stringValue = if (prop.getDefault.isDefined) {
       s""""${prop.getDefault.get.toString.replace(""""""", """\"""")}""""
     } else if (prop.getExample.nonEmpty) {

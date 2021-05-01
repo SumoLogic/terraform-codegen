@@ -4,7 +4,7 @@ import com.sumologic.terraform_generator.StringHelper
 
 case class ProviderFileGenerator(taggedApis: List[String])
   // FIXME: extending a class with null as arg? This seems like a bad idea.
-  //  Some of the generator classes extend ScalaTerraformEntity while this one extends
+  //  Some of the generator classes extend TerraformEntity while this one extends
   //  TerraformFileGeneratorBase?
   extends TerraformFileGeneratorBase(null) {
 

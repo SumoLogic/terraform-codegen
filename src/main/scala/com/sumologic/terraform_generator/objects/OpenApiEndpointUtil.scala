@@ -2,8 +2,8 @@ package com.sumologic.terraform_generator.objects
 
 import com.sumologic.terraform_generator.StringHelper
 
-trait SumoSwaggerEndpointHelper extends StringHelper {
-  def bodyParamToArgList(bodyParamOption: Option[ScalaSwaggerParameter], baseType: String): List[String] = {
+trait OpenApiEndpointUtil extends StringHelper {
+  def bodyParamToArgList(bodyParamOption: Option[OpenApiParameter], baseType: String): List[String] = {
     bodyParamOption match {
       case Some(_) =>
         val requestBodyType = baseType
@@ -12,16 +12,16 @@ trait SumoSwaggerEndpointHelper extends StringHelper {
     }
   }
 
-  def paramListToArgList(params: List[ScalaSwaggerParameter]): List[String] = {
+  def paramListToArgList(params: List[OpenApiParameter]): List[String] = {
     params.map(_.toTerraformFuncArg)
   }
 
-  def makeArgsListForDecl(params: List[ScalaSwaggerParameter], baseType: String): String = {
+  def makeArgsListForDecl(params: List[OpenApiParameter], baseType: String): String = {
     val allParams = getArgsListForDecl(params, baseType)
     allParams.mkString(", ")
   }
 
-  def getArgsListForDecl(params: List[ScalaSwaggerParameter], baseType: String): List[String] = {
+  def getArgsListForDecl(params: List[OpenApiParameter], baseType: String): List[String] = {
     // TODO val queryParamList = params.filter(_.paramType == SumoTerraformSupportedParameterTypes.QueryParameter)
 
     val hasParams = params.map(_.paramType).exists { paramType =>

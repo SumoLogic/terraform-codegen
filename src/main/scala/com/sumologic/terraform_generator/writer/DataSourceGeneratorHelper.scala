@@ -1,7 +1,7 @@
 package com.sumologic.terraform_generator.writer
 
 import com.sumologic.terraform_generator.StringHelper
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, ScalaSwaggerType}
+import com.sumologic.terraform_generator.objects.{OpenApiObject, OpenApiType}
 
 trait DataSourceGeneratorHelper extends StringHelper {
   def getTerraformResourceSetters(propName: String, objName: String): String = {
@@ -32,17 +32,17 @@ trait DataSourceGeneratorHelper extends StringHelper {
     }
   }
 
-  def getTerraformObjectToResourceDataConverterFuncCall(objClass: ScalaSwaggerType): String = {
+  def getTerraformObjectToResourceDataConverterFuncCall(objClass: OpenApiType): String = {
     val objName = lowerCaseFirstLetter(objClass.name)
     s"${objName}ToResourceData(resourceData, $objName)"
   }
 
-  def getTerraformObjectToResourceDataConverter(objClass: ScalaSwaggerType): String = {
+  def getTerraformObjectToResourceDataConverter(objClass: OpenApiType): String = {
     val className = objClass.name
     val objName = lowerCaseFirstLetter(objClass.name)
 
     val setters = objClass.props.map {
-      prop: ScalaSwaggerObject =>
+      prop: OpenApiObject =>
         getTerraformResourceSetters(prop.getName, objName)
     }.mkString("\n")
 

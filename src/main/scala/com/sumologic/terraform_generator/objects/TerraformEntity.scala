@@ -2,7 +2,7 @@ package com.sumologic.terraform_generator.objects
 
 import com.sumologic.terraform_generator.StringHelper
 
-abstract class ScalaTerraformEntity extends StringHelper {
+abstract class TerraformEntity extends StringHelper {
   def indent = "    "
-  def terraformify(baseTemplate: ScalaSwaggerTemplate): String = ""
+  def terraformify(baseTemplate: TerraformResource): String = ""
 }

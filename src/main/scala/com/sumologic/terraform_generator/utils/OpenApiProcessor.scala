@@ -19,24 +19,24 @@ case class OpenApiPath(name: String, item: PathItem)
 object OpenApiProcessor extends ProcessorHelper
   with Logging {
 
-  def resolveArrayPropertyType(openApi: OpenAPI, property: Schema[_]): ScalaSwaggerType = {
+  def resolveArrayPropertyType(openApi: OpenAPI, property: Schema[_]): OpenApiType = {
     val arrayProp = property.asInstanceOf[ArraySchema]
     val itemProp = arrayProp.getItems
     resolvePropertyType(openApi, itemProp)
   }
 
-  def resolvePropertyType(openApi: OpenAPI, property: Schema[_]): ScalaSwaggerType = {
+  def resolvePropertyType(openApi: OpenAPI, property: Schema[_]): OpenApiType = {
     if (property.get$ref() != null) {
       val model = getComponent(openApi, property.get$ref().split("/").last)._2
       processModel(openApi, property.get$ref(), model)
     } else if (property.isInstanceOf[ArraySchema]) {
       resolveArrayPropertyType(openApi, property)
     } else {
-      ScalaSwaggerType(TerraformSchemaTypes.swaggerTypeToGoType(property.getType))
+      OpenApiType(TerraformSchemaTypes.openApiTypeToGoType(property.getType))
     }
   }
 
-  def processResponseObjects(openApi: OpenAPI, responses: Map[String, ApiResponse]): List[ScalaSwaggerResponse] = {
+  def processResponseObjects(openApi: OpenAPI, responses: Map[String, ApiResponse]): List[OpenApiResponse] = {
     val successResponse = responses.filter {
         // TODO create a constant for default value
         case (respName, _) => respName != "default"
@@ -45,7 +45,7 @@ object OpenApiProcessor extends ProcessorHelper
     assert(successResponse.size == 1, s"total success response=$successResponse.size")
 
     val (responseName, apiResponse) = successResponse.head
-    val emptyResponseBody = ScalaSwaggerResponse(responseName, None)
+    val emptyResponseBody = OpenApiResponse("", None)
 
     if (apiResponse.getContent == null) {
       return List(emptyResponseBody)
@@ -63,8 +63,8 @@ object OpenApiProcessor extends ProcessorHelper
 
           val taggedModels = getTaggedComponents(openApi)
           if (taggedModels.contains(resourceName)) {
-            val swaggerType = processModel(openApi, ref, taggedModels(resourceName))
-            List(ScalaSwaggerResponse(resourceName, Some(swaggerType.copy(name=resourceName))))
+            val openApiType = processModel(openApi, ref, taggedModels(resourceName))
+            List(OpenApiResponse(resourceName, Some(openApiType.copy(name=resourceName))))
           } else {
             logger.warn(s"model '$modelName' is not terraform resource")
             List(emptyResponseBody)
@@ -79,10 +79,10 @@ object OpenApiProcessor extends ProcessorHelper
     }
   }
 
-  def processPathParameter(openApi: OpenAPI, pathParam: PathParameter): ScalaSwaggerParameter = {
-    ScalaSwaggerParameter(TerraformSupportedParameterTypes.PathParameter,
-      ScalaSwaggerSimpleObject(pathParam.getName,
-        ScalaSwaggerType(pathParam.getSchema.getType, List[ScalaSwaggerObject]()),
+  def processPathParameter(openApi: OpenAPI, pathParam: PathParameter): OpenApiParameter = {
+    OpenApiParameter(TerraformSupportedParameterTypes.PathParameter,
+      OpenApiSimpleObject(pathParam.getName,
+        OpenApiType(pathParam.getSchema.getType, List[OpenApiObject]()),
         pathParam.getRequired,
         Some(pathParam.getSchema.getDefault.asInstanceOf[AnyRef]),
         pathParam.getSchema.getDescription
@@ -90,13 +90,13 @@ object OpenApiProcessor extends ProcessorHelper
     )
   }
 
-  def processQueryParameter(openApi: OpenAPI, queryParam: QueryParameter): ScalaSwaggerParameter = {
-    ScalaSwaggerParameter(TerraformSupportedParameterTypes.QueryParameter,
-      ScalaSwaggerSimpleObject(
+  def processQueryParameter(openApi: OpenAPI, queryParam: QueryParameter): OpenApiParameter = {
+    OpenApiParameter(TerraformSupportedParameterTypes.QueryParameter,
+      OpenApiSimpleObject(
         queryParam.getName,
-        ScalaSwaggerType(
+        OpenApiType(
           queryParam.getSchema.getType,
-          List[ScalaSwaggerObject]()),
+          List[OpenApiObject]()),
         queryParam.getRequired,
         Some(queryParam.getSchema.getDefault.asInstanceOf[AnyRef]),
         queryParam.getSchema.getDescription,
@@ -111,12 +111,12 @@ object OpenApiProcessor extends ProcessorHelper
         Option(queryParam.getSchema).map(_.getPattern).getOrElse("")))
   }
 
-  def processHeaderParameter(openApi: OpenAPI, headerParam: HeaderParameter): ScalaSwaggerParameter = {
-    ScalaSwaggerParameter(
+  def processHeaderParameter(openApi: OpenAPI, headerParam: HeaderParameter): OpenApiParameter = {
+    OpenApiParameter(
       TerraformSupportedParameterTypes.HeaderParameter,
-      ScalaSwaggerSimpleObject(
+      OpenApiSimpleObject(
         headerParam.getName,
-        ScalaSwaggerType(headerParam.getSchema.getType, List[ScalaSwaggerObject]()),
+        OpenApiType(headerParam.getSchema.getType, List[OpenApiObject]()),
         headerParam.getRequired,
         Some(headerParam.getSchema.getDefault.asInstanceOf[AnyRef]),
         headerParam.getSchema.getDescription
@@ -124,26 +124,26 @@ object OpenApiProcessor extends ProcessorHelper
     )
   }
 
-  def processBodyParameter(openApi: OpenAPI, bodyParam: Schema[_]): List[ScalaSwaggerParameter] = {
+  def processBodyParameter(openApi: OpenAPI, bodyParam: Schema[_]): List[OpenApiParameter] = {
     val defName: String = bodyParam.get$ref().split("#/components/schemas/").last
     val (modelName, model) = getComponent(openApi, defName)
 
-    val swaggerType = processModel(openApi, modelName, model)
-    val swaggerParameter = ScalaSwaggerParameter(TerraformSupportedParameterTypes.BodyParameter,
-      ScalaSwaggerSimpleObject(
+    val openApiType = processModel(openApi, modelName, model)
+    val openApiParameter = OpenApiParameter(TerraformSupportedParameterTypes.BodyParameter,
+      OpenApiSimpleObject(
         defName,
-        swaggerType,
+        openApiType,
         required = true,
         None,
         model.getDescription,
         Option(model.getExample).map(_.toString).getOrElse(""),
         Option(model.getPattern).getOrElse("")))
 
-    List(swaggerParameter)
+    List(openApiParameter)
   }
 
-  def processComposedModel(openApi: OpenAPI, modelDefName: String, composedModel: ComposedSchema): ScalaSwaggerType = {
-    val parts: List[ScalaSwaggerObject] = composedModel.getAllOf.asScala.flatMap {
+  def processComposedModel(openApi: OpenAPI, modelDefName: String, composedModel: ComposedSchema): OpenApiType = {
+    val parts: List[OpenApiObject] = composedModel.getAllOf.asScala.flatMap {
       model: Schema[_] =>
         if (model.get$ref() != null) {
           processModel(openApi, model.get$ref(), model).props
@@ -155,31 +155,31 @@ object OpenApiProcessor extends ProcessorHelper
                 processModelProperty(openApi, name, schema, requiredProps, modelDefName)
             }
           } else {
-            List[ScalaSwaggerObject]()
+            List[OpenApiObject]()
           }
         }
     }.toList
 
-    val swaggerType = if (modelDefName.contains("Model")) {
-        ScalaSwaggerType(modelDefName.replace("Model", ""), parts.toSet.toList)
+    val openApiType = if (modelDefName.contains("Model")) {
+        OpenApiType(modelDefName.replace("Model", ""), parts.toSet.toList)
       } else {
-        ScalaSwaggerType(modelDefName, parts.toSet.toList)
+        OpenApiType(modelDefName, parts.toSet.toList)
       }
 
-    logger.debug(s"processed composed model='$modelDefName', swaggerType=$swaggerType")
-    swaggerType
+    logger.debug(s"processed composed model='$modelDefName', openApiType=$openApiType")
+    openApiType
   }
 
-  def processModel(openApi: OpenAPI, modelDefName: String, model: Schema[_]): ScalaSwaggerType = {
+  def processModel(openApi: OpenAPI, modelDefName: String, model: Schema[_]): OpenApiType = {
     val modelName = if (modelDefName.contains("/")) {
       modelDefName.split("/").last
     } else {
       modelDefName
     }
 
-    val swaggerType = model match {
+    val openApiType = model match {
       case _: ArraySchema =>
-        ScalaSwaggerType(modelName, List[ScalaSwaggerObject]())
+        OpenApiType(modelName, List[OpenApiObject]())
       case composedModel: ComposedSchema =>
         processComposedModel(openApi, modelName, composedModel)
       case _ =>
@@ -195,7 +195,7 @@ object OpenApiProcessor extends ProcessorHelper
         } else {
           // Only consider properties mentioned in 'x-tf-generated-properties' extension if present.
           // Otherwise, look at all properties.
-          val props: List[ScalaSwaggerObject] =
+          val props: List[OpenApiObject] =
             if (model.getProperties != null) {
               val props = model.getProperties.asScala
               props.map {
@@ -204,26 +204,26 @@ object OpenApiProcessor extends ProcessorHelper
                   processModelProperty(openApi, name, schema, requiredProps, modelName)
               }.toList
             } else {
-              List[ScalaSwaggerObject]()
+              List[OpenApiObject]()
             }
 
           // literally only because of RoleModel
           // TODO Change name of RoleModel to Role and get rid of this code
           if (modelName.contains("Model")) {
-            ScalaSwaggerType(modelName.replace("Model", ""), props.toSet.toList)
+            OpenApiType(modelName.replace("Model", ""), props.toSet.toList)
           } else {
-            ScalaSwaggerType(modelName, props.toSet.toList)
+            OpenApiType(modelName, props.toSet.toList)
           }
         }
     }
 
     // drop all properties except the ones specified in 'x-tf-properties' extension if present
     val tfProperties = getTerraformProperties(model)
-    val filteredSwaggerType =
+    val filteredOpenApiType =
       if (tfProperties.isEmpty) {
-        swaggerType
+        openApiType
       } else {
-        val filteredProps = swaggerType.props.filter { prop =>
+        val filteredProps = openApiType.props.filter { prop =>
           tfProperties.contains(prop.getName)
         }
 
@@ -239,22 +239,22 @@ object OpenApiProcessor extends ProcessorHelper
           } else {
             logger.warn(s"No id property in '$modelName'")
             filteredProps ++
-                List(ScalaSwaggerSimpleObject("id", ScalaSwaggerType("string"), required = false, None, ""))
+                List(OpenApiSimpleObject("id", OpenApiType("string"), required = false, None, ""))
           }
         assert(tfProperties.toSet.subsetOf(properties.map(_.getName).toSet),
           s"Extraneous properties in x-tf-properties extension. model: $modelName, properties: " +
               s"${properties.map(_.getName)}")
 
-        ScalaSwaggerType(swaggerType.name, properties)
+        OpenApiType(openApiType.name, properties)
       }
 
 
-    logger.debug(s"processed model='$modelDefName', swaggerType=$swaggerType, filtered=$filteredSwaggerType")
-    filteredSwaggerType
+    logger.debug(s"processed model='$modelDefName', openApiType=$openApiType, filtered=$filteredOpenApiType")
+    filteredOpenApiType
   }
 
   def processModelProperty(openApi: OpenAPI, propName: String, prop: Schema[_], requiredProps: List[String],
-                           modelName: String): ScalaSwaggerObject = {
+                           modelName: String): OpenApiObject = {
 
     val isWriteOnly = isPropertyWriteOnly(openApi, propName, modelName)
 
@@ -271,7 +271,7 @@ object OpenApiProcessor extends ProcessorHelper
       case arrayProp: ArraySchema =>
         val itemPattern = Option(arrayProp.getItems.getPattern).getOrElse("")
 
-        val swaggerArrayObj = ScalaSwaggerArrayObject(
+        val arrayObj = OpenApiArrayObject(
           name,
           resolveArrayPropertyType(openApi, arrayProp),
           requiredProps.contains(arrayProp.getName),
@@ -283,12 +283,12 @@ object OpenApiProcessor extends ProcessorHelper
           attribute,
           isWriteOnly)
 
-        swaggerArrayObj.items = processModelProperty(openApi, "", arrayProp.getItems, List[String](), "")
-        swaggerArrayObj
+        arrayObj.items = processModelProperty(openApi, "", arrayProp.getItems, List[String](), "")
+        arrayObj
 
       case refProp if refProp.get$ref() != null =>
         val (refModelName, refModel) = getComponent(openApi, refProp.get$ref().split("/").last)
-        ScalaSwaggerRefObject(
+        OpenApiRefObject(
           name,
           processModel(openApi, refModelName, refModel),
           requiredProps.contains(propName),
@@ -301,7 +301,7 @@ object OpenApiProcessor extends ProcessorHelper
           isWriteOnly)
 
       case _ =>
-        ScalaSwaggerSimpleObject(
+        OpenApiSimpleObject(
           name,
           resolvePropertyType(openApi, prop),
           requiredProps.map(_.toLowerCase).contains(propName.toLowerCase),
@@ -315,10 +315,10 @@ object OpenApiProcessor extends ProcessorHelper
     }
   }
 
-  def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod): ScalaSwaggerEndpoint = {
+  def processOperation(openApi: OpenAPI, operation: Operation, pathName: String, method: HttpMethod): OpenApiEndpoint = {
     val responses = processResponseObjects(openApi, operation.getResponses.asScala.toMap)
 
-    val params: List[ScalaSwaggerParameter] = if (operation.getParameters != null) {
+    val params: List[OpenApiParameter] = if (operation.getParameters != null) {
       operation.getParameters.asScala.flatMap { param: Parameter =>
         param match {
           case pathParam: PathParameter =>
@@ -335,22 +335,22 @@ object OpenApiProcessor extends ProcessorHelper
         }
       }.toList
     } else {
-      List.empty[ScalaSwaggerParameter]
+      List.empty[OpenApiParameter]
     }
 
-    val requestBody: List[ScalaSwaggerParameter] = if (operation.getRequestBody != null) {
+    val requestBody: List[OpenApiParameter] = if (operation.getRequestBody != null) {
       processBodyParameter(openApi, operation.getRequestBody.getContent.get("application/json").getSchema)
     } else {
-      List.empty[ScalaSwaggerParameter]
+      List.empty[OpenApiParameter]
     }
 
     val allParams = params ++ requestBody
     val endpointName = operation.getExtensions.asScala.head._2.toString
     logger.debug(s"Operation: ${operation.getOperationId} - params=$allParams, responses=$responses")
-    ScalaSwaggerEndpoint(endpointName, pathName, method.name(), allParams, responses)
+    OpenApiEndpoint(endpointName, pathName, method.name(), allParams, responses)
   }
 
-  def processPath(openApi: OpenAPI, path: PathItem, pathName: String): List[ScalaSwaggerEndpoint] = {
+  def processPath(openApi: OpenAPI, path: PathItem, pathName: String): List[OpenApiEndpoint] = {
     logger.debug(s"processing path: $pathName")
     val operationMap = Map(
       HttpMethod.GET -> path.getGet,
@@ -371,18 +371,18 @@ object OpenApiProcessor extends ProcessorHelper
 
   /**
    * For each API tagged with Terraform extensions, create an Scala representation
-   * object (ScalaSwaggerTemplate) capturing the CRUD endpoints.
+   * object (TerraformResource) capturing the CRUD endpoints.
    *
    * @param openApi - OpenAPI representation of the yaml spec.
-   * @return A list of ScalaSwaggerTemplate objects.
+   * @return A list of TerraformResource objects.
    */
-  def process(openApi: OpenAPI): List[ScalaSwaggerTemplate] = {
+  def process(openApi: OpenAPI): List[TerraformResource] = {
 
     val terraformPaths = filterTerraformPaths(openApi)
 
     val tagToPathMap = groupPathsByTag(terraformPaths)
 
-    tagToPathMap.flatMap {
+    val resources = tagToPathMap.flatMap {
       case (tagName: String, paths: List[OpenApiPath]) =>
         val endpoints = paths.flatMap {
           path => processPath(openApi, path.item, path.name)
@@ -420,9 +420,11 @@ object OpenApiProcessor extends ProcessorHelper
         assert(baseTypes.nonEmpty, s"base type for api '$tagName' is empty")
 
         baseTypes.map {
-          baseType => ScalaSwaggerTemplate(baseType, endpoints)
+          baseType => TerraformResource(baseType, endpoints)
         }
-    }.toList
+    }
+    logger.debug(s"resources: $resources")
+    resources.toList
   }
 
 

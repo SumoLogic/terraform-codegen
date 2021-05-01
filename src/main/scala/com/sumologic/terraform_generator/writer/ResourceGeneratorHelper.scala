@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerObject, _}
+import com.sumologic.terraform_generator.objects.{OpenApiObject, _}
 import org.openapitools.codegen.utils.StringUtils
 
 trait ResourceGeneratorHelper {
@@ -12,19 +12,19 @@ trait ResourceGeneratorHelper {
    * @param fieldScalaObj The field of resource struct to generate.
    * @return Go code to set field 'fieldScalaObj' to its value.
    */
-  def getResourceFieldsWithValues(fieldScalaObj: ScalaSwaggerObject): String = {
+  def getResourceFieldsWithValues(fieldScalaObj: OpenApiObject): String = {
     val fieldValue = StringUtils.camelize(fieldScalaObj.getName, true)
     val fieldName = fieldScalaObj.getName.capitalize
     val schemaFieldName = StringUtils.underscore(fieldScalaObj.getName)
 
     fieldScalaObj match {
-      case _: ScalaSwaggerArrayObject =>
+      case _: OpenApiArrayObject =>
         s"""$fieldName: $fieldValue,"""
 
-      case _: ScalaSwaggerRefObject =>
+      case _: OpenApiRefObject =>
         s"""$fieldName: $fieldValue,"""
 
-      case _: ScalaSwaggerSimpleObject =>
+      case _: OpenApiSimpleObject =>
         if (fieldScalaObj.getName.toLowerCase == "id") {
           s"""${fieldScalaObj.getName.toUpperCase}: d.Id(),"""
         } else {
@@ -34,7 +34,7 @@ trait ResourceGeneratorHelper {
   }
 
 
-  def getResourceDataToStructFuncName(objClass: ScalaSwaggerType): String = {
+  def getResourceDataToStructFuncName(objClass: OpenApiType): String = {
     s"resourceTo${objClass.name}"
   }
 
@@ -50,10 +50,10 @@ trait ResourceGeneratorHelper {
    *
    * @return Go code to extract a field from ResourceData object.
    */
-  def extractArrayItems(arrayObj: ScalaSwaggerArrayObject, goObjName: String, fieldName: String): String = {
+  def extractArrayItems(arrayObj: OpenApiArrayObject, goObjName: String, fieldName: String): String = {
     val items = arrayObj.items
     items match {
-      case arrayItem: ScalaSwaggerArrayObject =>
+      case arrayItem: OpenApiArrayObject =>
         // Only nested arrays of 1 level are supported currently.
         // Need to generate unique names for itemSliceName and newGoObjName to support nested arrays of
         // any depth.
@@ -68,11 +68,11 @@ trait ResourceGeneratorHelper {
             |}
             |$fieldName = append($fieldName, $itemSliceName)""".stripMargin
 
-      case _: ScalaSwaggerRefObject =>
+      case _: OpenApiRefObject =>
         val funcName = getResourceDataToStructFuncName(items.getType)
         s"""|$fieldName = append($fieldName, $funcName([]interface{}{$goObjName}))""".stripMargin
 
-      case _:ScalaSwaggerSimpleObject =>
+      case _:OpenApiSimpleObject =>
         s"""$fieldName = append($fieldName, $goObjName.(${items.getGoType})) """
     }
   }
@@ -85,12 +85,12 @@ trait ResourceGeneratorHelper {
    * @param fieldScalaObj The field for which to generate the extraction code.
    * @return Go code to extract a field from ResourceData object.
    */
-  def extractFieldFromResourceData(fieldScalaObj: ScalaSwaggerObject): String = {
+  def extractFieldFromResourceData(fieldScalaObj: OpenApiObject): String = {
     val fieldName = StringUtils.camelize(fieldScalaObj.getName, true)
     val fieldSchemaName = StringUtils.underscore(fieldScalaObj.getName)
 
     fieldScalaObj match {
-      case arrayObj: ScalaSwaggerArrayObject =>
+      case arrayObj: OpenApiArrayObject =>
         s"""
            |${fieldName}Data := d.Get("$fieldSchemaName").([]interface{})
            |var $fieldName ${fieldScalaObj.getGoType}
@@ -99,36 +99,36 @@ trait ResourceGeneratorHelper {
            |}
            |""".stripMargin
 
-      case _: ScalaSwaggerRefObject =>
+      case _: OpenApiRefObject =>
         val funcName = getResourceDataToStructFuncName(fieldScalaObj.getType)
         s"""$fieldName := $funcName(d.Get("$fieldSchemaName"))"""
 
-      case _: ScalaSwaggerObject =>
+      case _: OpenApiObject =>
         s""""""
     }
   }
 
 
   /**
-   * For a given ScalaSwaggerObject object, finds out all non-primitive objects in it and
+   * For a given OpenApiObject object, finds out all non-primitive objects in it and
    * all of it's descendants by recursively traversing the object.
    *
-   * @param obj Top level ScalaSwaggerObject to start iteration from.
+   * @param obj Top level OpenApiObject to start iteration from.
    * @return All non-primitive objects in 'obj' arg and descendants.
    */
-  def getAllRefObjects(obj: ScalaSwaggerObject): List[ScalaSwaggerRefObject] = {
+  def getAllRefObjects(obj: OpenApiObject): List[OpenApiRefObject] = {
     obj match {
-      case refObject: ScalaSwaggerRefObject =>
+      case refObject: OpenApiRefObject =>
         val converters = obj.getType.props.flatMap { prop =>
           getAllRefObjects(prop)
         }
         List(refObject) ++ converters
 
-      case arrObject: ScalaSwaggerArrayObject if arrObject.getType.props.nonEmpty =>
-        // FIXME: Create ScalaSwaggerRefObject from prop for item contained with in array.
-        //  This is a hacky solution. ScalaSwaggerArrayObject should have a data member of
-        //  ScalaSwaggerObject type to capture item object.
-        val itemObject = ScalaSwaggerRefObject(
+      case arrObject: OpenApiArrayObject if arrObject.getType.props.nonEmpty =>
+        // FIXME: Create OpenApiRefObject from prop for item contained with in array.
+        //  This is a hacky solution. OpenApiArrayObject should have a data member of
+        //  OpenApiObject type to capture item object.
+        val itemObject = OpenApiRefObject(
           StringUtils.camelize(arrObject.getType.name, true),
           arrObject.getType,
           arrObject.getRequired,
@@ -143,7 +143,7 @@ trait ResourceGeneratorHelper {
         getAllRefObjects(itemObject)
 
       case _ =>
-        List.empty[ScalaSwaggerRefObject]
+        List.empty[OpenApiRefObject]
     }
   }
 
@@ -158,12 +158,12 @@ trait ResourceGeneratorHelper {
    * @param goMapObject Name of ResourceData map that contains the value of the field.
    * @return Go code to set field to its value.
    */
-  def extractFieldFromMap(fieldScalaObj: ScalaSwaggerObject, goObjectName: String, goMapObject: String): String = {
+  def extractFieldFromMap(fieldScalaObj: OpenApiObject, goObjectName: String, goMapObject: String): String = {
     val fieldName = StringUtils.camelize(fieldScalaObj.getName)
     val fieldSchemaName = StringUtils.underscore(fieldScalaObj.getName)
 
     fieldScalaObj match {
-      case _: ScalaSwaggerArrayObject =>
+      case _: OpenApiArrayObject =>
         // TODO add a better way to figure out non-primitive types in case of container objects
         val fieldValue = if (fieldScalaObj.getType.props.nonEmpty) {
           // array of non-primitive type
@@ -184,11 +184,11 @@ trait ResourceGeneratorHelper {
            |$goObjectName.$fieldName = $fieldVar
            |""".stripMargin
 
-      case _: ScalaSwaggerRefObject =>
+      case _: OpenApiRefObject =>
         val funcName = getResourceDataToStructFuncName(fieldScalaObj.getType)
         s"""$goObjectName.$fieldName = $funcName($goMapObject["$fieldSchemaName"])"""
 
-      case _: ScalaSwaggerObject =>
+      case _: OpenApiObject =>
         s"""$goObjectName.$fieldName = $goMapObject["$fieldSchemaName"].(${fieldScalaObj.getGoType})"""
     }
   }
@@ -212,10 +212,10 @@ trait ResourceGeneratorHelper {
    *    return lookupTableField
    * }
    *
-   * @param obj ScalaSwaggerRefObject to extract from ResourceData object.
+   * @param obj OpenApiRefObject to extract from ResourceData object.
    * @return Go code of converter method.
    */
-  def getRefObjectConverter(obj: ScalaSwaggerRefObject): String = {
+  def getRefObjectConverter(obj: OpenApiRefObject): String = {
     val funcName = getResourceDataToStructFuncName(obj.getType)
     val returnType = obj.getType.name
 
@@ -277,10 +277,10 @@ trait ResourceGeneratorHelper {
    * }
    *
    *
-   * @param objType ScalaSwaggerType object containing info about object to convert to.
+   * @param objType OpenApiType object containing info about object to convert to.
    * @return Go code of resourceTo<Obj> method.
    */
-  def getTerraformResourceDataToObjectConverter(objType: ScalaSwaggerType): String = {
+  def getTerraformResourceDataToObjectConverter(objType: OpenApiType): String = {
     val returnType = objType.name
     val funcName = getResourceDataToStructFuncName(objType)
 
