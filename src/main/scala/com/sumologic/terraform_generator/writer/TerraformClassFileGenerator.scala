@@ -1,12 +1,12 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerEndpoint, ScalaSwaggerTemplate, ScalaSwaggerType, TerraformSupportedParameterTypes}
+import com.sumologic.terraform_generator.objects.{OpenApiEndpoint, TerraformResource, OpenApiType, TerraformSupportedParameterTypes}
 
-case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
-  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
+case class TerraformClassFileGenerator(terraform: TerraformResource)
+  extends TerraformFileGeneratorBase(terraform: TerraformResource) {
 
   def generate(): String = {
-    val typesUsed: Set[ScalaSwaggerType] = terraform.getAllTypesUsed
+    val typesUsed: Set[OpenApiType] = terraform.getAllTypesUsed
 
     val fileHeader = s"""
          |// ----------------------------------------------------------------------------
@@ -28,21 +28,21 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
          |)
          |""".stripMargin
 
-    val endpoints = terraform.supportedEndpoints.map {
-      endpoint: ScalaSwaggerEndpoint =>
+    val endpoints = terraform.endpoints.map {
+      endpoint: OpenApiEndpoint =>
         val bodyParams = endpoint.parameters.filter {
           _.paramType == TerraformSupportedParameterTypes.BodyParameter
         }
 
         if (bodyParams.size > 1 || endpoint.responses.filterNot(_.respTypeName.toLowerCase == "default").size > 1) {
           val paramsToExclude = bodyParams.filterNot {
-            _.param.getName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase
+            _.param.getName.toLowerCase == terraform.resourceName.toLowerCase
           }
 
           val filteredEndpoint = endpoint.copy(
             parameters = endpoint.parameters diff paramsToExclude,
             responses = endpoint.responses.filter {
-              _.respTypeName.toLowerCase == terraform.sumoSwaggerClassName.toLowerCase
+              _.respTypeName.toLowerCase == terraform.resourceName.toLowerCase
             }
           )
           filteredEndpoint.terraformify(terraform)
@@ -52,7 +52,7 @@ case class TerraformClassFileGenerator(terraform: ScalaSwaggerTemplate)
     }.mkString("\n")
 
     val types = typesUsed.map {
-      sType: ScalaSwaggerType =>
+      sType: OpenApiType =>
         sType.terraformify(terraform)
     }.mkString("\n")
 

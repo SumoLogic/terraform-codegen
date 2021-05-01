@@ -46,8 +46,8 @@ object TerraformSchemaTypes {
   final val TypeList = "schema.TypeList"
   final val TypeSet = "schema.TypeSet"
 
-  def swaggerTypeToTerraformSchemaType(swaggerType: String): String = {
-    swaggerType match {
+  def openApiTypeToTerraformSchemaType(openApiType: String): String = {
+    openApiType match {
       case "string" => TypeString
       case "int" => TypeInt
       case "bool" => TypeBool
@@ -58,19 +58,19 @@ object TerraformSchemaTypes {
     }
   }
 
-  def swaggerTypeToGoType(swaggerType: String): String = {
-    swaggerType match {
+  def openApiTypeToGoType(openApiType: String): String = {
+    openApiType match {
       case "boolean" => "bool"
       case "object" => "map[string]string"
       case "integer" => "int"
-      // TODO eventually we want to replace this method with ScalaSwaggerObject.getGoType
+      // TODO eventually we want to replace this method with OpenApiObject.getGoType
       case "array" => throw new RuntimeException("Should not be called for array objects")
-      case _ => swaggerType
+      case _ => openApiType
     }
   }
 
-  def swaggerTypeToPlaceholder(swaggerType: String): String = {
-    swaggerType match {
+  def openApiTypeToPlaceholder(openApiType: String): String = {
+    openApiType match {
       case "bool" => "%t"
       case "array" => "%v"
       case "int" => "%d"

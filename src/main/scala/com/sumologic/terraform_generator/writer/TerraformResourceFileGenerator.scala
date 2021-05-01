@@ -3,8 +3,8 @@ package com.sumologic.terraform_generator.writer
 import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
 import com.sumologic.terraform_generator.objects._
 
-case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
-  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate)
+case class TerraformResourceFileGenerator(terraform: TerraformResource)
+  extends TerraformFileGeneratorBase(terraform: TerraformResource)
     with ResourceGeneratorHelper {
 
   def generate(): String = {
@@ -38,8 +38,8 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
 
     val mappingSchema = terraform.getResourceFuncMappings
 
-    val ops: String = terraform.supportedEndpoints.map {
-      endpoint: ScalaSwaggerEndpoint =>
+    val ops: String = terraform.endpoints.map {
+      endpoint: OpenApiEndpoint =>
         val gen = ResourceFunctionGenerator(endpoint, terraform.getMainObjectClass)
         gen.terraformify(terraform)
     }.mkString("\n")
@@ -51,9 +51,9 @@ case class TerraformResourceFileGenerator(terraform: ScalaSwaggerTemplate)
 }
 
 
-// FIXME: This class should not extend ScalaTerraformEntity as it doesn't make any sense.
-case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: ScalaSwaggerType)
-    extends ScalaTerraformEntity {
+// FIXME: This class should not extend TerraformEntity as it doesn't make any sense.
+case class ResourceFunctionGenerator(endpoint: OpenApiEndpoint, mainClass: OpenApiType)
+    extends TerraformEntity {
 
   val className: String = mainClass.name
   val objName: String = lowerCaseFirstLetter(className)
@@ -69,7 +69,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
         param.contains(TerraformSupportedParameterTypes.HeaderParameter)
   }
 
-  val modelInResponse: Option[ScalaSwaggerResponse] = endpoint.responses.find {
+  val modelInResponse: Option[OpenApiResponse] = endpoint.responses.find {
     response =>
       if (response.respTypeOpt.isDefined) {
         response.respTypeOpt.get.name.toLowerCase.contains(objName.toLowerCase)
@@ -77,7 +77,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
         false
       }
   }
-  val modelInParam: Option[ScalaSwaggerParameter] = endpoint.parameters.find {
+  val modelInParam: Option[OpenApiParameter] = endpoint.parameters.find {
     parameter =>
       parameter.param.getName.toLowerCase.contains(objName.toLowerCase)
   }
@@ -101,7 +101,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   // TODO: This is gross, generalize if possible
   def generateResourceFunctionGET(): String = {
     val setters = mainClass.props.filter(_.getName.toLowerCase != "id").map {
-      prop: ScalaSwaggerObject =>
+      prop: OpenApiObject =>
         val name = prop.getName
         s"""d.Set("${removeCamelCase(name)}", $objName.${name.capitalize})""".stripMargin
     }.mkString("\n    ")
@@ -232,7 +232,7 @@ case class ResourceFunctionGenerator(endpoint: ScalaSwaggerEndpoint, mainClass: 
   }
 
   // TODO: This is gross, generalize if possible
-  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
+  override def terraformify(baseTemplate: TerraformResource): String = {
 
     crud.find {
       op =>

@@ -1,9 +1,9 @@
 package com.sumologic.terraform_generator.objects
 
-case class ScalaSwaggerType(name: String, props: List[ScalaSwaggerObject] = List[ScalaSwaggerObject]())
-  extends ScalaTerraformEntity {
+case class OpenApiType(name: String, props: List[OpenApiObject] = List[OpenApiObject]())
+  extends TerraformEntity {
 
-  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
+  override def terraformify(baseTemplate: TerraformResource): String = {
     if (props.isEmpty) {
       ""
     } else {
@@ -12,7 +12,7 @@ case class ScalaSwaggerType(name: String, props: List[ScalaSwaggerObject] = List
     }
   }
 
-  def getAsTerraformSchemaType(baseTemplate: ScalaSwaggerTemplate): String = {
+  def getAsTerraformSchemaType(baseTemplate: TerraformResource): String = {
     if (props.isEmpty) {
       ""
     } else {
@@ -27,6 +27,6 @@ case class ScalaSwaggerType(name: String, props: List[ScalaSwaggerObject] = List
 
   override def toString = {
     val propNames = props.map(_.getName)
-    s"ScalaSwaggerType(name=$name, props=$propNames)"
+    s"OpenApiType(name=$name, props=$propNames)"
   }
 }

@@ -1,12 +1,12 @@
 package com.sumologic.terraform_generator.objects
 
-case class ScalaSwaggerEndpoint(endpointName: String,
-                                path: String,
-                                httpMethod: String,
-                                parameters: List[ScalaSwaggerParameter],
-                                responses: List[ScalaSwaggerResponse])
-  extends ScalaTerraformEntity
-    with SumoSwaggerEndpointHelper {
+case class OpenApiEndpoint(endpointName: String,
+                           path: String,
+                           httpMethod: String,
+                           parameters: List[OpenApiParameter],
+                           responses: List[OpenApiResponse])
+  extends TerraformEntity
+    with OpenApiEndpointUtil {
 
   case class ResponseProps(declReturnType: String,
                            httpClientReturnType: String,
@@ -242,7 +242,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     reqHeaders
   }
 
-  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
+  override def terraformify(baseTemplate: TerraformResource): String = {
     val urlWithoutParamsString =
       s"""urlWithoutParams := "${path.replaceFirst(s"\\{id\\}", "%s")}"""".replaceFirst("/", "")
 
@@ -259,7 +259,7 @@ case class ScalaSwaggerEndpoint(endpointName: String,
     val urlCall = getUrlCallBasedOnHttpMethod(urlArg)
 
     val response = getReturnTypesBasedOnResponse
-    val args = makeArgsListForDecl(this.parameters, baseTemplate.sumoSwaggerClassName)
+    val args = makeArgsListForDecl(this.parameters, baseTemplate.resourceName)
 
     s"""
        |func (s *Client) ${this.endpointName.capitalize}($args) ${response.declReturnType} {

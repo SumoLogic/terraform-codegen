@@ -2,24 +2,24 @@ package com.sumologic.terraform_generator.objects
 
 import org.openapitools.codegen.utils.StringUtils
 
-abstract class ScalaSwaggerObject(name: String,
-                                  objType: ScalaSwaggerType,
-                                  required: Boolean,
-                                  defaultOpt: Option[AnyRef],
-                                  description: String,
-                                  example: String = "",
-                                  pattern: String = "",
-                                  format: String = "",
-                                  attribute: String = "",
-                                  createOnly: Boolean = false) extends ScalaTerraformEntity {
+abstract class OpenApiObject(name: String,
+                             objType: OpenApiType,
+                             required: Boolean,
+                             defaultOpt: Option[AnyRef],
+                             description: String,
+                             example: String = "",
+                             pattern: String = "",
+                             format: String = "",
+                             attribute: String = "",
+                             createOnly: Boolean = false) extends TerraformEntity {
 
   // TODO Assumption of NO collision without namespaces is probably wrong - should fix
-  def getAllTypes: List[ScalaSwaggerType] = {
+  def getAllTypes: List[OpenApiType] = {
     List(objType) ++ objType.props.flatMap(_.getAllTypes)
   }
 
   def getName: String = { name }
-  def getType: ScalaSwaggerType = { objType }
+  def getType: OpenApiType = { objType }
   def getRequired: Boolean = { required }
   def getDescription: String = { description }
   def getExample: String = { example }
@@ -36,10 +36,10 @@ abstract class ScalaSwaggerObject(name: String,
   def getTerraformElementSchema: String
 
   def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
-    val schemaType = if (this.isInstanceOf[ScalaSwaggerArrayObject]) {
-      TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
+    val schemaType = if (this.isInstanceOf[OpenApiArrayObject]) {
+      TerraformSchemaTypes.openApiTypeToTerraformSchemaType("array")
     } else {
-      TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)
+      TerraformSchemaTypes.openApiTypeToTerraformSchemaType(objType.name)
     }
 
     val requiredTxt = if (required) { // TODO: check why Frank did it this way
@@ -63,23 +63,23 @@ abstract class ScalaSwaggerObject(name: String,
       }
     }
 
-    val validationAndDiffSuppress = if (!this.isInstanceOf[ScalaSwaggerArrayObject] && this.getType.props.nonEmpty) {
+    val validationAndDiffSuppress = if (!this.isInstanceOf[OpenApiArrayObject] && this.getType.props.nonEmpty) {
       """ValidateFunc:     validation.StringIsJSON,
         |				DiffSuppressFunc: suppressEquivalentJsonDiffs,""".stripMargin
     } else {
       ""
     }
 
-    val elementType = if (this.isInstanceOf[ScalaSwaggerArrayObject]) {
+    val elementType = if (this.isInstanceOf[OpenApiArrayObject]) {
       if (this.getType.props.nonEmpty) {
         s"""Elem:  &schema.Schema{
-           |            Type: ${TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)},
+           |            Type: ${TerraformSchemaTypes.openApiTypeToTerraformSchemaType(objType.name)},
            |            ValidateFunc:     validation.StringIsJSON,
            |				    DiffSuppressFunc: suppressEquivalentJsonDiffs,
            |           },""".stripMargin
       } else {
         s"""Elem:  &schema.Schema{
-           |            Type: ${TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)},
+           |            Type: ${TerraformSchemaTypes.openApiTypeToTerraformSchemaType(objType.name)},
            |           },""".stripMargin
       }
     } else {
@@ -99,18 +99,18 @@ abstract class ScalaSwaggerObject(name: String,
 }
 
 
-case class ScalaSwaggerSimpleObject(name: String,
-                                    objType: ScalaSwaggerType,
-                                    required: Boolean,
-                                    defaultOpt: Option[AnyRef],
-                                    description: String,
-                                    example: String = "",
-                                    pattern: String = "",
-                                    format: String = "",
-                                    attribute: String = "",
-                                    createOnly: Boolean = false) extends
-  ScalaSwaggerObject(name: String,
-    objType: ScalaSwaggerType,
+case class OpenApiSimpleObject(name: String,
+                               objType: OpenApiType,
+                               required: Boolean,
+                               defaultOpt: Option[AnyRef],
+                               description: String,
+                               example: String = "",
+                               pattern: String = "",
+                               format: String = "",
+                               attribute: String = "",
+                               createOnly: Boolean = false) extends
+  OpenApiObject(name: String,
+    objType: OpenApiType,
     required: Boolean,
     defaultOpt: Option[AnyRef],
     description,
@@ -120,7 +120,7 @@ case class ScalaSwaggerSimpleObject(name: String,
     attribute,
     createOnly) {
 
-  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
+  override def terraformify(baseTemplate: TerraformResource): String = {
     val req = if (name.toLowerCase != "id") {
       ""
     } else {
@@ -134,11 +134,11 @@ case class ScalaSwaggerSimpleObject(name: String,
   }
 
   override def getGoType: String = {
-    TerraformSchemaTypes.swaggerTypeToGoType(objType.name)
+    TerraformSchemaTypes.openApiTypeToGoType(objType.name)
   }
 
   override def getTerraformElementSchema: String = {
-    val itemType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType(objType.name)
+    val itemType = TerraformSchemaTypes.openApiTypeToTerraformSchemaType(objType.name)
     s"""Elem:  &schema.Schema{
        |    Type: $itemType,
        |},""".stripMargin
@@ -150,18 +150,18 @@ case class ScalaSwaggerSimpleObject(name: String,
 }
 
 
-case class ScalaSwaggerArrayObject(name: String,
-                                   objType: ScalaSwaggerType,
-                                   required: Boolean,
-                                   defaultOpt: Option[AnyRef],
-                                   description: String,
-                                   example: String = "",
-                                   pattern: String = "",
-                                   format: String = "",
-                                   attribute: String = "",
-                                   createOnly: Boolean = false) extends
-  ScalaSwaggerObject(name: String,
-    objType: ScalaSwaggerType,
+case class OpenApiArrayObject(name: String,
+                              objType: OpenApiType,
+                              required: Boolean,
+                              defaultOpt: Option[AnyRef],
+                              description: String,
+                              example: String = "",
+                              pattern: String = "",
+                              format: String = "",
+                              attribute: String = "",
+                              createOnly: Boolean = false) extends
+  OpenApiObject(name: String,
+    objType: OpenApiType,
     required: Boolean,
     defaultOpt: Option[AnyRef],
     description,
@@ -172,9 +172,9 @@ case class ScalaSwaggerArrayObject(name: String,
     createOnly) {
 
   // Captures the type of item contained with in the array object.
-  var items: ScalaSwaggerObject = _
+  var items: OpenApiObject = _
 
-  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
+  override def terraformify(baseTemplate: TerraformResource): String = {
     val req = if (required) {
       ""
     } else {
@@ -193,7 +193,7 @@ case class ScalaSwaggerArrayObject(name: String,
   }
 
   override def getTerraformElementSchema: String = {
-    val schemaType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
+    val schemaType = TerraformSchemaTypes.openApiTypeToTerraformSchemaType("array")
     val itemSchema = this.items.getTerraformElementSchema
     s"""Elem:  &schema.Schema{
        |    Type: $schemaType,
@@ -202,7 +202,7 @@ case class ScalaSwaggerArrayObject(name: String,
   }
 
   override def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
-    val schemaType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
+    val schemaType = TerraformSchemaTypes.openApiTypeToTerraformSchemaType("array")
 
     val requiredTxt = if (required) {
       "Required: true"
@@ -238,18 +238,18 @@ case class ScalaSwaggerArrayObject(name: String,
 }
 
 
-case class ScalaSwaggerRefObject(name: String,
-                                 objType: ScalaSwaggerType,
-                                 required: Boolean,
-                                 defaultOpt: Option[AnyRef],
-                                 description: String,
-                                 example: String = "",
-                                 pattern: String = "",
-                                 format: String = "",
-                                 attribute: String = "",
-                                 createOnly: Boolean = false) extends
-    ScalaSwaggerObject(name: String,
-      objType: ScalaSwaggerType,
+case class OpenApiRefObject(name: String,
+                            objType: OpenApiType,
+                            required: Boolean,
+                            defaultOpt: Option[AnyRef],
+                            description: String,
+                            example: String = "",
+                            pattern: String = "",
+                            format: String = "",
+                            attribute: String = "",
+                            createOnly: Boolean = false) extends
+    OpenApiObject(name: String,
+      objType: OpenApiType,
       required: Boolean,
       defaultOpt: Option[AnyRef],
       description,
@@ -280,7 +280,7 @@ case class ScalaSwaggerRefObject(name: String,
   }
 
   override def getAsTerraformSchemaType(forUseInDataResource: Boolean): String = {
-    val schemaType = TerraformSchemaTypes.swaggerTypeToTerraformSchemaType("array")
+    val schemaType = TerraformSchemaTypes.openApiTypeToTerraformSchemaType("array")
 
     val requiredTxt = if (required) {
       "Required: true"
@@ -329,7 +329,7 @@ case class ScalaSwaggerRefObject(name: String,
        |}""".stripMargin
   }
 
-  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
+  override def terraformify(baseTemplate: TerraformResource): String = {
     val req = if (required) {
       ""
     } else {

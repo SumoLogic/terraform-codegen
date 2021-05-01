@@ -3,7 +3,7 @@ package com.sumologic.terraform_generator
 import java.io.{BufferedWriter, File, FileWriter}
 import java.nio.file.{Files, Paths}
 
-import com.sumologic.terraform_generator.objects.ScalaSwaggerTemplate
+import com.sumologic.terraform_generator.objects.TerraformResource
 import com.sumologic.terraform_generator.utils.{Logging, OpenApiProcessor}
 import com.sumologic.terraform_generator.writer._
 import io.swagger.parser.OpenAPIParser
@@ -33,8 +33,8 @@ object TerraformGenerator
     logger.info(s"Generating provider in '$resourcesDirectory' dir")
 
     try {
-      val swaggerParseResult = readYaml(yamlFile)
-      generate(swaggerParseResult.getOpenAPI)
+      val parseResult = readYaml(yamlFile)
+      generate(parseResult.getOpenAPI)
     } catch {
       case _: Exception => System.exit(1)
     }
@@ -67,12 +67,12 @@ object TerraformGenerator
       val templates = OpenApiProcessor.process(openApi)
       templates.foreach {
         template =>
-          logger.info(s"Resource: '${template.sumoSwaggerClassName}' - " +
-              s"${template.supportedEndpoints.head.responses.head}")
-          writeFiles(template, template.sumoSwaggerClassName)
+          logger.info(s"Resource: '${template.resourceName}' - " +
+              s"${template.endpoints.head.responses.head}")
+          writeFiles(template, template.resourceName)
       }
 
-      val provider = ProviderFileGenerator(templates.map(_.sumoSwaggerClassName))
+      val provider = ProviderFileGenerator(templates.map(_.resourceName))
       provider.writeToFile(Paths.get(resourcesDirectory, "provider.go").toString)
     } catch {
       case ex: Exception =>
@@ -81,19 +81,19 @@ object TerraformGenerator
     }
   }
 
-  def writeFiles(sumoSwaggerTemplate: ScalaSwaggerTemplate, baseType: String): Unit = {
-    val genSumoClass = TerraformClassFileGenerator(sumoSwaggerTemplate)
+  def writeFiles(terraformResource: TerraformResource, baseType: String): Unit = {
+    val genSumoClass = TerraformClassFileGenerator(terraformResource)
     val terraformTypeName = removeCamelCase(baseType)
 
     genSumoClass.writeToFile(Paths.get(resourcesDirectory, s"sumologic_$terraformTypeName.go").toString)
 
-    val genResource = TerraformResourceFileGenerator(sumoSwaggerTemplate)
+    val genResource = TerraformResourceFileGenerator(terraformResource)
     genResource.writeToFile(Paths.get(resourcesDirectory, s"resource_sumologic_$terraformTypeName.go").toString)
 
-    val genTest = AcceptanceTestFileGenerator(sumoSwaggerTemplate, baseType)
+    val genTest = AcceptanceTestFileGenerator(terraformResource, baseType)
     genTest.writeToFile(Paths.get(resourcesDirectory, s"resource_sumologic_${terraformTypeName}_test.go").toString)
 
-    val genDocs = TerraformDocsGenerator(sumoSwaggerTemplate, baseType)
+    val genDocs = TerraformDocsGenerator(terraformResource, baseType)
     genDocs.writeToFile(Paths.get(resourcesDirectory, s"$terraformTypeName.html.markdown").toString)
   }
 }

@@ -2,8 +2,8 @@ package com.sumologic.terraform_generator.writer
 
 import com.sumologic.terraform_generator.objects._
 
-case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClass: String)
-  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
+case class AcceptanceTestFileGenerator(terraform: TerraformResource, mainClass: String)
+  extends TerraformFileGeneratorBase(terraform: TerraformResource) {
 
   val functionGenerator = AcceptanceTestFunctionGenerator(
     terraform,
@@ -35,7 +35,7 @@ case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClas
                  |""".stripMargin
 
 
-    val endpoints = terraform.supportedEndpoints.filter { endpoint =>
+    val endpoints = terraform.endpoints.filter { endpoint =>
       endpoint.httpMethod.toLowerCase == "get"
     }
     assert(endpoints.size == 1, s"More than one Get endpoint? [$endpoints]")
@@ -59,12 +59,12 @@ case class AcceptanceTestFileGenerator(terraform: ScalaSwaggerTemplate, mainClas
   }
 }
 
-case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemplate, mainClass: ScalaSwaggerType)
+case class AcceptanceTestFunctionGenerator(terraformResource: TerraformResource, mainClass: OpenApiType)
     extends AcceptanceTestGeneratorHelper {
 
   val className = mainClass.name
   val objName = lowerCaseFirstLetter(className)
-  val resourceProps = sumoSwaggerTemplate.getAllTypesUsed.head
+  val resourceProps = terraformResource.getAllTypesUsed.head
 
   def generateTestFunctionCreateBasic(): String = {
     val setters = filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -122,7 +122,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
           case "array" =>
             s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(test${value}[0], "\\"", "", 2)),"""
           case _ =>
-            if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
+            if (prop.isInstanceOf[OpenApiArrayObject]) {
               s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(test${value}[0], "\\"", "", 2)),"""
             } else {
               s"""resource.TestCheckResourceAttr("$name", "$key", test${value}),"""
@@ -237,7 +237,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
           case "array" =>
             s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
           case _ =>
-            if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
+            if (prop.isInstanceOf[OpenApiArrayObject]) {
               s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
             } else {
               s"""resource.TestCheckResourceAttr("$name", "${key}", ${value}),"""
@@ -263,7 +263,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
           case "array" =>
             s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
           case _ =>
-            if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
+            if (prop.isInstanceOf[OpenApiArrayObject]) {
               s"""resource.TestCheckResourceAttr("$name", "${key}.0", strings.Replace(${value}[0], "\\"", "", 2)),"""
             } else {
               s"""resource.TestCheckResourceAttr("$name", "${key}", ${value}),"""
@@ -310,18 +310,18 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
         } else {
           prop.getName
         }
-        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
+        if (prop.isInstanceOf[OpenApiArrayObject]) {
           s"""${name} ${prop.getGoType}"""
         } else {
-          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
+          s"""${name} ${TerraformSchemaTypes.openApiTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
     }.mkString(", ")
     val terraformArgs = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
-          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
+        if (prop.isInstanceOf[OpenApiArrayObject]) {
+          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.openApiTypeToPlaceholder("array")}"""
         } else {
-          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
+          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.openApiTypeToPlaceholder(prop.getType.name)}"""
         }
     }.mkString("\n      ")
     val propList = filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -349,18 +349,18 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
         } else {
           prop.getName
         }
-        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
+        if (prop.isInstanceOf[OpenApiArrayObject]) {
           s"""${name} ${prop.getGoType}"""
         } else {
-          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
+          s"""${name} ${TerraformSchemaTypes.openApiTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
     }.mkString(", ")
     val terraformArgs = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
-          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
+        if (prop.isInstanceOf[OpenApiArrayObject]) {
+          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.openApiTypeToPlaceholder("array")}"""
         } else {
-          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
+          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.openApiTypeToPlaceholder(prop.getType.name)}"""
         }
     }.mkString("\n    ")
     val propList = filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -390,18 +390,18 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
         } else {
           prop.getName
         }
-        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
+        if (prop.isInstanceOf[OpenApiArrayObject]) {
           s"""${name} ${prop.getGoType}"""
         } else {
-          s"""${name} ${TerraformSchemaTypes.swaggerTypeToGoType(prop.getType.name.toLowerCase)}"""
+          s"""${name} ${TerraformSchemaTypes.openApiTypeToGoType(prop.getType.name.toLowerCase)}"""
         }
     }.mkString(", ")
     val terraformArgs = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (prop.isInstanceOf[ScalaSwaggerArrayObject]) {
-          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder("array")}"""
+        if (prop.isInstanceOf[OpenApiArrayObject]) {
+          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.openApiTypeToPlaceholder("array")}"""
         } else {
-          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.swaggerTypeToPlaceholder(prop.getType.name)}"""
+          s"""${removeCamelCase(prop.getName)} = ${TerraformSchemaTypes.openApiTypeToPlaceholder(prop.getType.name)}"""
         }
     }.mkString("\n      ")
     val propList = filterProps(resourceProps.props, List("id", "roleids")).map {
@@ -440,7 +440,7 @@ case class AcceptanceTestFunctionGenerator(sumoSwaggerTemplate: ScalaSwaggerTemp
        |}""".stripMargin
   }
 
-  private def filterProps(props: List[ScalaSwaggerObject], filterOut: List[String]): List[ScalaSwaggerObject] = {
+  private def filterProps(props: List[OpenApiObject], filterOut: List[String]): List[OpenApiObject] = {
     props.filterNot {
       prop => filterOut.contains(prop.getName.toLowerCase)
     }

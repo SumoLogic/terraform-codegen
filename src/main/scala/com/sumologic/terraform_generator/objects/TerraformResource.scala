@@ -2,20 +2,20 @@ package com.sumologic.terraform_generator.objects
 
 import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
 
-case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
-                                supportedEndpoints: List[ScalaSwaggerEndpoint]) extends ScalaTerraformEntity {
+case class TerraformResource(resourceName: String,
+                             endpoints: List[OpenApiEndpoint]) extends TerraformEntity {
 
-  def getAllTypesUsed: Set[ScalaSwaggerType] = {
-    // FIXME: There is only one tf resource. We should add it as class member of ScalaSwaggerTemplate instead of
+  def getAllTypesUsed: Set[OpenApiType] = {
+    // FIXME: There is only one tf resource. We should add it as class member of TerraformResource instead of
     //  traversing all endpoints.
-    val swaggerResponse = supportedEndpoints.flatMap { endpoint =>
+    val apiResponse = endpoints.flatMap { endpoint =>
       endpoint.responses.find { response =>
-        response.respTypeName == sumoSwaggerClassName
+        response.respTypeName == resourceName
       }
     }.head
-    assert(swaggerResponse.respTypeOpt.isDefined, s"ScalaSwaggerType missing for ${swaggerResponse.respTypeName}")
+    assert(apiResponse.respTypeOpt.isDefined, s"OpenApiType missing for ${apiResponse.respTypeName}")
 
-    val mainClassType = swaggerResponse.respTypeOpt.get
+    val mainClassType = apiResponse.respTypeOpt.get
 
     val otherTypes = mainClassType.props.filter {
       prop => prop.getType.props.nonEmpty
@@ -26,21 +26,21 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
 
   // FIXME: Get rid of this method. There is only one terraform resource and we already know about that.
   //  Don't look at create and update request response models, instead make resource a data member of
-  //  ScalaSwaggerTemplate class.
-  def getUpdateAndCreateRequestBodyType: List[ScalaSwaggerType] = {
-    val endpoints = supportedEndpoints.filter { op: ScalaSwaggerEndpoint =>
-      op.endpointName.equalsIgnoreCase(TerraformSupportedOperations.UPDATE + sumoSwaggerClassName) ||
-        op.endpointName.equalsIgnoreCase(TerraformSupportedOperations.CREATE + sumoSwaggerClassName) ||
-        op.responses.map(_.respTypeName).contains(sumoSwaggerClassName)
+  //  TerraformResource class.
+  def getUpdateAndCreateRequestBodyType: List[OpenApiType] = {
+    val apiEndpoints = endpoints.filter { op: OpenApiEndpoint =>
+      op.endpointName.equalsIgnoreCase(TerraformSupportedOperations.UPDATE + resourceName) ||
+        op.endpointName.equalsIgnoreCase(TerraformSupportedOperations.CREATE + resourceName) ||
+        op.responses.map(_.respTypeName).contains(resourceName)
     }
 
-    val types = endpoints.flatMap { endpoint =>
+    val types = apiEndpoints.flatMap { endpoint =>
       val filteredParams = endpoint.parameters.filter(_.paramType == TerraformSupportedParameterTypes.BodyParameter)
       filteredParams.flatMap(_.param.getAllTypes) ++
           endpoint.responses.filter(_.respTypeOpt.isDefined).map(_.respTypeOpt.get)
     }
 
-    types.filter(_.name.toUpperCase.equals(sumoSwaggerClassName.toUpperCase())).distinct
+    types.filter(_.name.toUpperCase.equals(resourceName.toUpperCase())).distinct
   }
 
   def getDataSourceFuncMappings: String = {
@@ -50,11 +50,11 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     val mainClass = getMainObjectClass
 
     val mainClassProps = mainClass.props.map {
-      obj: ScalaSwaggerObject =>
+      obj: OpenApiObject =>
         obj.getAsTerraformSchemaType(true)
     }.mkString(",\n").concat(",")
 
-    s"""func dataSourceSumologic$sumoSwaggerClassName() *schema.Resource {
+    s"""func dataSourceSumologic$resourceName() *schema.Resource {
        |    return &schema.Resource{
        |        $funcMappings
        |        Schema: map[string]*schema.Schema{
@@ -68,9 +68,9 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
   def getFunctionName(opName: String, prefix: String): String = {
     val camelOp = opName.substring(0, 1).toUpperCase() + opName.substring(1)
     if (camelOp == "Get") {
-      s"$prefix${sumoSwaggerClassName.capitalize}Read"
+      s"$prefix${resourceName.capitalize}Read"
     } else {
-      s"$prefix${sumoSwaggerClassName.capitalize}$camelOp"
+      s"$prefix${resourceName.capitalize}$camelOp"
     }
   }
 
@@ -86,12 +86,12 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
     }
   }
 
-  def getMainObjectClass: ScalaSwaggerType = {
-    val typesUsed: Set[ScalaSwaggerType] = getAllTypesUsed
+  def getMainObjectClass: OpenApiType = {
+    val typesUsed: Set[OpenApiType] = getAllTypesUsed
 
     typesUsed.find {
-      t => t.name.toUpperCase == sumoSwaggerClassName.toUpperCase() ||
-           t.name.toUpperCase.contains(sumoSwaggerClassName.toUpperCase)
+      t => t.name.toUpperCase == resourceName.toUpperCase() ||
+           t.name.toUpperCase.contains(resourceName.toUpperCase)
     }.getOrElse {
       throw new RuntimeException("No Main Class. This should not happen in getMainObjectClass ")
     }
@@ -111,13 +111,13 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
       }
     }.toSet
 
-    val propsObjects = classesProps.map { swaggerObject =>
-      swaggerObject.getAsTerraformSchemaType(false)
+    val propsObjects = classesProps.map { openApiObject =>
+      openApiObject.getAsTerraformSchemaType(false)
     }.toList.toSet.mkString(",\n").concat(",")
 
     // Only supporting query params for now. Assuming path parameters in CRUD endpoints will only be id.
     // Not supporting header parameters yet.
-    val requestMaps = supportedEndpoints.filter { endpoint =>
+    val requestMaps = endpoints.filter { endpoint =>
       val paramTypes = endpoint.parameters.map(_.paramType)
       paramTypes.exists { x =>
         x == TerraformSupportedParameterTypes.QueryParameter || x == TerraformSupportedParameterTypes.HeaderParameter
@@ -141,7 +141,7 @@ case class ScalaSwaggerTemplate(sumoSwaggerClassName: String,
       ""
     }
 
-    s"""func resourceSumologic${sumoSwaggerClassName.capitalize}() *schema.Resource {
+    s"""func resourceSumologic${resourceName.capitalize}() *schema.Resource {
        |    return &schema.Resource{
        |        $funcMappings
        |        Importer: &schema.ResourceImporter{

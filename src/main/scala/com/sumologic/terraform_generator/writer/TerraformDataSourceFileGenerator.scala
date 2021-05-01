@@ -1,9 +1,9 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.{ScalaSwaggerTemplate, ScalaSwaggerType, ScalaTerraformEntity}
+import com.sumologic.terraform_generator.objects.{TerraformResource, OpenApiType, TerraformEntity}
 
-case class TerraformDataSourceFileGenerator(terraform: ScalaSwaggerTemplate)
-  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate)
+case class TerraformDataSourceFileGenerator(terraform: TerraformResource)
+  extends TerraformFileGeneratorBase(terraform: TerraformResource)
     with DataSourceGeneratorHelper {
 
   def generate(): String = {
@@ -36,16 +36,16 @@ case class TerraformDataSourceFileGenerator(terraform: ScalaSwaggerTemplate)
 }
 
 
-// FIXME: This class should not extend ScalaTerraformEntity as it doesn't make any sense.
-case class DataSourceFunctionGenerator(mainClass: ScalaSwaggerType)
-  extends ScalaTerraformEntity
+// FIXME: This class should not extend TerraformEntity as it doesn't make any sense.
+case class DataSourceFunctionGenerator(mainClass: OpenApiType)
+  extends TerraformEntity
     with DataSourceGeneratorHelper {
 
   def getTerraformDataResourceSetters(propName: String, objName: String): String = {
     s"""resourceData.Set("$propName", $objName.$propName)""".stripMargin
   }
 
-  override def terraformify(baseTemplate: ScalaSwaggerTemplate): String = {
+  override def terraformify(baseTemplate: TerraformResource): String = {
     val className = mainClass.name
     val objName = lowerCaseFirstLetter(className)
 

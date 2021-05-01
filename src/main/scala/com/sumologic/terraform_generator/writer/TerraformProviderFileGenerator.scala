@@ -1,9 +1,9 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.ScalaSwaggerTemplate
+import com.sumologic.terraform_generator.objects.TerraformResource
 
-case class TerraformProviderFileGenerator(terraform: ScalaSwaggerTemplate)
-  extends TerraformFileGeneratorBase(terraform: ScalaSwaggerTemplate) {
+case class TerraformProviderFileGenerator(terraform: TerraformResource)
+  extends TerraformFileGeneratorBase(terraform: TerraformResource) {
   def generate(): String = {
     val pre = """// ----------------------------------------------------------------------------
                 |//
