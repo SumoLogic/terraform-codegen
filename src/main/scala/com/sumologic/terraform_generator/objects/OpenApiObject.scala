@@ -43,29 +43,31 @@ abstract class OpenApiObject(name: String,
     }
 
     val requiredTxt = if (required) { // TODO: check why Frank did it this way
-      "Required: true"
+      "Required: true,"
     } else {
-      "Optional: true"
+      "Optional: true,"
     }
 
     val specifics = if (forUseInDataResource) {
-      "Computed: true"
+      "Computed: true,"
     } else {
       defaultOpt match { // This probably won't work for composite types
         case Some(defaultValue) => if (objType.name == "string") {
           s"""ForceNew: false,
-            |Default: "${defaultValue.toString}"""".stripMargin
+             |Default: "${defaultValue.toString}",
+             |""".stripMargin
         } else {
-          s"""ForceNew: false,
-             |Default: ${defaultValue.toString}""".stripMargin
+          // FIXME Need to handle default values of other type
+          ""
         }
-        case None => "ForceNew: false"
+        case None => ""
       }
     }
 
     val validationAndDiffSuppress = if (!this.isInstanceOf[OpenApiArrayObject] && this.getType.props.nonEmpty) {
-      """ValidateFunc:     validation.StringIsJSON,
-        |				DiffSuppressFunc: suppressEquivalentJsonDiffs,""".stripMargin
+      """ValidateFunc: validation.StringIsJSON,
+        |DiffSuppressFunc: suppressEquivalentJsonDiffs,
+        |""".stripMargin
     } else {
       ""
     }
@@ -73,14 +75,14 @@ abstract class OpenApiObject(name: String,
     val elementType = if (this.isInstanceOf[OpenApiArrayObject]) {
       if (this.getType.props.nonEmpty) {
         s"""Elem:  &schema.Schema{
-           |            Type: ${TerraformSchemaTypes.openApiTypeToTerraformSchemaType(objType.name)},
-           |            ValidateFunc:     validation.StringIsJSON,
-           |				    DiffSuppressFunc: suppressEquivalentJsonDiffs,
-           |           },""".stripMargin
+           |  Type: ${TerraformSchemaTypes.openApiTypeToTerraformSchemaType(objType.name)},
+           |  ValidateFunc:     validation.StringIsJSON,
+           |	DiffSuppressFunc: suppressEquivalentJsonDiffs,
+           |},""".stripMargin
       } else {
         s"""Elem:  &schema.Schema{
-           |            Type: ${TerraformSchemaTypes.openApiTypeToTerraformSchemaType(objType.name)},
-           |           },""".stripMargin
+           |  Type: ${TerraformSchemaTypes.openApiTypeToTerraformSchemaType(objType.name)},
+           |},""".stripMargin
       }
     } else {
       ""
@@ -90,8 +92,8 @@ abstract class OpenApiObject(name: String,
     s"""
        |"$schemaFieldName": {
        |    Type: $schemaType,
-       |    $requiredTxt,
-       |    $specifics,
+       |    $requiredTxt
+       |    $specifics
        |    $validationAndDiffSuppress
        |    $elementType
        |}""".stripMargin
