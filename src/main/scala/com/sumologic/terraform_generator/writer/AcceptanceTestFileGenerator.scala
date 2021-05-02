@@ -36,7 +36,7 @@ case class AcceptanceTestFileGenerator(terraform: TerraformResource, mainClass: 
 
 
     val endpoints = terraform.endpoints.filter { endpoint =>
-      endpoint.httpMethod.toLowerCase == "get"
+      endpoint.endpointType == TerraformPathExtensions.Read
     }
     assert(endpoints.size == 1, s"More than one Get endpoint? [$endpoints]")
 
@@ -305,7 +305,7 @@ case class AcceptanceTestFunctionGenerator(terraformResource: TerraformResource,
   def generateTestImportFunction(): String = {
     val propArgs = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        val name = if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+        val name = if (ForbiddenGoTerms.Forbidden.contains(prop.getName.toLowerCase)) {
           prop.getName + "_field"
         } else {
           prop.getName
@@ -326,7 +326,7 @@ case class AcceptanceTestFunctionGenerator(terraformResource: TerraformResource,
     }.mkString("\n      ")
     val propList = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+        if (ForbiddenGoTerms.Forbidden.contains(prop.getName.toLowerCase)) {
           prop.getName + "_field"
         } else {
           prop.getName
@@ -344,7 +344,7 @@ case class AcceptanceTestFunctionGenerator(terraformResource: TerraformResource,
   def generateTestCreateResource(): String = {
     val propArgs = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        val name = if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+        val name = if (ForbiddenGoTerms.Forbidden.contains(prop.getName.toLowerCase)) {
           prop.getName + "_field"
         } else {
           prop.getName
@@ -365,7 +365,7 @@ case class AcceptanceTestFunctionGenerator(terraformResource: TerraformResource,
     }.mkString("\n    ")
     val propList = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+        if (ForbiddenGoTerms.Forbidden.contains(prop.getName.toLowerCase)) {
           prop.getName + "_field"
         } else {
           prop.getName
@@ -385,7 +385,7 @@ case class AcceptanceTestFunctionGenerator(terraformResource: TerraformResource,
   def generateTestUpdateResource(): String = {
     val propArgs = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        val name = if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+        val name = if (ForbiddenGoTerms.Forbidden.contains(prop.getName.toLowerCase)) {
           prop.getName + "_field"
         } else {
           prop.getName
@@ -406,7 +406,7 @@ case class AcceptanceTestFunctionGenerator(terraformResource: TerraformResource,
     }.mkString("\n      ")
     val propList = filterProps(resourceProps.props, List("id", "roleids")).map {
       prop =>
-        if (ForbiddenGoTerms.forbidden.contains(prop.getName.toLowerCase)) {
+        if (ForbiddenGoTerms.Forbidden.contains(prop.getName.toLowerCase)) {
           prop.getName + "_field"
         } else {
           prop.getName

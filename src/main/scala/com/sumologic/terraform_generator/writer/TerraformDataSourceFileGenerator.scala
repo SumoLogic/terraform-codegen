@@ -28,10 +28,10 @@ case class TerraformDataSourceFileGenerator(terraform: TerraformResource)
                 |)
                 |""".stripMargin
 
-    val dataSourceFunction = DataSourceFunctionGenerator(terraform.getMainObjectClass)
+    val dataSourceFunction = DataSourceFunctionGenerator(terraform.getResourceType)
     pre + terraform.getDataSourceFuncMappings +
       dataSourceFunction.terraformify(terraform) +
-      getTerraformObjectToResourceDataConverter(terraform.getMainObjectClass)
+      getTerraformObjectToResourceDataConverter(terraform.getResourceType)
   }
 }
 
@@ -45,7 +45,7 @@ case class DataSourceFunctionGenerator(mainClass: OpenApiType)
     s"""resourceData.Set("$propName", $objName.$propName)""".stripMargin
   }
 
-  override def terraformify(baseTemplate: TerraformResource): String = {
+  override def terraformify(resource: TerraformResource): String = {
     val className = mainClass.name
     val objName = lowerCaseFirstLetter(className)
 

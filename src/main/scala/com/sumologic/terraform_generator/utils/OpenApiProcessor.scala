@@ -259,7 +259,7 @@ object OpenApiProcessor extends ProcessorHelper
     val isWriteOnly = isPropertyWriteOnly(openApi, propName, modelName)
 
     val (name, attribute) = getNameAndAttribute(propName)
-    if (attribute.nonEmpty && !TerraformPropertyAttributes.attributesList.contains(attribute)) {
+    if (attribute.nonEmpty && !TerraformPropertyAttributes.AttributesList.contains(attribute)) {
       throw new RuntimeException(s"Invalid attribute for property: $name")
     }
 
@@ -345,9 +345,12 @@ object OpenApiProcessor extends ProcessorHelper
     }
 
     val allParams = params ++ requestBody
-    val endpointName = operation.getExtensions.asScala.head._2.toString
     logger.debug(s"Operation: ${operation.getOperationId} - params=$allParams, responses=$responses")
-    OpenApiEndpoint(endpointName, pathName, method.name(), allParams, responses)
+    // NOTE: This assumes we only have terraform related extension
+    val endpointName = operation.getExtensions.asScala.head._2.toString
+    val endpointType = operation.getExtensions.asScala.head._1
+    assert(endpointType.startsWith("x-tf"), s"Operation ${operation.getOperationId} has more than one extension")
+    OpenApiEndpoint(endpointName, endpointType, pathName, method.name(), allParams, responses)
   }
 
   def processPath(openApi: OpenAPI, path: PathItem, pathName: String): List[OpenApiEndpoint] = {
@@ -382,6 +385,7 @@ object OpenApiProcessor extends ProcessorHelper
 
     val tagToPathMap = groupPathsByTag(terraformPaths)
 
+    val taggedComponents = getTaggedComponents(openApi).keys.toSet
     val resources = tagToPathMap.flatMap {
       case (tagName: String, paths: List[OpenApiPath]) =>
         val endpoints = paths.flatMap {
@@ -391,39 +395,23 @@ object OpenApiProcessor extends ProcessorHelper
         // Find resource type for an API. For most of the APIs, there will be only one resource type.
         // However, when inheritance is involved there can be multiple resource types i.e. each derived
         // type is a resource type.
-        val baseTypes = endpoints.foldLeft(Set[String]()) {
+        val resourceTypes = endpoints.foldLeft(Set[OpenApiResponse]()) {
           (types, endpoint) =>
-            val responseNames = endpoint.responses.flatMap {
-              response =>
-                response.respTypeOpt match {
-                  case Some(respType) => Some(respType.name)
-                  case _ => None
-                }
+            val nonEmptyResponses = endpoint.responses.filter(_.respTypeOpt.isDefined)
+            val taggedResponses = nonEmptyResponses.filter { rsp =>
+              assert(rsp.respTypeName == rsp.respTypeOpt.get.name,
+                s"Response type don't match. respTypeName=${rsp.respTypeName}, respTypeOpt=${rsp.respTypeOpt}")
+              taggedComponents.contains(rsp.respTypeName)
             }
-
-            val paramNames = endpoint.parameters.map {
-              param => param.param.getName
-            }
-
-            val responseAndParamNames = (responseNames ++ paramNames).toSet
-            // FIXME: The paramNames we get use parameter names specified in the yaml file while
-            //  getTaggedComponents return x-tf-resourceName as the name of an object. So, if a
-            //  body parameter is tagged as a terraform resource we won't find any baseTypes as
-            //  taggedComponents name and paramNames are two different values.
-            //  Either we change getTaggedComponents to return component name instead of
-            //  x-tf-resourceName value or we change paramNames to x-tf-resourceName like we do
-            //  for response object. My preference is to go with first option.
-            val taggedComponents = getTaggedComponents(openApi).keys.toSet
-            types ++ taggedComponents.intersect(responseAndParamNames)
+            types ++ taggedResponses
         }
-        logger.debug(s"api: $tagName, baseTypes: $baseTypes")
-        assert(baseTypes.nonEmpty, s"base type for api '$tagName' is empty")
+        logger.debug(s"api: $tagName, resourceTypes: $resourceTypes")
+        assert(resourceTypes.nonEmpty, s"base type for api '$tagName' is empty")
 
-        baseTypes.map {
-          baseType => TerraformResource(baseType, endpoints)
+        resourceTypes.map {
+          resType => TerraformResource(resType.respTypeName, resType, endpoints)
         }
     }
-    logger.debug(s"resources: $resources")
     resources.toList
   }
 
@@ -432,25 +420,25 @@ object OpenApiProcessor extends ProcessorHelper
     openApi.getPaths.asScala.filter {
       case (_: String, path: PathItem) =>
         val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
-          path.getPost.getExtensions.asScala.filterKeys(_ == "x-tf-create")
+          path.getPost.getExtensions.asScala.filterKeys(_ == TerraformPathExtensions.Create)
         } else {
           Map.empty[String, PathItem]
         }
 
         val getExtensions = if (path.getGet != null && path.getGet.getExtensions != null) {
-          path.getGet.getExtensions.asScala.filterKeys(_ == "x-tf-read")
+          path.getGet.getExtensions.asScala.filterKeys(_ == TerraformPathExtensions.Read)
         } else {
           Map.empty[String, AnyRef]
         }
 
         val putExtensions = if (path.getPut != null && path.getPut.getExtensions != null) {
-          path.getPut.getExtensions.asScala.filterKeys(_ == "x-tf-update")
+          path.getPut.getExtensions.asScala.filterKeys(_ == TerraformPathExtensions.Update)
         } else {
           Map.empty[String, AnyRef]
         }
 
         val deleteExtensions = if (path.getDelete != null && path.getDelete.getExtensions != null) {
-          path.getDelete.getExtensions.asScala.filterKeys(_ == "x-tf-delete")
+          path.getDelete.getExtensions.asScala.filterKeys(_ == TerraformPathExtensions.Delete)
         } else {
           Map.empty[String, AnyRef]
         }

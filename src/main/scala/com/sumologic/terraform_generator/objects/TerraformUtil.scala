@@ -1,12 +1,12 @@
 package com.sumologic.terraform_generator.objects
 
-object TerraformPathTags {
+object TerraformPathExtensions {
   final val Create = "x-tf-create"
   final val Read = "x-tf-read"
   final val Update = "x-tf-update"
   final val Delete = "x-tf-delete"
 
-  val tagsList = List(Create, Read, Update, Delete)
+  val TagsList = List(Create, Read, Update, Delete)
 }
 
 object TerraformModelExtensions {
@@ -17,23 +17,23 @@ object TerraformModelExtensions {
 object TerraformPropertyAttributes {
   final val UNIQUE = "unique"
 
-  val attributesList = List(UNIQUE)
+  val AttributesList = List(UNIQUE)
 }
 
 object TerraformSupportedOperations {
   final val CREATE = "create"
-  final val GET = "get"
+  final val READ = "read"
   final val UPDATE = "update"
   final val DELETE = "delete"
   final val EXISTS = "exists"
 
-  val crud = List(CREATE, GET, UPDATE, DELETE, EXISTS)
+  val CrudOps = List(CREATE, READ, UPDATE, DELETE, EXISTS)
 }
 
 object ForbiddenGoTerms {
   final val TYPE = "type"
 
-  val forbidden = List(TYPE)
+  val Forbidden = List(TYPE)
 }
 
 object TerraformSchemaTypes {

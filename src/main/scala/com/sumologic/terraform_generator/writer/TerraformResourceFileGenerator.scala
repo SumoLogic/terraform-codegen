@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.writer
 
-import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
+import com.sumologic.terraform_generator.StringHelper
 import com.sumologic.terraform_generator.objects._
 
 case class TerraformResourceFileGenerator(terraform: TerraformResource)
@@ -8,7 +8,7 @@ case class TerraformResourceFileGenerator(terraform: TerraformResource)
     with ResourceGeneratorHelper {
 
   def generate(): String = {
-    val specialImport = if (terraform.getMainObjectClass.props.exists {
+    val specialImport = if (terraform.getResourceType.props.exists {
       prop => prop.getType.props.nonEmpty
     }) {
       """"github.com/hashicorp/terraform-plugin-sdk/helper/validation""""
@@ -40,20 +40,19 @@ case class TerraformResourceFileGenerator(terraform: TerraformResource)
 
     val ops: String = terraform.endpoints.map {
       endpoint: OpenApiEndpoint =>
-        val gen = ResourceFunctionGenerator(endpoint, terraform.getMainObjectClass)
-        gen.terraformify(terraform)
+        val functionGenerator = ResourceFunctionGenerator(endpoint, terraform.getResourceType)
+        functionGenerator.generate
     }.mkString("\n")
 
-    val converters = getTerraformResourceDataToObjectConverter(terraform.getMainObjectClass)
+    val converters = getTerraformResourceDataToObjectConverter(terraform.getResourceType)
 
     fileHeader + "\n" + mappingSchema + "\n" + ops + "\n" + converters
   }
 }
 
 
-// FIXME: This class should not extend TerraformEntity as it doesn't make any sense.
 case class ResourceFunctionGenerator(endpoint: OpenApiEndpoint, mainClass: OpenApiType)
-    extends TerraformEntity {
+    extends StringHelper {
 
   val className: String = mainClass.name
   val objName: String = lowerCaseFirstLetter(className)
@@ -98,15 +97,14 @@ case class ResourceFunctionGenerator(endpoint: OpenApiEndpoint, mainClass: OpenA
     ""
   }
 
-  // TODO: This is gross, generalize if possible
-  def generateResourceFunctionGET(): String = {
+  def generateReadFunction: String = {
     val setters = mainClass.props.filter(_.getName.toLowerCase != "id").map {
       prop: OpenApiObject =>
         val name = prop.getName
         s"""d.Set("${removeCamelCase(name)}", $objName.${name.capitalize})""".stripMargin
     }.mkString("\n    ")
 
-    val clientCall = if (!requestMap.isEmpty) {
+    val clientCall = if (requestMap.nonEmpty) {
       s"$objName, err := c.Get$className(id, requestParams)"
     } else if (hasPathParam) {
       s"$objName, err := c.Get$className(id)"
@@ -138,9 +136,8 @@ case class ResourceFunctionGenerator(endpoint: OpenApiEndpoint, mainClass: OpenA
      |}""".stripMargin
   }
 
-  // TODO: This is gross, generalize if possible
-  def generateResourceFunctionDELETE(): String = {
-    val clientCall = if (!requestMap.isEmpty) {
+  def generateDeleteFunction: String = {
+    val clientCall = if (requestMap.nonEmpty) {
       s"c.Delete$className(d.Id(), requestParams)"
     } else if (hasPathParam) {
       s"c.Delete$className(d.Id())"
@@ -159,11 +156,10 @@ case class ResourceFunctionGenerator(endpoint: OpenApiEndpoint, mainClass: OpenA
 
   }
 
-  // TODO: This is gross, generalize if possible
-  def generateResourceFunctionUPDATE(): String = {
+  def generateUpdateFunction: String = {
     val lowerCaseName = parameter.substring(0, 1).toLowerCase() + parameter.substring(1)
 
-    val clientCall = if (!requestMap.isEmpty) {
+    val clientCall = if (requestMap.nonEmpty) {
       s"err := c.Update$className($lowerCaseName, requestParams)"
     } else {
       s"err := c.Update$className($lowerCaseName)"
@@ -185,11 +181,10 @@ case class ResourceFunctionGenerator(endpoint: OpenApiEndpoint, mainClass: OpenA
        |}""".stripMargin
   }
 
-  // TODO: This is gross, generalize if possible
-  def generateResourceFunctionCREATE(): String = {
+  def generateCreateFunction: String = {
     val lowerCaseName = parameter.substring(0, 1).toLowerCase() + parameter.substring(1)
 
-    val clientCall = if (!requestMap.isEmpty) {
+    val clientCall = if (requestMap.nonEmpty) {
       s"id, err := c.Create$className($lowerCaseName, requestParams)"
     } else {
       s"id, err := c.Create$className($lowerCaseName)"
@@ -216,8 +211,7 @@ case class ResourceFunctionGenerator(endpoint: OpenApiEndpoint, mainClass: OpenA
 
   }
 
-  // TODO: This is gross, generalize if possible
-  def generateResourceFunctionEXISTS(): String = {
+  def generateExistsFunction: String = {
     s"""
        |func resourceSumologic${className}Exists(d *schema.ResourceData, meta interface{}) error {
        |	c := meta.(*Client)
@@ -231,16 +225,12 @@ case class ResourceFunctionGenerator(endpoint: OpenApiEndpoint, mainClass: OpenA
        |}""".stripMargin
   }
 
-  // TODO: This is gross, generalize if possible
-  override def terraformify(baseTemplate: TerraformResource): String = {
-
-    crud.find {
-      op =>
-        endpoint.endpointName.toLowerCase.startsWith(op.toLowerCase) // || endpoint.endpointName.toLowerCase.contains("get")
-    } match {
-      case Some(opName) =>
-        this.getClass.getMethod("generateResourceFunction" + opName.toUpperCase()).invoke(this).toString
-      case None => ""
+  def generate: String = {
+    endpoint.endpointType match {
+      case TerraformPathExtensions.Create => generateCreateFunction
+      case TerraformPathExtensions.Read => generateReadFunction
+      case TerraformPathExtensions.Update => generateUpdateFunction
+      case TerraformPathExtensions.Delete => generateDeleteFunction
     }
   }
 }
