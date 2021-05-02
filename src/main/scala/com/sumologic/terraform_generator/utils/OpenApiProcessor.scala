@@ -382,6 +382,7 @@ object OpenApiProcessor extends ProcessorHelper
 
     val tagToPathMap = groupPathsByTag(terraformPaths)
 
+    val taggedComponents = getTaggedComponents(openApi).keys.toSet
     val resources = tagToPathMap.flatMap {
       case (tagName: String, paths: List[OpenApiPath]) =>
         val endpoints = paths.flatMap {
@@ -391,39 +392,23 @@ object OpenApiProcessor extends ProcessorHelper
         // Find resource type for an API. For most of the APIs, there will be only one resource type.
         // However, when inheritance is involved there can be multiple resource types i.e. each derived
         // type is a resource type.
-        val baseTypes = endpoints.foldLeft(Set[String]()) {
+        val resourceTypes = endpoints.foldLeft(Set[OpenApiResponse]()) {
           (types, endpoint) =>
-            val responseNames = endpoint.responses.flatMap {
-              response =>
-                response.respTypeOpt match {
-                  case Some(respType) => Some(respType.name)
-                  case _ => None
-                }
+            val nonEmptyResponses = endpoint.responses.filter(_.respTypeOpt.isDefined)
+            val taggedResponses = nonEmptyResponses.filter { rsp =>
+              assert(rsp.respTypeName == rsp.respTypeOpt.get.name,
+                s"Response type don't match. respTypeName=${rsp.respTypeName}, respTypeOpt=${rsp.respTypeOpt}")
+              taggedComponents.contains(rsp.respTypeName)
             }
-
-            val paramNames = endpoint.parameters.map {
-              param => param.param.getName
-            }
-
-            val responseAndParamNames = (responseNames ++ paramNames).toSet
-            // FIXME: The paramNames we get use parameter names specified in the yaml file while
-            //  getTaggedComponents return x-tf-resourceName as the name of an object. So, if a
-            //  body parameter is tagged as a terraform resource we won't find any baseTypes as
-            //  taggedComponents name and paramNames are two different values.
-            //  Either we change getTaggedComponents to return component name instead of
-            //  x-tf-resourceName value or we change paramNames to x-tf-resourceName like we do
-            //  for response object. My preference is to go with first option.
-            val taggedComponents = getTaggedComponents(openApi).keys.toSet
-            types ++ taggedComponents.intersect(responseAndParamNames)
+            types ++ taggedResponses
         }
-        logger.debug(s"api: $tagName, baseTypes: $baseTypes")
-        assert(baseTypes.nonEmpty, s"base type for api '$tagName' is empty")
+        logger.debug(s"api: $tagName, resourceTypes: $resourceTypes")
+        assert(resourceTypes.nonEmpty, s"base type for api '$tagName' is empty")
 
-        baseTypes.map {
-          baseType => TerraformResource(baseType, endpoints)
+        resourceTypes.map {
+          resType => TerraformResource(resType.respTypeName, endpoints)
         }
     }
-    logger.debug(s"resources: $resources")
     resources.toList
   }
 
