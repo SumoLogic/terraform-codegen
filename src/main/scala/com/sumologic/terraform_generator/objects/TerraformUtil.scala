@@ -22,12 +22,12 @@ object TerraformPropertyAttributes {
 
 object TerraformSupportedOperations {
   final val CREATE = "create"
-  final val GET = "get"
+  final val READ = "read"
   final val UPDATE = "update"
   final val DELETE = "delete"
   final val EXISTS = "exists"
 
-  val crud = List(CREATE, GET, UPDATE, DELETE, EXISTS)
+  val crud = List(CREATE, READ, UPDATE, DELETE, EXISTS)
 }
 
 object ForbiddenGoTerms {

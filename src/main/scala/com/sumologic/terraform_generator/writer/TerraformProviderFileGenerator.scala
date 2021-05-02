@@ -91,7 +91,7 @@ case class TerraformProviderFileGenerator(terraform: TerraformResource)
                  |}
                 |""".stripMargin
 
-    val className = terraform.getMainObjectClass.name
+    val className = terraform.getResourceType.name
     val lowerCaseClass = className.toLowerCase
 
 

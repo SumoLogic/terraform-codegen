@@ -28,10 +28,10 @@ case class TerraformDataSourceFileGenerator(terraform: TerraformResource)
                 |)
                 |""".stripMargin
 
-    val dataSourceFunction = DataSourceFunctionGenerator(terraform.getMainObjectClass)
+    val dataSourceFunction = DataSourceFunctionGenerator(terraform.getResourceType)
     pre + terraform.getDataSourceFuncMappings +
       dataSourceFunction.terraformify(terraform) +
-      getTerraformObjectToResourceDataConverter(terraform.getMainObjectClass)
+      getTerraformObjectToResourceDataConverter(terraform.getResourceType)
   }
 }
 

@@ -406,7 +406,7 @@ object OpenApiProcessor extends ProcessorHelper
         assert(resourceTypes.nonEmpty, s"base type for api '$tagName' is empty")
 
         resourceTypes.map {
-          resType => TerraformResource(resType.respTypeName, endpoints)
+          resType => TerraformResource(resType.respTypeName, resType, endpoints)
         }
     }
     resources.toList

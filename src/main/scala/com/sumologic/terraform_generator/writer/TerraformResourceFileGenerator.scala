@@ -8,7 +8,7 @@ case class TerraformResourceFileGenerator(terraform: TerraformResource)
     with ResourceGeneratorHelper {
 
   def generate(): String = {
-    val specialImport = if (terraform.getMainObjectClass.props.exists {
+    val specialImport = if (terraform.getResourceType.props.exists {
       prop => prop.getType.props.nonEmpty
     }) {
       """"github.com/hashicorp/terraform-plugin-sdk/helper/validation""""
@@ -40,11 +40,11 @@ case class TerraformResourceFileGenerator(terraform: TerraformResource)
 
     val ops: String = terraform.endpoints.map {
       endpoint: OpenApiEndpoint =>
-        val gen = ResourceFunctionGenerator(endpoint, terraform.getMainObjectClass)
+        val gen = ResourceFunctionGenerator(endpoint, terraform.getResourceType)
         gen.terraformify(terraform)
     }.mkString("\n")
 
-    val converters = getTerraformResourceDataToObjectConverter(terraform.getMainObjectClass)
+    val converters = getTerraformResourceDataToObjectConverter(terraform.getResourceType)
 
     fileHeader + "\n" + mappingSchema + "\n" + ops + "\n" + converters
   }
