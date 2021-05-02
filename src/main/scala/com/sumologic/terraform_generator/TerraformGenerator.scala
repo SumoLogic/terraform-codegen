@@ -64,15 +64,15 @@ object TerraformGenerator
 
   def generate(openApi: OpenAPI): Unit = {
     try {
-      val templates = OpenApiProcessor.process(openApi)
-      templates.foreach {
-        template =>
-          logger.info(s"Resource: '${template.resourceName}' - " +
-              s"${template.endpoints.head.responses.head}")
-          writeFiles(template, template.resourceName)
+      val resources = OpenApiProcessor.process(openApi)
+      resources.foreach {
+        resource =>
+          logger.info(s"Resource: '${resource.resourceName}' - " +
+              s"${resource.endpoints.head.responses.head}")
+          writeFiles(resource, resource.resourceName)
       }
 
-      val provider = ProviderFileGenerator(templates.map(_.resourceName))
+      val provider = ProviderFileGenerator(resources.map(_.resourceName))
       provider.writeToFile(Paths.get(resourcesDirectory, "provider.go").toString)
     } catch {
       case ex: Exception =>

@@ -243,7 +243,7 @@ case class OpenApiEndpoint(endpointName: String,
     reqHeaders
   }
 
-  override def terraformify(baseTemplate: TerraformResource): String = {
+  override def terraformify(resource: TerraformResource): String = {
     val urlWithoutParamsString =
       s"""urlWithoutParams := "${path.replaceFirst(s"\\{id\\}", "%s")}"""".replaceFirst("/", "")
 
@@ -260,7 +260,7 @@ case class OpenApiEndpoint(endpointName: String,
     val urlCall = getUrlCallBasedOnHttpMethod(urlArg)
 
     val response = getReturnTypesBasedOnResponse
-    val args = makeArgsListForDecl(this.parameters, baseTemplate.resourceName)
+    val args = makeArgsListForDecl(this.parameters, resource.resourceName)
 
     s"""
        |func (s *Client) ${this.endpointName.capitalize}($args) ${response.declReturnType} {

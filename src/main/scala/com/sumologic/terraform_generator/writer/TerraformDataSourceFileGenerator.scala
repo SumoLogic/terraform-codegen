@@ -45,7 +45,7 @@ case class DataSourceFunctionGenerator(mainClass: OpenApiType)
     s"""resourceData.Set("$propName", $objName.$propName)""".stripMargin
   }
 
-  override def terraformify(baseTemplate: TerraformResource): String = {
+  override def terraformify(resource: TerraformResource): String = {
     val className = mainClass.name
     val objName = lowerCaseFirstLetter(className)
 

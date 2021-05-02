@@ -4,5 +4,5 @@ import com.sumologic.terraform_generator.StringHelper
 
 abstract class TerraformEntity extends StringHelper {
   def indent = "    "
-  def terraformify(baseTemplate: TerraformResource): String = ""
+  def terraformify(resource: TerraformResource): String = ""
 }

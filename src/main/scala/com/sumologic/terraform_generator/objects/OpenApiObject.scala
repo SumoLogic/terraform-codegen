@@ -122,7 +122,7 @@ case class OpenApiSimpleObject(name: String,
     attribute,
     createOnly) {
 
-  override def terraformify(baseTemplate: TerraformResource): String = {
+  override def terraformify(resource: TerraformResource): String = {
     val req = if (name.toLowerCase != "id") {
       ""
     } else {
@@ -176,7 +176,7 @@ case class OpenApiArrayObject(name: String,
   // Captures the type of item contained with in the array object.
   var items: OpenApiObject = _
 
-  override def terraformify(baseTemplate: TerraformResource): String = {
+  override def terraformify(resource: TerraformResource): String = {
     val req = if (required) {
       ""
     } else {
@@ -331,7 +331,7 @@ case class OpenApiRefObject(name: String,
        |}""".stripMargin
   }
 
-  override def terraformify(baseTemplate: TerraformResource): String = {
+  override def terraformify(resource: TerraformResource): String = {
     val req = if (required) {
       ""
     } else {
