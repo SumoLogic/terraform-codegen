@@ -75,9 +75,12 @@ setupProvider() {
   echo "-------------------------------------------------------------------------------"
   echo "Setting up Terraform Provider"
   echo "-------------------------------------------------------------------------------"
-  rm -fr $TF_SUMOLOGIC_PROVIDER_DIR
-  mkdir -p $TF_PROVIDER_OUTPUT_DIR
-  cloneProvider
+
+  if [ "$skipClone" != "true" ]; then
+    rm -fr $TF_SUMOLOGIC_PROVIDER_DIR
+    mkdir -p $TF_PROVIDER_OUTPUT_DIR
+    cloneProvider
+  fi
   mv -vf $TF_CODEGEN_DIR/target/resources/resource_sumologic_*.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
   mv -vf $TF_CODEGEN_DIR/target/resources/sumologic_*.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
   mv -vf $TF_CODEGEN_DIR/target/resources/provider.go $TF_SUMOLOGIC_PROVIDER_DIR/sumologic
@@ -136,14 +139,16 @@ usage() {
       -f <yaml-file>                Input yaml file
       -d <output-dir-for-provider>  Output directory for the provider
       -t                            Run acceptance tests
+      -s                            Skip provider repo clone
       -h                            Display this help message
   "
   exit 0
 }
 
-while getopts 'tf:d:h' flag; do
+while getopts 'tsf:d:h' flag; do
   case "${flag}" in
     t) test="true" ;;
+    s) skipClone="true" ;;
     f) yaml="${OPTARG}" ;;
     d) cloneDir="${OPTARG}" ;;
     h | *) usage ;;
