@@ -259,7 +259,7 @@ object OpenApiProcessor extends ProcessorHelper
     val isWriteOnly = isPropertyWriteOnly(openApi, propName, modelName)
 
     val (name, attribute) = getNameAndAttribute(propName)
-    if (attribute.nonEmpty && !TerraformPropertyAttributes.attributesList.contains(attribute)) {
+    if (attribute.nonEmpty && !TerraformPropertyAttributes.AttributesList.contains(attribute)) {
       throw new RuntimeException(s"Invalid attribute for property: $name")
     }
 
@@ -345,9 +345,12 @@ object OpenApiProcessor extends ProcessorHelper
     }
 
     val allParams = params ++ requestBody
-    val endpointName = operation.getExtensions.asScala.head._2.toString
     logger.debug(s"Operation: ${operation.getOperationId} - params=$allParams, responses=$responses")
-    OpenApiEndpoint(endpointName, pathName, method.name(), allParams, responses)
+    // NOTE: This assumes we only have terraform related extension
+    val endpointName = operation.getExtensions.asScala.head._2.toString
+    val endpointType = operation.getExtensions.asScala.head._1
+    assert(endpointType.startsWith("x-tf"), s"Operation ${operation.getOperationId} has more than one extension")
+    OpenApiEndpoint(endpointName, endpointType, pathName, method.name(), allParams, responses)
   }
 
   def processPath(openApi: OpenAPI, path: PathItem, pathName: String): List[OpenApiEndpoint] = {
@@ -417,25 +420,25 @@ object OpenApiProcessor extends ProcessorHelper
     openApi.getPaths.asScala.filter {
       case (_: String, path: PathItem) =>
         val postExtensions = if (path.getPost != null && path.getPost.getExtensions != null) {
-          path.getPost.getExtensions.asScala.filterKeys(_ == "x-tf-create")
+          path.getPost.getExtensions.asScala.filterKeys(_ == TerraformPathExtensions.Create)
         } else {
           Map.empty[String, PathItem]
         }
 
         val getExtensions = if (path.getGet != null && path.getGet.getExtensions != null) {
-          path.getGet.getExtensions.asScala.filterKeys(_ == "x-tf-read")
+          path.getGet.getExtensions.asScala.filterKeys(_ == TerraformPathExtensions.Read)
         } else {
           Map.empty[String, AnyRef]
         }
 
         val putExtensions = if (path.getPut != null && path.getPut.getExtensions != null) {
-          path.getPut.getExtensions.asScala.filterKeys(_ == "x-tf-update")
+          path.getPut.getExtensions.asScala.filterKeys(_ == TerraformPathExtensions.Update)
         } else {
           Map.empty[String, AnyRef]
         }
 
         val deleteExtensions = if (path.getDelete != null && path.getDelete.getExtensions != null) {
-          path.getDelete.getExtensions.asScala.filterKeys(_ == "x-tf-delete")
+          path.getDelete.getExtensions.asScala.filterKeys(_ == TerraformPathExtensions.Delete)
         } else {
           Map.empty[String, AnyRef]
         }

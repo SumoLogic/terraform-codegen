@@ -1,6 +1,6 @@
 package com.sumologic.terraform_generator.objects
 
-import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.crud
+import com.sumologic.terraform_generator.objects.TerraformSupportedOperations.CrudOps
 
 case class TerraformResource(resourceName: String,
                              resource: OpenApiResponse,
@@ -55,7 +55,7 @@ case class TerraformResource(resourceName: String,
 
   def getResourceFuncMappings: String = {
     val funcMappings: String = getFunctionMappings(
-      crud.filter(_.toLowerCase != "exists")
+      CrudOps.filter(_.toLowerCase != "exists")
     ).mkString(",\n").concat(",")
 
     val props = resource.respTypeOpt.get.props.filterNot {

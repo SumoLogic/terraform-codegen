@@ -1,6 +1,7 @@
 package com.sumologic.terraform_generator.objects
 
 case class OpenApiEndpoint(endpointName: String,
+                           endpointType: String,
                            path: String,
                            httpMethod: String,
                            parameters: List[OpenApiParameter],
