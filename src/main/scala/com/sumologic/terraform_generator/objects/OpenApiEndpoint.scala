@@ -95,10 +95,13 @@ case class OpenApiEndpoint(endpointName: String,
       lowerCaseFirstLetter(taggedResource)
     }
 
+    // FIXME: Setting admin mode to false for now. Will add support for admin mode later.
+    val adminMode = false
+
     httpMethod.toLowerCase match {
       case "get" =>
         s"""
-           |    data, _, err := s.Get($urlArg)
+           |    data, _, err := s.Get($urlArg, $adminMode)
            |    if err != nil {
            |	 		  return nil, err
            |	 	}
@@ -109,7 +112,7 @@ case class OpenApiEndpoint(endpointName: String,
 
       case "post" =>
         s"""
-           |    data, err := s.Post($urlArg, $varName)
+           |    data, err := s.Post($urlArg, $varName, $adminMode)
            |    if err != nil {
            |	 		  return "", err
            |	 	}
@@ -140,7 +143,7 @@ case class OpenApiEndpoint(endpointName: String,
            |    ${resourceVar}.ID = ""
            |    $writeOnlyPropsString
            |
-           |    _, err := s.Put($urlArg, $resourceVar)
+           |    _, err := s.Put($urlArg, $resourceVar, $adminMode)
            |""".stripMargin
 
       case _ =>
