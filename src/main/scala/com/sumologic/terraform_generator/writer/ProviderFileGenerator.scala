@@ -174,6 +174,7 @@ case class ProviderFunctionGenerator(taggedApis: List[String]) extends StringHel
   def generateDataSourcesMap(): String = {
     """
       |   DataSourcesMap: map[string]*schema.Resource{
+      |     "sumologic_admin_recommended_folder": dataSourceSumologicAdminRecommendedFolder(),
       |			"sumologic_caller_identity": dataSourceSumologicCallerIdentity(),
       |			"sumologic_collector":       dataSourceSumologicCollector(),
       |			"sumologic_http_source":     dataSourceSumologicHTTPSource(),
